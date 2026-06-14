@@ -1,0 +1,80 @@
+package com.mhurston.ascendant.domain
+
+import java.time.DayOfWeek
+import java.time.LocalDate
+import java.time.temporal.WeekFields
+
+enum class Cadence { DAILY, WEEKLY }
+
+data class Quest(
+    val id: String,
+    val title: String,
+    val desc: String,
+    val current: Int,
+    val target: Int,
+    val xpReward: Int,
+    val cadence: Cadence
+) {
+    val done: Boolean get() = current >= target
+    val progress: Float get() = if (target <= 0) 0f else (current.toFloat() / target).coerceIn(0f, 1f)
+}
+
+/** Generates today's daily quests + this week's weekly quests from the log. Day-aware. */
+object Quests {
+
+    fun generate(today: LocalDate, todayDay: DayData, allDays: List<DayData>): List<Quest> {
+        val daily = dailyQuests(today, todayDay)
+        val weekly = weeklyQuests(today, allDays)
+        return daily + weekly
+    }
+
+    private fun dailyQuests(today: LocalDate, d: DayData): List<Quest> {
+        val compPct = (Progression.completion(d) * 100).toInt()
+        val anyReps = d.strengthReps
+        val isBossDay = today.dayOfWeek in setOf(DayOfWeek.WEDNESDAY, DayOfWeek.FRIDAY, DayOfWeek.SATURDAY)
+        val coreXp = if (isBossDay) 180 else 150 // weak-day quests pay a little more
+        return listOf(
+            Quest("d_full", if (isBossDay) "Boss Rush: 100%" else "Reach 100% today",
+                "Complete every target today.", compPct, 100, coreXp, Cadence.DAILY),
+            Quest("d_pushups", "Complete 100 push-ups",
+                "The lift you skip most.", d.pushups, 100, 100, Cadence.DAILY),
+            Quest("d_safety", "Do 20 reps of anything",
+                "Bare minimum keeps the streak alive.", anyReps, 20, 50, Cadence.DAILY),
+            Quest("d_walk", "Walk 4 miles", "Bonus cardio.", (d.miles).toInt(), 4, 60, Cadence.DAILY)
+        )
+    }
+
+    private fun weeklyQuests(today: LocalDate, allDays: List<DayData>): List<Quest> {
+        val week = allDays.filter { isSameWeek(it.date, today) }
+        val strengthDays = week.count { it.hasStrength }
+        val weekMiles = week.sumOf { it.miles }.toInt()
+        val bestStreakThisWeek = currentStreakWithinWeek(week, today)
+        return listOf(
+            Quest("w_strength5", "Train strength 5 of 7 days",
+                "Beat your average active rate.", strengthDays, 5, 400, Cadence.WEEKLY),
+            Quest("w_miles25", "Walk 25 miles this week",
+                "You average ~27.", weekMiles, 25, 400, Cadence.WEEKLY),
+            Quest("w_streak5", "Hold a 5-day strength streak",
+                "Tie then break your record.", bestStreakThisWeek, 5, 500, Cadence.WEEKLY)
+        )
+    }
+
+    private fun isSameWeek(a: LocalDate, b: LocalDate): Boolean {
+        val wf = WeekFields.ISO
+        return a.get(wf.weekOfWeekBasedYear()) == b.get(wf.weekOfWeekBasedYear()) &&
+            a.get(wf.weekBasedYear()) == b.get(wf.weekBasedYear())
+    }
+
+    private fun currentStreakWithinWeek(week: List<DayData>, today: LocalDate): Int {
+        // Longest run of consecutive strength days within this week.
+        val sorted = week.sortedBy { it.date }
+        var best = 0; var run = 0; var prev: LocalDate? = null
+        for (d in sorted) {
+            val consecutive = prev?.let { java.time.temporal.ChronoUnit.DAYS.between(it, d.date) == 1L } ?: true
+            run = if (d.hasStrength && consecutive) run + 1 else if (d.hasStrength) 1 else 0
+            best = maxOf(best, run)
+            prev = d.date
+        }
+        return best
+    }
+}

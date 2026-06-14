@@ -1,0 +1,10 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <!-- Base app theme. Compose draws the real UI; this just sets the window
+         background + bars so there is no white flash before Compose loads. -->
+    <style name="Theme.Ascendant" parent="@android:style/Theme.Material.NoActionBar">
+        <item name="android:windowBackground">@color/ascendant_bg</item>
+        <item name="android:statusBarColor">@color/ascendant_bg</item>
+        <item name="android:navigationBarColor">@color/ascendant_bg</item>
+    </style>
+</resources>

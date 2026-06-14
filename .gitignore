@@ -1,0 +1,20 @@
+# Build
+.gradle/
+.gradle-home/
+build/
+app/build/
+
+# Local tooling (machine-specific, project-local — not for version control)
+local.properties
+/jdk/
+/android-sdk/
+/gradle-dist/
+
+# Emulator / QA artifacts (machine-local)
+.avd/
+qa-*.png
+
+# IDE
+.idea/
+*.iml
+.DS_Store
