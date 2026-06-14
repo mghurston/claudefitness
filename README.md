@@ -25,7 +25,7 @@ A single-user, Android-only, offline-first app that replaces a Google Sheets wor
 
 **Data & QA:** Room (workout log, schema v3 with migrations) + DataStore (profile/settings); unit tests + lint pass; verified live on emulator (launch, logging, persistence across process death, migrations).
 
-**Not yet done (optional):** per-rank portrait *art* variants (currently an aura-frame), custom-exercise achievements, Orbitron on section titles. Working tree currently uncommitted on `main`.
+**Open items & on-device test checklist:** see [Open Items & Device Test Checklist.md](docs/Open%20Items%20&%20Device%20Test%20Checklist.md) — tracks what's verified, what still needs testing on a real phone (reminders firing, video links, export/restore), and remaining optional polish.
 
 ---
 
