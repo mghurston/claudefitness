@@ -29,6 +29,15 @@ object Progression {
 
     private val WEAK_DAYS = setOf(DayOfWeek.WEDNESDAY, DayOfWeek.FRIDAY, DayOfWeek.SATURDAY)
 
+    // Custom (supplementary) exercises: flat bonus XP, no completion/stat/multiplier effect.
+    // Capped per exercise per day so side work can't dwarf the tuned core.
+    const val CUSTOM_XP_PER_REP = 0.5
+    const val CUSTOM_REP_SOFTCAP = 200
+
+    /** Bonus XP from supplementary custom exercises — added raw, outside all multipliers. */
+    fun customBonusXp(d: DayData): Long =
+        Math.round(d.customReps.values.sumOf { min(it.coerceAtLeast(0), CUSTOM_REP_SOFTCAP) * CUSTOM_XP_PER_REP })
+
     // Inactivity decay (user choice): each idle day costs HALF of a full target day's
     // base XP. A full 100×5-reps + 5-mile day = 510 base XP → 255 lost per idle day.
     const val DECAY_PER_IDLE_DAY = 255L
@@ -150,7 +159,7 @@ object Progression {
             }
             longestStrength = maxOf(longestStrength, strengthStreak)
 
-            val xp = dayXp(d, strengthStreak)
+            val xp = dayXp(d, strengthStreak) + customBonusXp(d)
             totalXp += xp
             val comp = completion(d)
             derived[d.date] = DayDerived(comp, xp)

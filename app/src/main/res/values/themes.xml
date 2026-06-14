@@ -7,4 +7,10 @@
         <item name="android:statusBarColor">@color/ascendant_bg</item>
         <item name="android:navigationBarColor">@color/ascendant_bg</item>
     </style>
+
+    <!-- Native launch splash (pre-API-31): logo on the brand background, drawn by
+         the system before the app renders. MainActivity swaps to Theme.Ascendant. -->
+    <style name="Theme.Ascendant.Splash" parent="Theme.Ascendant">
+        <item name="android:windowBackground">@drawable/splash_logo</item>
+    </style>
 </resources>

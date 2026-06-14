@@ -4,6 +4,7 @@ import androidx.compose.material3.Typography
 import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.font.Font
 import androidx.compose.ui.text.font.FontFamily
+import androidx.compose.ui.text.font.FontVariation
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.sp
 import com.mhurston.ascendant.R
@@ -16,12 +17,24 @@ val Rajdhani = FontFamily(
     Font(R.font.rajdhani_bold, FontWeight.Bold)
 )
 
+// Orbitron (OFL) — geometric, sci-fi "HUD" face used for big titles/headers.
+// Variable font (wght axis); we pin weights via variation settings (API 26+).
+@OptIn(androidx.compose.ui.text.ExperimentalTextApi::class)
+val Orbitron = FontFamily(
+    Font(R.font.orbitron_variable, FontWeight.SemiBold,
+        variationSettings = FontVariation.Settings(FontVariation.weight(600))),
+    Font(R.font.orbitron_variable, FontWeight.Bold,
+        variationSettings = FontVariation.Settings(FontVariation.weight(700))),
+    Font(R.font.orbitron_variable, FontWeight.Black,
+        variationSettings = FontVariation.Settings(FontVariation.weight(900)))
+)
+
 val Typography = Typography(
     headlineMedium = TextStyle(
-        fontFamily = Rajdhani,
-        fontWeight = FontWeight.Bold,
-        fontSize = 30.sp,
-        letterSpacing = 1.0.sp
+        fontFamily = Orbitron,
+        fontWeight = FontWeight.Black,
+        fontSize = 26.sp,
+        letterSpacing = 1.5.sp
     ),
     titleLarge = TextStyle(
         fontFamily = Rajdhani,

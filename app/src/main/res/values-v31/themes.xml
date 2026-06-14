@@ -1,0 +1,10 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <!-- API 31+ native splash: the platform SplashScreen API reveals the app icon
+         on the brand background. Overrides the pre-31 windowBackground variant. -->
+    <style name="Theme.Ascendant.Splash" parent="Theme.Ascendant">
+        <item name="android:windowSplashScreenBackground">@color/ascendant_bg</item>
+        <item name="android:windowSplashScreenAnimatedIcon">@drawable/ic_launcher_foreground</item>
+        <item name="android:windowSplashScreenIconBackgroundColor">@color/ic_launcher_background</item>
+    </style>
+</resources>

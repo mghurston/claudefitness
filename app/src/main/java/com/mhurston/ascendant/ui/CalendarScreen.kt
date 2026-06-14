@@ -50,6 +50,9 @@ fun CalendarScreen(
     onAddReps: (String, ExerciseKind, Int) -> Unit,
     onAddMiles: (String, Double) -> Unit,
     onResetDay: (String) -> Unit,
+    onSetMood: (String, Int) -> Unit = { _, _ -> },
+    onSetNotes: (String, String) -> Unit = { _, _ -> },
+    onAddCustomReps: (String, String, Int) -> Unit = { _, _, _ -> },
     modifier: Modifier = Modifier
 ) {
     val today = LocalDate.now()
@@ -69,6 +72,10 @@ fun CalendarScreen(
             onAddReps = { kind, delta -> onAddReps(date.toString(), kind, delta) },
             onAddMiles = { delta -> onAddMiles(date.toString(), delta) },
             onReset = { onResetDay(date.toString()) },
+            onSetMood = { m -> onSetMood(date.toString(), m) },
+            onSetNotes = { n -> onSetNotes(date.toString(), n) },
+            customExercises = state.customExercises,
+            onAddCustomReps = { id, delta -> onAddCustomReps(date.toString(), id, delta) },
             onDismiss = { selected = null }
         )
     }
@@ -232,6 +239,10 @@ private fun DayEditorDialog(
     onAddReps: (ExerciseKind, Int) -> Unit,
     onAddMiles: (Double) -> Unit,
     onReset: () -> Unit,
+    onSetMood: (Int) -> Unit,
+    onSetNotes: (String) -> Unit,
+    customExercises: List<com.mhurston.ascendant.domain.CustomExercise> = emptyList(),
+    onAddCustomReps: (String, Int) -> Unit = { _, _ -> },
     onDismiss: () -> Unit
 ) {
     var confirmReset by remember { mutableStateOf(false) }
@@ -269,6 +280,20 @@ private fun DayEditorDialog(
                 EditRow("Calf Raises", e.calfRaises) { onAddReps(ExerciseKind.CALF_RAISES, it) }
                 EditRow("Curls", e.curls) { onAddReps(ExerciseKind.CURLS, it) }
                 MilesEditRow(e.miles, onAddMiles)
+                if (customExercises.isNotEmpty()) {
+                    val customReps = WorkoutDayEntity.decodeCustomReps(e.customReps)
+                    customExercises.forEach { ex ->
+                        EditRow(ex.name, customReps[ex.id] ?: 0) { onAddCustomReps(ex.id, it) }
+                    }
+                }
+                Spacer(Modifier.height(12.dp))
+                JournalSection(
+                    dateKey = date.toString(),
+                    mood = e.mood,
+                    notes = e.notes,
+                    onMood = onSetMood,
+                    onNotes = onSetNotes
+                )
                 Spacer(Modifier.height(8.dp))
                 OutlinedButton(
                     onClick = { confirmReset = true },

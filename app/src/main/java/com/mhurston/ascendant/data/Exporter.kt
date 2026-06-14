@@ -44,6 +44,8 @@ object Exporter {
             sb.append("\"curls\": ${d.curls}, \"miles\": ${d.miles}, ")
             sb.append("\"caloriesConsumed\": ${d.caloriesConsumed}, ")
             sb.append("\"isRestDay\": ${d.isRestDay}, ")
+            sb.append("\"mood\": ${d.mood}, ")
+            sb.append("\"customReps\": \"${esc(d.customReps)}\", ")
             sb.append("\"notes\": \"${esc(d.notes)}\"}")
             sb.append(if (i < sorted.lastIndex) ",\n" else "\n")
         }
@@ -79,7 +81,9 @@ object Exporter {
                         miles = d.optDouble("miles", 0.0),
                         caloriesConsumed = d.optInt("caloriesConsumed"),
                         isRestDay = d.optBoolean("isRestDay", false),
-                        notes = d.optString("notes", "")
+                        notes = d.optString("notes", ""),
+                        mood = d.optInt("mood", 0),
+                        customReps = d.optString("customReps", "")
                     )
                 )
             }

@@ -8,6 +8,7 @@ import com.mhurston.ascendant.data.WorkoutDayEntity
 import com.mhurston.ascendant.domain.AchStatus
 import com.mhurston.ascendant.domain.Achievements
 import com.mhurston.ascendant.domain.CharacterState
+import com.mhurston.ascendant.domain.CustomExercise
 import com.mhurston.ascendant.domain.DayData
 import com.mhurston.ascendant.domain.DayDerived
 import com.mhurston.ascendant.domain.Profile
@@ -35,7 +36,8 @@ data class UiState(
     val achievements: List<AchStatus> = emptyList(),
     val quests: List<Quest> = emptyList(),
     val favoriteVideoUrls: Set<String> = emptySet(),
-    val userVideos: List<VideoLink> = emptyList()
+    val userVideos: List<VideoLink> = emptyList(),
+    val customExercises: List<CustomExercise> = emptyList()
 )
 
 class AppViewModel(app: Application) : AndroidViewModel(app) {
@@ -51,8 +53,14 @@ class AppViewModel(app: Application) : AndroidViewModel(app) {
 
     val state: StateFlow<UiState> =
         combine(
-            repo.days, repo.profile, repo.decayAnchor, repo.favoriteVideoUrls, repo.userVideos
-        ) { days, profile, anchorStr, favVideos, userVideos ->
+            repo.days,
+            repo.profile,
+            repo.decayAnchor,
+            combine(repo.favoriteVideoUrls, repo.userVideos, repo.customExercises) {
+                fav, uv, custom -> Triple(fav, uv, custom)
+            }
+        ) { days, profile, anchorStr, videoAndCustom ->
+            val (favVideos, userVideos, customExercises) = videoAndCustom
             val today = LocalDate.now()
             val anchor = anchorStr?.let { runCatching { LocalDate.parse(it) }.getOrNull() } ?: today
             val todayStr = today.toString()
@@ -72,7 +80,8 @@ class AppViewModel(app: Application) : AndroidViewModel(app) {
                 achievements = Achievements.evaluate(dayData, character),
                 quests = Quests.generate(today, todayEntity.toDayData(), dayData),
                 favoriteVideoUrls = favVideos,
-                userVideos = userVideos
+                userVideos = userVideos,
+                customExercises = customExercises
             )
         }.stateIn(
             scope = viewModelScope,
@@ -128,6 +137,30 @@ class AppViewModel(app: Application) : AndroidViewModel(app) {
     fun setConsumed(value: Int) = mutateDay(todayStr()) { cur ->
         cur.copy(caloriesConsumed = value.coerceAtLeast(0))
     }
+
+    // --- journal: notes + mood (any date) ------------------------------------
+    fun setNotesForDate(date: String, notes: String) =
+        mutateDay(date) { it.copy(notes = notes.take(500)) }
+
+    /** mood: 0 clears it, otherwise clamp to 1..5. */
+    fun setMoodForDate(date: String, mood: Int) =
+        mutateDay(date) { it.copy(mood = mood.coerceIn(0, 5)) }
+
+    fun setNotesToday(notes: String) = setNotesForDate(todayStr(), notes)
+    fun setMoodToday(mood: Int) = setMoodForDate(todayStr(), mood)
+
+    // --- custom (supplementary) exercises ------------------------------------
+    fun addCustomExercise(name: String) { viewModelScope.launch { repo.addCustomExercise(name) } }
+    fun removeCustomExercise(id: String) { viewModelScope.launch { repo.removeCustomExercise(id) } }
+
+    fun addCustomRepsForDate(date: String, id: String, delta: Int) = mutateDay(date) { cur ->
+        val m = WorkoutDayEntity.decodeCustomReps(cur.customReps).toMutableMap()
+        val next = ((m[id] ?: 0) + delta).coerceAtLeast(0)
+        if (next == 0) m.remove(id) else m[id] = next
+        cur.copy(customReps = WorkoutDayEntity.encodeCustomReps(m))
+    }
+
+    fun addCustomRepsToday(id: String, delta: Int) = addCustomRepsForDate(todayStr(), id, delta)
 
     fun resetToday() = resetDay(todayStr())
 

@@ -1,0 +1,10 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Pre-API-31 native splash: brand background with the app logo centered. -->
+<layer-list xmlns:android="http://schemas.android.com/apk/res/android">
+    <item android:drawable="@color/ascendant_bg" />
+    <item
+        android:width="200dp"
+        android:height="200dp"
+        android:gravity="center"
+        android:drawable="@drawable/ic_launcher_img" />
+</layer-list>

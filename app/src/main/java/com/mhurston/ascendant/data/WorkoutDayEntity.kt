@@ -21,7 +21,11 @@ data class WorkoutDayEntity(
     val miles: Double = 0.0,
     val caloriesConsumed: Int = 0,
     val isRestDay: Boolean = false,
-    val notes: String = ""
+    val notes: String = "",
+    /** 0 = unset, 1 (drained) .. 5 (unstoppable). Journaling only — never affects XP. */
+    val mood: Int = 0,
+    /** Supplementary custom-exercise reps, encoded "id:reps,id:reps". Bonus XP only. */
+    val customReps: String = ""
 ) {
     fun toDayData(): DayData = DayData(
         date = LocalDate.parse(date),
@@ -31,6 +35,27 @@ data class WorkoutDayEntity(
         calfRaises = calfRaises,
         curls = curls,
         miles = miles,
-        isRestDay = isRestDay
+        isRestDay = isRestDay,
+        notes = notes,
+        mood = mood,
+        customReps = decodeCustomReps(customReps)
     )
+
+    companion object {
+        /** "id:reps,id:reps" -> map. Ignores malformed/zero entries. */
+        fun decodeCustomReps(encoded: String): Map<String, Int> =
+            if (encoded.isBlank()) emptyMap() else buildMap {
+                encoded.split(",").forEach { part ->
+                    val i = part.lastIndexOf(':')
+                    if (i > 0) {
+                        val id = part.substring(0, i)
+                        val reps = part.substring(i + 1).toIntOrNull() ?: 0
+                        if (reps != 0) put(id, reps)
+                    }
+                }
+            }
+
+        fun encodeCustomReps(map: Map<String, Int>): String =
+            map.filterValues { it != 0 }.entries.joinToString(",") { "${it.key}:${it.value}" }
+    }
 }

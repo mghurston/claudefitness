@@ -35,6 +35,33 @@ class ProfileStore(private val context: Context) {
         val REMINDER_ON = booleanPreferencesKey("reminder_on")
         val UNIT_SYSTEM = stringPreferencesKey("unit_system")
         val AVATAR = stringPreferencesKey("avatar")
+        val CUSTOM_EXERCISES = stringSetPreferencesKey("custom_exercises") // "id<|>name"
+    }
+
+    // --- Custom (supplementary) exercise definitions --------------------------
+    val customExercises: Flow<List<com.mhurston.ascendant.domain.CustomExercise>> =
+        context.dataStore.data.map { p ->
+            (p[Keys.CUSTOM_EXERCISES] ?: emptySet()).mapNotNull { encoded ->
+                val parts = encoded.split(VIDEO_SEP)
+                if (parts.size == 2) com.mhurston.ascendant.domain.CustomExercise(parts[0], parts[1]) else null
+            }.sortedBy { it.name.lowercase() }
+        }
+
+    suspend fun addCustomExercise(name: String) {
+        val clean = name.trim().take(40)
+        if (clean.isBlank()) return
+        val id = "c${System.currentTimeMillis()}"
+        context.dataStore.edit { prefs ->
+            val cur = prefs[Keys.CUSTOM_EXERCISES] ?: emptySet()
+            prefs[Keys.CUSTOM_EXERCISES] = cur + "$id$VIDEO_SEP$clean"
+        }
+    }
+
+    suspend fun removeCustomExercise(id: String) {
+        context.dataStore.edit { prefs ->
+            val cur = prefs[Keys.CUSTOM_EXERCISES] ?: emptySet()
+            prefs[Keys.CUSTOM_EXERCISES] = cur.filterNot { it.substringBefore(VIDEO_SEP) == id }.toSet()
+        }
     }
 
     val avatar: Flow<com.mhurston.ascendant.domain.Avatar> = context.dataStore.data.map {

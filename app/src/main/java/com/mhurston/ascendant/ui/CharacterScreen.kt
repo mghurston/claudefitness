@@ -11,7 +11,9 @@ import androidx.compose.foundation.layout.padding
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.Image
+import androidx.compose.foundation.background
 import androidx.compose.foundation.border
+import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.aspectRatio
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
@@ -55,7 +57,8 @@ fun CharacterScreen(
             .verticalScroll(rememberScrollState())
             .padding(20.dp)
     ) {
-        Text("Character Sheet", style = MaterialTheme.typography.headlineMedium, color = ManaPurple)
+        Text("ASCENDANT", style = MaterialTheme.typography.headlineMedium, color = ManaPurple)
+        Text("PROGRESS SHEET", style = MaterialTheme.typography.labelMedium, color = TextDim)
         Spacer(Modifier.height(16.dp))
 
         // Hero portrait — choose your character; the aura border follows your rank.
@@ -65,16 +68,7 @@ fun CharacterScreen(
             com.mhurston.ascendant.domain.Avatar.FEMALE_BLACK -> R.drawable.hero_portrait_female_black
             else -> R.drawable.hero_portrait
         }
-        Image(
-            painter = painterResource(portrait),
-            contentDescription = "Hero portrait",
-            contentScale = ContentScale.Crop,
-            modifier = Modifier
-                .fillMaxWidth()
-                .aspectRatio(0.85f)
-                .clip(RoundedCornerShape(20.dp))
-                .border(2.dp, rankAuraColor(c.rank), RoundedCornerShape(20.dp))
-        )
+        RankPortrait(portrait = portrait, rank = c.rank, level = c.level)
         Spacer(Modifier.height(10.dp))
         Text("Choose your character", style = MaterialTheme.typography.labelMedium, color = TextDim)
         Spacer(Modifier.height(6.dp))
@@ -205,6 +199,64 @@ private fun AvatarChoice(label: String, selected: Boolean, modifier: Modifier = 
             contentColor = if (selected) MaterialTheme.colorScheme.onPrimary else TextDim
         )
     ) { Text(label) }
+}
+
+/** Hero portrait whose aura ring thickens and brightens as the rank climbs. */
+@Composable
+private fun RankPortrait(portrait: Int, rank: com.mhurston.ascendant.domain.Rank, level: Int) {
+    val aura = rankAuraColor(rank)
+    val tier = rank.ordinal // 0 (E) .. 7 (National-Level)
+    val ring = (2 + tier).dp
+    val glow = ring + 8.dp
+    Box(Modifier.fillMaxWidth().aspectRatio(0.85f)) {
+        // Outer aura glow — thicker and brighter the higher the rank.
+        Box(
+            Modifier
+                .matchParentSize()
+                .clip(RoundedCornerShape(26.dp))
+                .border(glow, aura.copy(alpha = 0.10f + 0.045f * tier), RoundedCornerShape(26.dp))
+        )
+        Image(
+            painter = painterResource(portrait),
+            contentDescription = "Hero portrait",
+            contentScale = ContentScale.Crop,
+            modifier = Modifier
+                .matchParentSize()
+                .clip(RoundedCornerShape(20.dp))
+                .border(ring, aura, RoundedCornerShape(20.dp))
+        )
+        // Rank emblem, top-left.
+        Box(
+            Modifier
+                .align(Alignment.TopStart)
+                .padding(12.dp)
+                .clip(RoundedCornerShape(10.dp))
+                .background(androidx.compose.ui.graphics.Color(0xCC0E0E16))
+                .border(1.dp, aura, RoundedCornerShape(10.dp))
+                .padding(horizontal = 12.dp, vertical = 4.dp)
+        ) {
+            Text(
+                if (rank == com.mhurston.ascendant.domain.Rank.NATIONAL) "★" else rank.label,
+                color = aura, fontWeight = FontWeight.Black,
+                fontFamily = com.mhurston.ascendant.ui.theme.Orbitron,
+                style = MaterialTheme.typography.titleLarge
+            )
+        }
+        // Tier caption, bottom-center.
+        Box(
+            Modifier
+                .align(Alignment.BottomCenter)
+                .padding(bottom = 12.dp)
+                .clip(RoundedCornerShape(8.dp))
+                .background(androidx.compose.ui.graphics.Color(0xCC0E0E16))
+                .padding(horizontal = 12.dp, vertical = 4.dp)
+        ) {
+            Text(
+                "RANK ${rank.label}  ·  LV $level",
+                color = TextDim, style = MaterialTheme.typography.labelMedium
+            )
+        }
+    }
 }
 
 private fun rankAuraColor(rank: com.mhurston.ascendant.domain.Rank) = when (rank) {

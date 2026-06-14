@@ -11,7 +11,12 @@ data class DayData(
     val calfRaises: Int = 0,
     val curls: Int = 0,
     val miles: Double = 0.0,
-    val isRestDay: Boolean = false
+    val isRestDay: Boolean = false,
+    val notes: String = "",
+    val mood: Int = 0, // 0 = unset, 1..5 (see WorkoutDayEntity.mood)
+    /** Supplementary user-defined exercises: customExerciseId -> reps for the day.
+     *  Earns bonus XP only — never affects completion %, stats, or streaks. */
+    val customReps: Map<String, Int> = emptyMap()
 ) {
     val strengthReps: Int get() = pushups + squats + legLifts + calfRaises + curls
     val hasStrength: Boolean get() = strengthReps > 0
@@ -54,6 +59,9 @@ data class CharacterState(
     val levelProgress: Float
         get() = if (xpForNextLevel <= 0) 0f else (xpIntoLevel.toFloat() / xpForNextLevel.toFloat())
 }
+
+/** A user-defined supplementary exercise (e.g. "Pull-ups", "Plank seconds"). */
+data class CustomExercise(val id: String, val name: String)
 
 /** Per-day derived values used by the dashboard/history. */
 data class DayDerived(

@@ -12,6 +12,7 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableIntStateOf
+import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
@@ -33,6 +34,13 @@ fun AscendantApp(vm: AppViewModel) {
     val avatar by vm.avatar.collectAsState()
     var tab by rememberSaveable { mutableIntStateOf(0) }
     val tabs = Tab.entries
+
+    // Title screen first — a tap enters the main app (resets on each cold launch).
+    var entered by rememberSaveable { mutableStateOf(false) }
+    if (!entered) {
+        TitleScreen(onEnter = { entered = true })
+        return
+    }
 
     Scaffold(
         modifier = Modifier.fillMaxSize(),
@@ -64,6 +72,11 @@ fun AscendantApp(vm: AppViewModel) {
                 onResetToday = vm::resetToday,
                 onToggleFavVideo = vm::toggleFavoriteVideo,
                 onAddUserVideo = vm::addUserVideo,
+                onSetMood = vm::setMoodToday,
+                onSetNotes = vm::setNotesToday,
+                onAddCustomReps = vm::addCustomRepsToday,
+                onAddCustomExercise = vm::addCustomExercise,
+                onRemoveCustomExercise = vm::removeCustomExercise,
                 modifier = content
             )
             Tab.CHARACTER -> CharacterScreen(
@@ -79,6 +92,9 @@ fun AscendantApp(vm: AppViewModel) {
                 onAddReps = vm::addRepsForDate,
                 onAddMiles = vm::addMilesForDate,
                 onResetDay = vm::resetDay,
+                onSetMood = vm::setMoodForDate,
+                onSetNotes = vm::setNotesForDate,
+                onAddCustomReps = vm::addCustomRepsForDate,
                 modifier = content
             )
             Tab.ENERGY -> EnergyScreen(

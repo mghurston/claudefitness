@@ -1,6 +1,7 @@
 # Build
 .gradle/
 .gradle-home/
+.kotlin/
 build/
 app/build/
 

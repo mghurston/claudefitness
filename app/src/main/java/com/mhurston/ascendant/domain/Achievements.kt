@@ -42,7 +42,11 @@ data class AchFacts(
     val overdriveDay: Boolean,
     val doubleOverdrive: Boolean,
     val activeDays: Int,
-    val loggedDays: Int
+    val loggedDays: Int,
+    val notesDays: Int,      // days with a non-blank note
+    val moodDays: Int,       // days with a logged mood (1..5)
+    val peakMoodDays: Int,   // days logged at mood 5 (Unstoppable)
+    val prEvents: Int        // times a metric beat its previous personal best
 ) {
     private fun b(c: Boolean) = if (c) 1 else 0
     fun flag(c: Boolean) = b(c)
@@ -155,6 +159,17 @@ object Achievements {
         // --- Behavior / mastery ---
         AchDef("overdrive", "Overdrive", "Exceed every daily target in one day.", Rarity.RARE, 1) { it.flag(it.overdriveDay) },
         AchDef("double_overdrive", "Double Overdrive", "Exceed every target on back-to-back days.", Rarity.EPIC, 1, hidden = true) { it.flag(it.doubleOverdrive) },
+
+        // --- Personal records ---
+        AchDef("new_best", "New Personal Best", "Beat one of your own records.", Rarity.UNCOMMON, 1) { it.flag(it.prEvents >= 1) },
+        AchDef("record_breaker", "Record Breaker", "Set 10 personal records.", Rarity.RARE, 10) { it.prEvents },
+        AchDef("relentless", "Relentless", "Set 25 personal records.", Rarity.EPIC, 25) { it.prEvents },
+
+        // --- Journal: notes + mood ---
+        AchDef("field_notes", "Field Notes", "Write a note on 5 days.", Rarity.COMMON, 5) { it.notesDays },
+        AchDef("dear_diary", "Dear Diary", "Write a note on 25 days.", Rarity.RARE, 25) { it.notesDays },
+        AchDef("self_aware", "Self-Aware", "Log your mood on 10 days.", Rarity.UNCOMMON, 10) { it.moodDays },
+        AchDef("peak_state", "Peak State", "Finish a day feeling Unstoppable.", Rarity.UNCOMMON, 1) { it.flag(it.peakMoodDays >= 1) },
         AchDef("beyond_sheet", "Beyond the Sheet", "1,000 total logged days.", Rarity.MYTHIC, 1000) { it.loggedDays },
         AchDef("the_collector", "The Collector", "Unlock 50 achievements.", Rarity.LEGENDARY, 50, hidden = true) {
             // Counted post-hoc in evaluate(); placeholder value filled there.
@@ -172,8 +187,25 @@ object Achievements {
         var walkStreak = 0; var longestWalk = 0
         var prevDate: java.time.LocalDate? = null
         var prevOver = false
+        var notesDays = 0; var moodDays = 0; var peakMoodDays = 0
+        var prEvents = 0
+        // running personal bests per metric (0 = never logged yet)
+        var rbP = 0; var rbS = 0; var rbL = 0; var rbC = 0; var rbCu = 0; var rbM = 0.0
 
         for (d in sorted) {
+            // Personal-record events: a metric strictly beating its prior (nonzero) best.
+            if (rbP > 0 && d.pushups > rbP) prEvents++
+            if (rbS > 0 && d.squats > rbS) prEvents++
+            if (rbL > 0 && d.legLifts > rbL) prEvents++
+            if (rbC > 0 && d.calfRaises > rbC) prEvents++
+            if (rbCu > 0 && d.curls > rbCu) prEvents++
+            if (rbM > 0.0 && d.miles > rbM) prEvents++
+            rbP = maxOf(rbP, d.pushups); rbS = maxOf(rbS, d.squats); rbL = maxOf(rbL, d.legLifts)
+            rbC = maxOf(rbC, d.calfRaises); rbCu = maxOf(rbCu, d.curls); rbM = maxOf(rbM, d.miles)
+            if (d.notes.isNotBlank()) notesDays++
+            if (d.mood in 1..5) moodDays++
+            if (d.mood == 5) peakMoodDays++
+
             p += d.pushups; s += d.squats; l += d.legLifts; cr += d.calfRaises; cu += d.curls; mi += d.miles
             bp = maxOf(bp, d.pushups); bs = maxOf(bs, d.squats); bl = maxOf(bl, d.legLifts)
             bc = maxOf(bc, d.calfRaises); bcu = maxOf(bcu, d.curls); bm = maxOf(bm, d.miles)
@@ -208,7 +240,9 @@ object Achievements {
             full100Days = full100, perfectWeds = pw, perfectFris = pf, perfectSats = ps,
             longestWalkStreak = longestWalk, anyAllSix = anySix,
             overdriveDay = overdrive, doubleOverdrive = doubleOver,
-            activeDays = active, loggedDays = sorted.size
+            activeDays = active, loggedDays = sorted.size,
+            notesDays = notesDays, moodDays = moodDays, peakMoodDays = peakMoodDays,
+            prEvents = prEvents
         )
     }
 

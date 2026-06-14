@@ -1,8 +1,31 @@
 # ASCENDANT — Personal Anime-Themed Fitness RPG
 
-> Design & planning package. **No implementation until these documents are approved** (per project rules).
+> **Status: BUILT & RUNNING** (updated 2026-06-14). The full app is implemented in Kotlin + Jetpack Compose and verified on an Android emulator (API 34). Docs below are the original design package; this header tracks live status.
 
 A single-user, Android-only, offline-first app that replaces a Google Sheets workout tracker with an anime-RPG progression system — turning daily exercise into XP, levels, stats, streaks, quests, and achievements. Every mechanic is tuned against the real 30-day data from `Anime_Workout_Tracker_30_Days.xlsx`.
+
+---
+
+## Status & feature summary (high level)
+
+**App:** `com.mhurston.ascendant` · Kotlin + Jetpack Compose · minSdk 26 / target 35 · offline, no backend, no Play Store (personal sideload). Five tabs: **Hero · Train · Trophies · Log · Energy**, behind a tap-to-enter title screen + native cold-start splash.
+
+**What it does:**
+- **Logging** — 5 core exercises (push-ups, squats, leg lifts, calf raises, curls) + walking; one-tap quick-log, per-day editing via a month calendar, **Overdrive** bonus past 100.
+- **Progression** — XP → levels (1→100), **8 ranks** (E→National-Level Hunter), **5 attributes** (STR/END/AGI/DIS/CON), evolving titles. Replayed deterministically from the day log; tuned to the real 30-day dataset.
+- **Streaks & decay** — strength/activity/perfect streaks, plus inactivity decay (idle days shave XP after a grace day).
+- **Quests** — day-aware daily + weekly objectives.
+- **Achievements** — **86**, rarity-tiered, retroactive.
+- **Custom exercises** — user-defined side work; earns **supplementary bonus XP** without touching the tuned core completion %/stats.
+- **Journal** — per-day mood (1–5) + free-text notes.
+- **Energy** — height/weight, calories burned vs consumed, weight goal + progress.
+- **Form videos** — per-exercise YouTube deep-links opened in an in-app tab, favorites, add-your-own.
+- **Identity** — 4 hero portraits with a rank-evolving aura frame; Orbitron HUD type.
+- **Quality-of-life** — local reminders, imperial/metric units (imperial default), CSV + JSON export and JSON restore.
+
+**Data & QA:** Room (workout log, schema v3 with migrations) + DataStore (profile/settings); unit tests + lint pass; verified live on emulator (launch, logging, persistence across process death, migrations).
+
+**Not yet done (optional):** per-rank portrait *art* variants (currently an aura-frame), custom-exercise achievements, Orbitron on section titles. Working tree currently uncommitted on `main`.
 
 ---
 
@@ -58,4 +81,4 @@ A single-user, Android-only, offline-first app that replaces a Google Sheets wor
 6. Decisions justified → every mechanic mapped to the 30-day data. ✔
 7. Single-user Android optimized → offline-first, no backend, file-based backup. ✔
 
-> **Next step:** review the docs, confirm/adjust decisions D1–D7, then implementation (Kotlin + Compose project scaffold) can begin.
+> **Current state:** decisions D1–D7 were confirmed and the app is fully built against them (with two refinements: seeding is now disabled so fresh installs start at Level 1, and custom exercises use the supplementary bonus-XP model). Build/run: `. .\setenv.ps1` then `gradlew assembleDebug`; see [Deployment Plan.md](docs/Deployment%20Plan.md).

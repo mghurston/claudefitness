@@ -46,6 +46,11 @@ fun DashboardScreen(
     onResetToday: () -> Unit,
     onToggleFavVideo: (String) -> Unit,
     onAddUserVideo: (String, String, String) -> Unit,
+    onSetMood: (Int) -> Unit = {},
+    onSetNotes: (String) -> Unit = {},
+    onAddCustomReps: (String, Int) -> Unit = { _, _ -> },
+    onAddCustomExercise: (String) -> Unit = {},
+    onRemoveCustomExercise: (String) -> Unit = {},
     modifier: Modifier = Modifier
 ) {
     val c = state.character
@@ -88,7 +93,7 @@ fun DashboardScreen(
         Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween,
             verticalAlignment = Alignment.CenterVertically) {
             Column {
-                Text("ASCENDANT", style = MaterialTheme.typography.headlineMedium, color = ManaPurple)
+                Text("TRAINING", style = MaterialTheme.typography.headlineMedium, color = ManaPurple)
                 Text(c.title, style = MaterialTheme.typography.labelMedium, color = TextDim)
             }
             RankBadge(c.rank, c.level)
@@ -133,6 +138,32 @@ fun DashboardScreen(
         ExerciseRow("Calf Raises", today.calfRaises, { videoFor = "calfraises" }) { onAddReps(ExerciseKind.CALF_RAISES, it) }
         ExerciseRow("Curls", today.curls, { videoFor = "curls" }) { onAddReps(ExerciseKind.CURLS, it) }
         WalkingRow(today.miles, { videoFor = "walking" }, onAddMiles)
+
+        Spacer(Modifier.height(20.dp))
+        CustomExerciseSection(
+            customExercises = state.customExercises,
+            todayReps = com.mhurston.ascendant.data.WorkoutDayEntity.decodeCustomReps(today.customReps),
+            onAddReps = onAddCustomReps,
+            onAddExercise = onAddCustomExercise,
+            onRemoveExercise = onRemoveCustomExercise
+        )
+
+        Spacer(Modifier.height(20.dp))
+        Text("Today's Journal", style = MaterialTheme.typography.titleLarge, color = AuraCyan)
+        Spacer(Modifier.height(8.dp))
+        Card(
+            Modifier.fillMaxWidth(),
+            colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface)
+        ) {
+            JournalSection(
+                dateKey = today.date,
+                mood = today.mood,
+                notes = today.notes,
+                onMood = onSetMood,
+                onNotes = onSetNotes,
+                modifier = Modifier.padding(14.dp)
+            )
+        }
 
         Spacer(Modifier.height(16.dp))
         Button(
@@ -291,6 +322,108 @@ private fun WalkingRow(miles: Double, onVideos: () -> Unit, onAdd: (Double) -> U
                 AddBtn("+0.5") { onAdd(0.5) }
                 AddBtn("+1.0") { onAdd(1.0) }
                 AddBtn("−0.5") { onAdd(-0.5) }
+            }
+        }
+    }
+}
+
+@Composable
+private fun CustomExerciseSection(
+    customExercises: List<com.mhurston.ascendant.domain.CustomExercise>,
+    todayReps: Map<String, Int>,
+    onAddReps: (String, Int) -> Unit,
+    onAddExercise: (String) -> Unit,
+    onRemoveExercise: (String) -> Unit
+) {
+    var showAdd by remember { mutableStateOf(false) }
+    var removing by remember { mutableStateOf<com.mhurston.ascendant.domain.CustomExercise?>(null) }
+
+    if (showAdd) {
+        var name by remember { mutableStateOf("") }
+        AlertDialog(
+            onDismissRequest = { showAdd = false },
+            title = { Text("Add custom exercise") },
+            text = {
+                Column {
+                    Text("These earn bonus XP but don't change your completion % or stats.",
+                        style = MaterialTheme.typography.labelMedium, color = TextDim)
+                    Spacer(Modifier.height(8.dp))
+                    androidx.compose.material3.OutlinedTextField(
+                        value = name,
+                        onValueChange = { name = it.take(40) },
+                        singleLine = true,
+                        label = { Text("Name (e.g. Pull-ups, Plank sec)") },
+                        modifier = Modifier.fillMaxWidth()
+                    )
+                }
+            },
+            confirmButton = {
+                TextButton(
+                    enabled = name.isNotBlank(),
+                    onClick = { onAddExercise(name.trim()); showAdd = false }
+                ) { Text("Add", fontWeight = FontWeight.Bold) }
+            },
+            dismissButton = { TextButton(onClick = { showAdd = false }) { Text("Cancel") } }
+        )
+    }
+
+    removing?.let { ex ->
+        AlertDialog(
+            onDismissRequest = { removing = null },
+            title = { Text("Remove \"${ex.name}\"?") },
+            text = { Text("Stops showing it here. XP you already earned from it is kept.") },
+            confirmButton = {
+                TextButton(onClick = { onRemoveExercise(ex.id); removing = null }) {
+                    Text("Remove", color = DangerRed, fontWeight = FontWeight.Bold)
+                }
+            },
+            dismissButton = { TextButton(onClick = { removing = null }) { Text("Cancel") } }
+        )
+    }
+
+    Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween,
+        verticalAlignment = Alignment.CenterVertically) {
+        Text("Custom Exercises", style = MaterialTheme.typography.titleLarge, color = AuraCyan)
+        Text("＋ Add", color = ManaPurple, style = MaterialTheme.typography.labelMedium,
+            fontWeight = FontWeight.Bold, modifier = Modifier.clickable { showAdd = true })
+    }
+    Text("Side work that earns bonus XP — your tuned core stays untouched.",
+        style = MaterialTheme.typography.labelMedium, color = TextDim)
+    Spacer(Modifier.height(8.dp))
+
+    if (customExercises.isEmpty()) {
+        Text("No custom exercises yet. Tap ＋ Add to track extras like pull-ups or planks.",
+            style = MaterialTheme.typography.bodyLarge, color = TextDim)
+    } else {
+        customExercises.forEach { ex ->
+            val reps = todayReps[ex.id] ?: 0
+            val bonus = Progression.customBonusXp(
+                com.mhurston.ascendant.domain.DayData(java.time.LocalDate.now(), customReps = mapOf(ex.id to reps))
+            )
+            Card(
+                Modifier.fillMaxWidth().padding(vertical = 4.dp),
+                colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface)
+            ) {
+                Column(Modifier.padding(12.dp)) {
+                    Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
+                        Text(ex.name, style = MaterialTheme.typography.bodyLarge)
+                        Row(verticalAlignment = Alignment.CenterVertically) {
+                            if (reps > 0) Text("+$bonus XP  ", color = XpGold,
+                                style = MaterialTheme.typography.labelMedium, fontWeight = FontWeight.Bold)
+                            Text("$reps", color = if (reps > 0) AuraCyan else TextDim,
+                                fontWeight = FontWeight.Bold)
+                            Text("  ✕", color = DangerRed, style = MaterialTheme.typography.labelMedium,
+                                modifier = Modifier.clickable { removing = ex })
+                        }
+                    }
+                    Spacer(Modifier.height(8.dp))
+                    Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                        AddBtn("+10") { onAddReps(ex.id, 10) }
+                        AddBtn("+25") { onAddReps(ex.id, 25) }
+                        AddBtn("+50") { onAddReps(ex.id, 50) }
+                        AddBtn("−10") { onAddReps(ex.id, -10) }
+                    }
+                }
             }
         }
     }

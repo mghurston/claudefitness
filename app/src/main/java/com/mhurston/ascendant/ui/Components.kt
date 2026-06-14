@@ -2,18 +2,26 @@ package com.mhurston.ascendant.ui
 
 import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.background
+import androidx.compose.foundation.border
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
@@ -32,6 +40,66 @@ import com.mhurston.ascendant.ui.theme.ManaPurple
 import com.mhurston.ascendant.ui.theme.TextDim
 import com.mhurston.ascendant.ui.theme.XpGold
 import kotlin.math.max
+
+// Mood scale 1..5, lowest → highest. Index 0 unused (0 means "unset").
+val MOOD_EMOJI = listOf("😫", "😕", "😐", "🙂", "🔥")
+val MOOD_LABEL = listOf("Drained", "Rough", "Okay", "Good", "Unstoppable")
+
+/**
+ * Journal block: a 1..5 mood selector plus a free-text note. Tapping the already
+ * selected mood clears it (sends 0). Notes are kept in local state (keyed by [dateKey])
+ * so per-keystroke persistence doesn't clobber the cursor.
+ */
+@Composable
+fun JournalSection(
+    dateKey: String,
+    mood: Int,
+    notes: String,
+    onMood: (Int) -> Unit,
+    onNotes: (String) -> Unit,
+    modifier: Modifier = Modifier
+) {
+    Column(modifier.fillMaxWidth()) {
+        Text("How did it feel?", style = MaterialTheme.typography.labelMedium, color = TextDim)
+        Spacer(Modifier.height(6.dp))
+        Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+            for (i in 1..5) {
+                val selected = mood == i
+                Box(
+                    Modifier
+                        .weight(1f)
+                        .clip(RoundedCornerShape(10.dp))
+                        .background(if (selected) AuraCyan.copy(alpha = 0.20f) else Color(0xFF1B1B2A))
+                        .border(
+                            1.dp,
+                            if (selected) AuraCyan else Color.Transparent,
+                            RoundedCornerShape(10.dp)
+                        )
+                        .clickable { onMood(if (selected) 0 else i) }
+                        .padding(vertical = 8.dp),
+                    contentAlignment = Alignment.Center
+                ) {
+                    Text(MOOD_EMOJI[i - 1], style = MaterialTheme.typography.titleLarge)
+                }
+            }
+        }
+        if (mood in 1..5) {
+            Spacer(Modifier.height(4.dp))
+            Text(MOOD_LABEL[mood - 1], style = MaterialTheme.typography.labelMedium, color = AuraCyan)
+        }
+        Spacer(Modifier.height(10.dp))
+        var text by remember(dateKey) { mutableStateOf(notes) }
+        OutlinedTextField(
+            value = text,
+            onValueChange = { text = it.take(500); onNotes(text) },
+            modifier = Modifier.fillMaxWidth(),
+            label = { Text("Notes (optional)") },
+            placeholder = { Text("PRs, how you felt, what you changed…") },
+            minLines = 2,
+            maxLines = 4
+        )
+    }
+}
 
 @Composable
 fun LabeledBar(
@@ -149,7 +217,8 @@ fun RankBadge(rank: Rank, level: Int) {
     ) {
         Column(horizontalAlignment = Alignment.CenterHorizontally) {
             Text("RANK", style = MaterialTheme.typography.labelMedium, color = TextDim)
-            Text(rank.label, color = color, fontWeight = FontWeight.Bold,
+            Text(rank.label, color = color, fontWeight = FontWeight.Black,
+                fontFamily = com.mhurston.ascendant.ui.theme.Orbitron,
                 style = MaterialTheme.typography.titleLarge)
         }
     }

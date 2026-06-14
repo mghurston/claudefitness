@@ -19,10 +19,13 @@ class Repository private constructor(
     val reminderEnabled: Flow<Boolean> = profileStore.reminderEnabled
     val unitSystem: Flow<com.mhurston.ascendant.domain.UnitSystem> = profileStore.unitSystem
     val avatar: Flow<com.mhurston.ascendant.domain.Avatar> = profileStore.avatar
+    val customExercises: Flow<List<com.mhurston.ascendant.domain.CustomExercise>> = profileStore.customExercises
 
     suspend fun setReminderEnabled(on: Boolean) = profileStore.setReminderEnabled(on)
     suspend fun setUnitSystem(u: com.mhurston.ascendant.domain.UnitSystem) = profileStore.setUnitSystem(u)
     suspend fun setAvatar(a: com.mhurston.ascendant.domain.Avatar) = profileStore.setAvatar(a)
+    suspend fun addCustomExercise(name: String) = profileStore.addCustomExercise(name)
+    suspend fun removeCustomExercise(id: String) = profileStore.removeCustomExercise(id)
 
     suspend fun toggleFavoriteVideo(url: String) = profileStore.toggleFavorite(url)
     suspend fun addUserVideo(v: VideoLink) = profileStore.addUserVideo(v)

@@ -98,6 +98,21 @@ class ProgressionTest {
     }
 
     @Test
+    fun customExercises_addBonusXpOnly_neverTouchingCoreFormula() {
+        val base = DayData(LocalDate.parse("2026-02-01"), 100, 100, 100, 100, 100, 5.0)
+        val withCustom = base.copy(customReps = mapOf("c1" to 50, "c2" to 300))
+        // Completion is identical — custom work never changes the tuned formula.
+        assertEquals(Progression.completion(base), Progression.completion(withCustom), 0.0)
+        // Bonus = 50*0.5 + min(300,200)*0.5 = 25 + 100 = 125.
+        assertEquals(125L, Progression.customBonusXp(withCustom))
+        val (s0, _) = Progression.rebuild(listOf(base))
+        val (s1, _) = Progression.rebuild(listOf(withCustom))
+        assertEquals(s0.earnedXp + 125L, s1.earnedXp)         // XP rises by exactly the bonus
+        assertEquals(s0.stats.strength, s1.stats.strength)    // stats unaffected
+        assertEquals(s0.stats.consistency, s1.stats.consistency)
+    }
+
+    @Test
     fun streakBreaksOnCalendarGap() {
         val days = listOf(
             DayData(LocalDate.parse("2025-07-01"), pushups = 50),

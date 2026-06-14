@@ -18,6 +18,8 @@ class MainActivity : ComponentActivity() {
     private val viewModel: AppViewModel by viewModels()
 
     override fun onCreate(savedInstanceState: Bundle?) {
+        // Swap from the native launch-splash theme to the normal app theme once we draw.
+        setTheme(R.style.Theme_Ascendant)
         enableEdgeToEdge()
         super.onCreate(savedInstanceState)
         setContent {
