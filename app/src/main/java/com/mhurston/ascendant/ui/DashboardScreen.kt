@@ -372,7 +372,8 @@ private fun CustomExerciseSection(
         AlertDialog(
             onDismissRequest = { removing = null },
             title = { Text("Remove \"${ex.name}\"?") },
-            text = { Text("Stops showing it here. XP you already earned from it is kept.") },
+            text = { Text("Removes it from today's options. Days you already logged it keep " +
+                "their entry (visible in the Log), and the XP you earned stays.") },
             confirmButton = {
                 TextButton(onClick = { onRemoveExercise(ex.id); removing = null }) {
                     Text("Remove", color = DangerRed, fontWeight = FontWeight.Bold)

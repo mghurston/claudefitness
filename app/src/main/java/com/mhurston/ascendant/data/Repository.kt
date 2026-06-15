@@ -26,6 +26,7 @@ class Repository private constructor(
     suspend fun setAvatar(a: com.mhurston.ascendant.domain.Avatar) = profileStore.setAvatar(a)
     suspend fun addCustomExercise(name: String) = profileStore.addCustomExercise(name)
     suspend fun removeCustomExercise(id: String) = profileStore.removeCustomExercise(id)
+    suspend fun archiveCustomExercise(id: String) = profileStore.archiveCustomExercise(id)
 
     suspend fun toggleFavoriteVideo(url: String) = profileStore.toggleFavorite(url)
     suspend fun addUserVideo(v: VideoLink) = profileStore.addUserVideo(v)

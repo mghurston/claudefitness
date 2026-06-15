@@ -74,7 +74,7 @@ fun CalendarScreen(
             onReset = { onResetDay(date.toString()) },
             onSetMood = { m -> onSetMood(date.toString(), m) },
             onSetNotes = { n -> onSetNotes(date.toString(), n) },
-            customExercises = state.customExercises,
+            customExercises = state.allCustomExercises,
             onAddCustomReps = { id, delta -> onAddCustomReps(date.toString(), id, delta) },
             onDismiss = { selected = null }
         )
@@ -282,9 +282,13 @@ private fun DayEditorDialog(
                 MilesEditRow(e.miles, onAddMiles)
                 if (customExercises.isNotEmpty()) {
                     val customReps = WorkoutDayEntity.decodeCustomReps(e.customReps)
-                    customExercises.forEach { ex ->
-                        EditRow(ex.name, customReps[ex.id] ?: 0) { onAddCustomReps(ex.id, it) }
-                    }
+                    // Active exercises are always editable here; archived ones appear only on
+                    // days they were actually logged, so old entries stay visible after removal.
+                    customExercises
+                        .filter { !it.archived || (customReps[it.id] ?: 0) > 0 }
+                        .forEach { ex ->
+                            EditRow(ex.name, customReps[ex.id] ?: 0) { onAddCustomReps(ex.id, it) }
+                        }
                 }
                 Spacer(Modifier.height(12.dp))
                 JournalSection(

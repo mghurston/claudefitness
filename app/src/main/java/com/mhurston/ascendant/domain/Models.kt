@@ -60,8 +60,9 @@ data class CharacterState(
         get() = if (xpForNextLevel <= 0) 0f else (xpIntoLevel.toFloat() / xpForNextLevel.toFloat())
 }
 
-/** A user-defined supplementary exercise (e.g. "Pull-ups", "Plank seconds"). */
-data class CustomExercise(val id: String, val name: String)
+/** A user-defined supplementary exercise (e.g. "Pull-ups", "Plank seconds").
+ *  [archived] = removed from today's options but kept so past logs still resolve its name. */
+data class CustomExercise(val id: String, val name: String, val archived: Boolean = false)
 
 /** Per-day derived values used by the dashboard/history. */
 data class DayDerived(

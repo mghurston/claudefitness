@@ -19,6 +19,7 @@ import com.mhurston.ascendant.domain.VideoLink
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.combine
+import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.launch
 import java.time.LocalDate
@@ -37,7 +38,10 @@ data class UiState(
     val quests: List<Quest> = emptyList(),
     val favoriteVideoUrls: Set<String> = emptySet(),
     val userVideos: List<VideoLink> = emptyList(),
-    val customExercises: List<CustomExercise> = emptyList()
+    /** Active (non-archived) custom exercises — the loggable options shown on the dashboard. */
+    val customExercises: List<CustomExercise> = emptyList(),
+    /** Every custom exercise incl. archived — used by history to resolve names of past logs. */
+    val allCustomExercises: List<CustomExercise> = emptyList()
 )
 
 class AppViewModel(app: Application) : AndroidViewModel(app) {
@@ -81,7 +85,8 @@ class AppViewModel(app: Application) : AndroidViewModel(app) {
                 quests = Quests.generate(today, todayEntity.toDayData(), dayData),
                 favoriteVideoUrls = favVideos,
                 userVideos = userVideos,
-                customExercises = customExercises
+                customExercises = customExercises.filterNot { it.archived },
+                allCustomExercises = customExercises
             )
         }.stateIn(
             scope = viewModelScope,
@@ -151,7 +156,17 @@ class AppViewModel(app: Application) : AndroidViewModel(app) {
 
     // --- custom (supplementary) exercises ------------------------------------
     fun addCustomExercise(name: String) { viewModelScope.launch { repo.addCustomExercise(name) } }
-    fun removeCustomExercise(id: String) { viewModelScope.launch { repo.removeCustomExercise(id) } }
+
+    /** Remove from the active list. If it was ever logged, archive it (so history keeps the
+     *  name and reps); otherwise hard-delete since there's nothing to preserve. */
+    fun removeCustomExercise(id: String) {
+        viewModelScope.launch {
+            val everLogged = repo.days.first().any { day ->
+                (WorkoutDayEntity.decodeCustomReps(day.customReps)[id] ?: 0) > 0
+            }
+            if (everLogged) repo.archiveCustomExercise(id) else repo.removeCustomExercise(id)
+        }
+    }
 
     fun addCustomRepsForDate(date: String, id: String, delta: Int) = mutateDay(date) { cur ->
         val m = WorkoutDayEntity.decodeCustomReps(cur.customReps).toMutableMap()

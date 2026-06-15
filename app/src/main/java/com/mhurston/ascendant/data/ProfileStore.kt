@@ -39,11 +39,17 @@ class ProfileStore(private val context: Context) {
     }
 
     // --- Custom (supplementary) exercise definitions --------------------------
+    // Encoded as "id<|>name" or "id<|>name<|>1" (trailing 1 = archived). Old 2-part
+    // entries are treated as not archived for backward compatibility.
     val customExercises: Flow<List<com.mhurston.ascendant.domain.CustomExercise>> =
         context.dataStore.data.map { p ->
             (p[Keys.CUSTOM_EXERCISES] ?: emptySet()).mapNotNull { encoded ->
                 val parts = encoded.split(VIDEO_SEP)
-                if (parts.size == 2) com.mhurston.ascendant.domain.CustomExercise(parts[0], parts[1]) else null
+                if (parts.size >= 2)
+                    com.mhurston.ascendant.domain.CustomExercise(
+                        parts[0], parts[1], archived = parts.getOrNull(2) == "1"
+                    )
+                else null
             }.sortedBy { it.name.lowercase() }
         }
 
@@ -53,14 +59,28 @@ class ProfileStore(private val context: Context) {
         val id = "c${System.currentTimeMillis()}"
         context.dataStore.edit { prefs ->
             val cur = prefs[Keys.CUSTOM_EXERCISES] ?: emptySet()
-            prefs[Keys.CUSTOM_EXERCISES] = cur + "$id$VIDEO_SEP$clean"
+            prefs[Keys.CUSTOM_EXERCISES] = cur + "$id$VIDEO_SEP$clean${VIDEO_SEP}0"
         }
     }
 
+    /** Hard-delete a definition. Only safe when it has no logged history. */
     suspend fun removeCustomExercise(id: String) {
         context.dataStore.edit { prefs ->
             val cur = prefs[Keys.CUSTOM_EXERCISES] ?: emptySet()
             prefs[Keys.CUSTOM_EXERCISES] = cur.filterNot { it.substringBefore(VIDEO_SEP) == id }.toSet()
+        }
+    }
+
+    /** Soft-remove: hide from active options but keep the name so past logs still resolve. */
+    suspend fun archiveCustomExercise(id: String) {
+        context.dataStore.edit { prefs ->
+            val cur = prefs[Keys.CUSTOM_EXERCISES] ?: emptySet()
+            prefs[Keys.CUSTOM_EXERCISES] = cur.map { entry ->
+                val parts = entry.split(VIDEO_SEP)
+                if (parts.getOrNull(0) == id && parts.size >= 2)
+                    "${parts[0]}$VIDEO_SEP${parts[1]}${VIDEO_SEP}1"
+                else entry
+            }.toSet()
         }
     }
 
