@@ -75,7 +75,7 @@ Post-v1 ideas, ranked by value-to-effort for a single personal user. None are re
 
 ## 8. Suggested Roadmap Ordering
 
-1. **v1.0** — Core loop, six exercises, XP/levels/stats, streaks, quests, 120 achievements, analytics, import/export, deep-link videos. *(replaces the sheet — success criteria met)*
+1. **v1.0** — Core loop, six exercises, XP/levels/stats, streaks, quests, 86 achievements, analytics, import/export, deep-link videos. *(replaces the sheet — success criteria met)*
 2. **v1.1** — Home-screen widget, in-app video player, add-video-from-URL, reduce-motion/theme polish.
 3. **v1.2** — Story/boss mode targeting the Wed/Fri/Sat cliffs, seasonal events, per-exercise streaks surfaced.
 4. **v1.3** — Health Connect/step sync, adaptive targets, coaching insights.

@@ -40,7 +40,7 @@ A single-user, Android-only, offline-first app that replaces a Google Sheets wor
 | 5 | [User Flows.md](docs/User%20Flows.md) | 4 | Six required journeys + edge cases |
 | 6 | [Wireframes.md](docs/Wireframes.md) | 4 | Low-fi layouts for all six screens + overlays |
 | 7 | [Style Guide.md](docs/Style%20Guide.md) | 5 | Color, type, icons, components, animation, art direction, AI image prompts |
-| 8 | [Achievement System.md](docs/Achievement%20System.md) | 2 | 120 achievements, rarity, retroactive unlocks |
+| 8 | [Achievement System.md](docs/Achievement%20System.md) | 2 | Achievements (design ceiling 120; **86 shipped**), rarity, retroactive unlocks |
 | 9 | [Leveling System.md](docs/Leveling%20System.md) | 2 | XP rates, level curve, 5 attributes, ranks, milestones |
 | 10 | [Technical Architecture.md](docs/Technical%20Architecture.md) | 6 | Framework decision (Kotlin + Compose), schema, offline-first, backup |
 | 11 | [Deployment Plan.md](docs/Deployment%20Plan.md) | 7 | Toolchain, build steps, phone install, recommended personal-use path |

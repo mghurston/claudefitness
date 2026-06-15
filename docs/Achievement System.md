@@ -2,6 +2,11 @@
 
 **120 achievements** across 9 categories, plus tiers, rarity, hidden unlocks, and reward rules. Designed so several are **already earned on import** (from the real 30-day data) and the rest form a long ladder targeted at the user's specific weak spots: strength consistency, streaks, and the Wed/Fri/Sat cliffs.
 
+> **Shipped build: 86 achievements** (the `Achievements.ALL` list in `domain/Achievements.kt`).
+> This 120 figure is the original design ceiling; 86 were implemented for v1. The achievements
+> screen reads the live count from code, so it always matches what's built (e.g. "8 / 86 unlocked").
+> Each is evaluated retroactively as a pure function of the day log + character state.
+
 ---
 
 ## 1. Mechanics

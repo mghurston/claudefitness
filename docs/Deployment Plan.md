@@ -4,6 +4,50 @@ A complete guide to building ASCENDANT and getting it onto **your own phone** wi
 
 ---
 
+## 0. How this project is ACTUALLY built and run (authoritative)
+
+> ⚠️ Sections 1–8 below are the original design-time plan and assume **Android Studio**.
+> The real project does **not** use Android Studio. Everything is a **portable, project-local
+> toolchain inside `G:\claudefitness`** — nothing installed to the system, PATH, or registry.
+> When building or running, follow THIS section; treat the rest as background.
+
+**Toolchain (all under `G:\claudefitness`):** portable Temurin JDK 17 (`jdk\`), Android SDK
+(`android-sdk\`: cmdline-tools, platform-tools, platforms;android-35, build-tools;35.0.0),
+Gradle wrapper 8.9, project-local Gradle cache (`.gradle-home\`). `local.properties` points
+`sdk.dir` at the local SDK.
+
+**Activate (every new shell — env does NOT persist between calls):**
+```powershell
+. .\setenv.ps1     # dot-sourced; sets JAVA_HOME/ANDROID_HOME/GRADLE_USER_HOME/PATH for this session only
+```
+A command run without this has a blank `$env:ANDROID_HOME` and gives **false negatives** — never
+trust a negative result from an un-sourced shell.
+
+**Build:**
+```powershell
+.\gradlew.bat assembleDebug      # → app\build\outputs\apk\debug\app-debug.apk  (BUILD SUCCESSFUL)
+```
+
+**Emulator — there IS one; never claim "no emulator/device available":**
+- AVD: **`ascendant_test`**, stored at the **custom path `G:\claudefitness\.avd`** (NOT `~/.android/avd`).
+- `setenv.ps1` does not set `ANDROID_AVD_HOME`, so `emulator -list-avds` looks empty unless you set it.
+```powershell
+. .\setenv.ps1; $env:ANDROID_AVD_HOME="G:\claudefitness\.avd"
+& "$env:ANDROID_HOME\emulator\emulator.exe" -avd ascendant_test -no-snapshot-load -no-boot-anim   # background
+# wait for boot, then:
+$adb="$env:ANDROID_HOME\platform-tools\adb.exe"
+& $adb wait-for-device; do { Start-Sleep 2; $b=(& $adb shell getprop sys.boot_completed).Trim() } until ($b -eq "1")
+& $adb install -r -d "app\build\outputs\apk\debug\app-debug.apk"
+& $adb shell monkey -p com.mhurston.ascendant -c android.intent.category.LAUNCHER 1
+```
+**Screenshots:** `& $adb shell screencap -p /sdcard/s.png; & $adb pull /sdcard/s.png shot.png`
+— do NOT use `adb exec-out screencap -p > file.png` (PowerShell `>` corrupts the PNG with UTF-16/BOM).
+**Leave the emulator running** after checks — the user watches it himself and cannot see my screenshots.
+
+(See also the always-loaded `CLAUDE.md` at repo root, which mirrors these run rules.)
+
+---
+
 ## 1. Development Environment
 
 ### Required Tools

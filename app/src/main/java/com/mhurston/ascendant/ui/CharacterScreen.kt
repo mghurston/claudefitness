@@ -72,13 +72,10 @@ fun CharacterScreen(
         Spacer(Modifier.height(10.dp))
         Text("Choose your character", style = MaterialTheme.typography.labelMedium, color = TextDim)
         Spacer(Modifier.height(6.dp))
-        com.mhurston.ascendant.domain.Avatar.entries.toList().chunked(2).forEach { rowItems ->
-            Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(12.dp)) {
-                rowItems.forEach { a ->
-                    AvatarChoice(a.label, avatar == a, Modifier.weight(1f)) { onSetAvatar(a) }
-                }
+        Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(6.dp)) {
+            com.mhurston.ascendant.domain.Avatar.entries.forEach { a ->
+                AvatarChoice(a.label, avatar == a, Modifier.weight(1f)) { onSetAvatar(a) }
             }
-            Spacer(Modifier.height(8.dp))
         }
         Spacer(Modifier.height(8.dp))
 
@@ -193,12 +190,21 @@ private fun ExportSection(state: UiState, onImportJson: (String, (Boolean, Strin
 private fun AvatarChoice(label: String, selected: Boolean, modifier: Modifier = Modifier, onClick: () -> Unit) {
     Button(
         onClick = onClick,
-        modifier = modifier,
+        modifier = modifier.height(40.dp),
+        shape = RoundedCornerShape(10.dp),
+        contentPadding = androidx.compose.foundation.layout.PaddingValues(horizontal = 4.dp, vertical = 0.dp),
         colors = ButtonDefaults.buttonColors(
             containerColor = if (selected) ManaPurple else MaterialTheme.colorScheme.surface,
             contentColor = if (selected) MaterialTheme.colorScheme.onPrimary else TextDim
         )
-    ) { Text(label) }
+    ) {
+        Text(
+            label,
+            style = MaterialTheme.typography.labelMedium,
+            maxLines = 1,
+            fontWeight = if (selected) FontWeight.Bold else FontWeight.Normal
+        )
+    }
 }
 
 /** Hero portrait whose aura ring thickens and brightens as the rank climbs. */

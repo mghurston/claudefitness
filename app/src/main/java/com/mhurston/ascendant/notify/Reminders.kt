@@ -3,7 +3,9 @@ package com.mhurston.ascendant.notify
 import android.Manifest
 import android.app.NotificationChannel
 import android.app.NotificationManager
+import android.app.PendingIntent
 import android.content.Context
+import android.content.Intent
 import android.content.pm.PackageManager
 import android.os.Build
 import androidx.core.app.NotificationCompat
@@ -70,11 +72,20 @@ object Reminders {
                 "Boss day — these are where streaks die. 20 reps keeps it alive."
             else -> "Don't break the chain. Log today's training to keep your streak."
         }
+        // Tapping the notification must open the app — without a contentIntent it does nothing.
+        val launchIntent = Intent(context, com.mhurston.ascendant.MainActivity::class.java).apply {
+            flags = Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TOP
+        }
+        val contentIntent = PendingIntent.getActivity(
+            context, 0, launchIntent,
+            PendingIntent.FLAG_IMMUTABLE or PendingIntent.FLAG_UPDATE_CURRENT
+        )
         val notif = NotificationCompat.Builder(context, CHANNEL_ID)
             .setSmallIcon(R.drawable.ic_launcher_foreground)
             .setContentTitle("ASCENDANT")
             .setContentText(msg)
             .setStyle(NotificationCompat.BigTextStyle().bigText(msg))
+            .setContentIntent(contentIntent)
             .setAutoCancel(true)
             .build()
         NotificationManagerCompat.from(context).notify(NOTIF_ID, notif)

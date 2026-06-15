@@ -12,6 +12,11 @@ Living status doc (created 2026-06-14). Tracks what's verified, what still needs
 - Custom-exercise bonus XP (e.g. 75 reps → +38 XP) with core completion unaffected.
 - Mood + notes journal; title screen → tap → app flow; native cold-start splash.
 
+### UI fixes verified on emulator (2026-06-15)
+- **Hero / character select** — avatar picker is now a single row of 4 compact chips (Male 1 / Male 2 / Female 1 / Female 2) instead of two oversized buttons.
+- **Train — exercise controls** — simplified to `+10` / `−10` (walking `+0.5` / `−0.5`) plus a **free-text entry** ("Enter reps"/"Miles") + **Add** + **Reset** per exercise (core, walking, custom). Removed the `+25`/`+100`/`+50`/`+1.0` quick buttons as redundant with custom entry; also fixed the earlier overflow that rendered the 4th button as a blank/stacked "−10". Confirmed: typing `12` adds 12; number-only keyboard; field clears after Add; Reset zeroes that one exercise.
+- **Trophies — achievements** — logic was already correct (e.g. "First Blood" unlocks at `activeDays ≥ 1`); the gray COMMON star just didn't read as earned. Earned rows now show a green **✓ EARNED** badge + rarity-tinted card/ring; locked rows keep the 🔒 + progress bar.
+
 ## ☐ Needs testing on the phone (not exercised on emulator)
 
 These are expected to work but were never run end-to-end on real hardware:

@@ -1,8 +1,11 @@
 package com.mhurston.ascendant.ui
 
+import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
@@ -10,6 +13,9 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.foundation.text.BasicTextField
+import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Button
@@ -27,7 +33,11 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clip
+import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.SolidColor
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.unit.dp
 import com.mhurston.ascendant.domain.Progression
 import com.mhurston.ascendant.ui.theme.AuraCyan
@@ -279,12 +289,7 @@ private fun ExerciseRow(name: String, current: Int, onVideos: () -> Unit, onAdd:
                 color = if (over > 0) XpGold else ManaPurple
             )
             Spacer(Modifier.height(8.dp))
-            Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                AddBtn("+10") { onAdd(10) }
-                AddBtn("+25") { onAdd(25) }
-                AddBtn("+100") { onAdd(100) }
-                AddBtn("−10") { onAdd(-10) }
-            }
+            RepControls(current = current, onAdd = onAdd)
         }
     }
 }
@@ -318,11 +323,7 @@ private fun WalkingRow(miles: Double, onVideos: () -> Unit, onAdd: (Double) -> U
                 color = if (over > 0) XpGold else AuraCyan
             )
             Spacer(Modifier.height(8.dp))
-            Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                AddBtn("+0.5") { onAdd(0.5) }
-                AddBtn("+1.0") { onAdd(1.0) }
-                AddBtn("−0.5") { onAdd(-0.5) }
-            }
+            MileControls(miles = miles, onAdd = onAdd)
         }
     }
 }
@@ -417,22 +418,119 @@ private fun CustomExerciseSection(
                         }
                     }
                     Spacer(Modifier.height(8.dp))
-                    Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                        AddBtn("+10") { onAddReps(ex.id, 10) }
-                        AddBtn("+25") { onAddReps(ex.id, 25) }
-                        AddBtn("+50") { onAddReps(ex.id, 50) }
-                        AddBtn("−10") { onAddReps(ex.id, -10) }
-                    }
+                    RepControls(
+                        current = reps,
+                        onAdd = { onAddReps(ex.id, it) }
+                    )
                 }
             }
         }
     }
 }
 
+/** Recording controls: +10 / −10, a free-text custom entry, and a reset. */
 @Composable
-private fun AddBtn(label: String, onClick: () -> Unit) {
+private fun RepControls(current: Int, onAdd: (Int) -> Unit) {
+    var custom by remember { mutableStateOf("") }
+    Column {
+        Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(6.dp)) {
+            AddBtn("+10", Modifier.weight(1f)) { onAdd(10) }
+            AddBtn("−10", Modifier.weight(1f)) { onAdd(-10) }
+        }
+        Spacer(Modifier.height(6.dp))
+        Row(
+            Modifier.fillMaxWidth(),
+            horizontalArrangement = Arrangement.spacedBy(6.dp),
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            NumberField(custom, { custom = it }, "Enter reps", modifier = Modifier.weight(1.4f))
+            AddBtn("Add", Modifier.weight(1f)) {
+                custom.toIntOrNull()?.let { if (it != 0) onAdd(it) }
+                custom = ""
+            }
+            AddBtn("Reset", Modifier.weight(1f), contentColor = DangerRed) {
+                if (current != 0) onAdd(-current)
+            }
+        }
+    }
+}
+
+/** Walking variant: decimal entry for miles. */
+@Composable
+private fun MileControls(miles: Double, onAdd: (Double) -> Unit) {
+    var custom by remember { mutableStateOf("") }
+    Column {
+        Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(6.dp)) {
+            AddBtn("+0.5", Modifier.weight(1f)) { onAdd(0.5) }
+            AddBtn("−0.5", Modifier.weight(1f)) { onAdd(-0.5) }
+        }
+        Spacer(Modifier.height(6.dp))
+        Row(
+            Modifier.fillMaxWidth(),
+            horizontalArrangement = Arrangement.spacedBy(6.dp),
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            NumberField(custom, { custom = it }, "Miles", decimal = true, modifier = Modifier.weight(1.4f))
+            AddBtn("Add", Modifier.weight(1f)) {
+                custom.toDoubleOrNull()?.let { if (it != 0.0) onAdd(it) }
+                custom = ""
+            }
+            AddBtn("Reset", Modifier.weight(1f), contentColor = DangerRed) {
+                if (miles != 0.0) onAdd(-miles)
+            }
+        }
+    }
+}
+
+/** Compact bordered numeric entry — type any value (e.g. "12") and tap Add. */
+@Composable
+private fun NumberField(
+    value: String,
+    onValueChange: (String) -> Unit,
+    placeholder: String,
+    modifier: Modifier = Modifier,
+    decimal: Boolean = false
+) {
+    BasicTextField(
+        value = value,
+        onValueChange = { input ->
+            onValueChange(input.filter { it.isDigit() || (decimal && it == '.') }.take(6))
+        },
+        singleLine = true,
+        textStyle = MaterialTheme.typography.bodyLarge.copy(color = AuraCyan),
+        cursorBrush = SolidColor(AuraCyan),
+        keyboardOptions = KeyboardOptions(
+            keyboardType = if (decimal) KeyboardType.Decimal else KeyboardType.Number
+        ),
+        modifier = modifier
+            .height(40.dp)
+            .clip(RoundedCornerShape(20.dp))
+            .border(1.dp, TextDim.copy(alpha = 0.5f), RoundedCornerShape(20.dp)),
+        decorationBox = { inner ->
+            Box(
+                Modifier.fillMaxWidth().padding(horizontal = 14.dp),
+                contentAlignment = Alignment.CenterStart
+            ) {
+                if (value.isEmpty()) {
+                    Text(placeholder, color = TextDim, style = MaterialTheme.typography.bodyLarge, maxLines = 1)
+                }
+                inner()
+            }
+        }
+    )
+}
+
+@Composable
+private fun AddBtn(
+    label: String,
+    modifier: Modifier = Modifier,
+    contentColor: Color = AuraCyan,
+    onClick: () -> Unit
+) {
     OutlinedButton(
         onClick = onClick,
-        colors = ButtonDefaults.outlinedButtonColors(contentColor = AuraCyan)
-    ) { Text(label) }
+        modifier = modifier,
+        contentPadding = PaddingValues(horizontal = 4.dp, vertical = 8.dp),
+        colors = ButtonDefaults.outlinedButtonColors(contentColor = contentColor)
+    ) { Text(label, maxLines = 1, style = MaterialTheme.typography.labelLarge) }
 }

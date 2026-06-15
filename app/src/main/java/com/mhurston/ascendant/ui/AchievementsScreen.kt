@@ -1,6 +1,7 @@
 package com.mhurston.ascendant.ui
 
 import androidx.compose.foundation.background
+import androidx.compose.foundation.border
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -65,6 +66,8 @@ fun AchievementsScreen(state: UiState, modifier: Modifier = Modifier) {
     }
 }
 
+private val EarnedGreen = Color(0xFF3DDC84)
+
 @Composable
 private fun AchievementRow(st: AchStatus) {
     val color = rarityColor(st.def.rarity)
@@ -72,13 +75,21 @@ private fun AchievementRow(st: AchStatus) {
     val hiddenLocked = locked && st.def.hidden
     Card(
         Modifier.fillMaxWidth().padding(vertical = 4.dp),
-        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface)
+        colors = CardDefaults.cardColors(
+            // Earned rows glow faintly with their rarity tint so they clearly stand apart.
+            containerColor = if (locked) MaterialTheme.colorScheme.surface
+            else color.copy(alpha = 0.10f)
+        )
     ) {
         Row(Modifier.fillMaxWidth().padding(12.dp), verticalAlignment = Alignment.CenterVertically) {
-            // Rarity medallion
+            // Rarity medallion — earned medallions get a filled tint + colored ring.
             Box(
                 Modifier.size(44.dp).clip(RoundedCornerShape(10.dp))
-                    .background(if (locked) Color(0xFF22223A) else color.copy(alpha = 0.25f)),
+                    .background(if (locked) Color(0xFF22223A) else color.copy(alpha = 0.30f))
+                    .then(
+                        if (locked) Modifier
+                        else Modifier.border(1.5.dp, color, RoundedCornerShape(10.dp))
+                    ),
                 contentAlignment = Alignment.Center
             ) {
                 Text(
@@ -107,6 +118,10 @@ private fun AchievementRow(st: AchStatus) {
             }
             Spacer(Modifier.size(8.dp))
             Column(horizontalAlignment = Alignment.End) {
+                if (st.unlocked) {
+                    Text("✓ EARNED", style = MaterialTheme.typography.labelMedium,
+                        color = EarnedGreen, fontWeight = FontWeight.Bold)
+                }
                 Text(st.def.rarity.name, style = MaterialTheme.typography.labelMedium, color = color,
                     fontWeight = FontWeight.Bold)
                 Text("+${st.def.rarity.xp}", style = MaterialTheme.typography.labelMedium, color = TextDim)
