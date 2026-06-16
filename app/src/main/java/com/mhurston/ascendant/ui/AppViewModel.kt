@@ -177,6 +177,23 @@ class AppViewModel(app: Application) : AndroidViewModel(app) {
 
     fun addCustomRepsToday(id: String, delta: Int) = addCustomRepsForDate(todayStr(), id, delta)
 
+    // --- push-ups variants (all sum 1:1 toward the push-ups goal) ------------
+    /** Add reps to one Push-ups variant. The base "pushups" variant writes its own column;
+     *  the alternatives live in the encoded pushVariants column. */
+    fun addPushVariantForDate(date: String, variantId: String, delta: Int) = mutateDay(date) { cur ->
+        if (variantId == com.mhurston.ascendant.domain.PushExercise.PUSHUPS.id) {
+            cur.copy(pushups = (cur.pushups + delta).coerceAtLeast(0))
+        } else {
+            val m = WorkoutDayEntity.decodeCustomReps(cur.pushVariants).toMutableMap()
+            val next = ((m[variantId] ?: 0) + delta).coerceAtLeast(0)
+            if (next == 0) m.remove(variantId) else m[variantId] = next
+            cur.copy(pushVariants = WorkoutDayEntity.encodeCustomReps(m))
+        }
+    }
+
+    fun addPushVariantToday(variantId: String, delta: Int) =
+        addPushVariantForDate(todayStr(), variantId, delta)
+
     fun resetToday() = resetDay(todayStr())
 
     // --- any date (Calendar / history editing) -------------------------------

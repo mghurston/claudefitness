@@ -77,6 +77,7 @@ fun AscendantApp(vm: AppViewModel) {
                 onAddCustomReps = vm::addCustomRepsToday,
                 onAddCustomExercise = vm::addCustomExercise,
                 onRemoveCustomExercise = vm::removeCustomExercise,
+                onAddPushVariant = vm::addPushVariantToday,
                 modifier = content
             )
             Tab.CHARACTER -> CharacterScreen(
@@ -95,6 +96,8 @@ fun AscendantApp(vm: AppViewModel) {
                 onSetMood = vm::setMoodForDate,
                 onSetNotes = vm::setNotesForDate,
                 onAddCustomReps = vm::addCustomRepsForDate,
+                onAddCustomExercise = vm::addCustomExercise,
+                onAddPushVariant = vm::addPushVariantForDate,
                 modifier = content
             )
             Tab.ENERGY -> EnergyScreen(

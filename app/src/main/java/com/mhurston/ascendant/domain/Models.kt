@@ -23,6 +23,26 @@ data class DayData(
     val hasActivity: Boolean get() = hasStrength || miles > 0.0
 }
 
+/**
+ * The Push-ups goal can be satisfied by any of these equivalent exercises — reps from all
+ * of them sum 1:1 toward the same daily target (Progression.REP_TARGET). [PUSHUPS] is kept
+ * in WorkoutDayEntity.pushups (its own column, backward-compatible); the rest are stored in
+ * WorkoutDayEntity.pushVariants. Fixed built-in list.
+ */
+enum class PushExercise(val id: String, val label: String) {
+    PUSHUPS("pushups", "Pushups"),
+    DUMBBELL_CHEST_FLY("db_chest_fly", "Standing Dumbbell Chest Fly"),
+    UPWARD_CHEST_FLY("upward_chest_fly", "Standing Upward Chest Fly"),
+    PULL_UPS("pull_ups", "Pull Ups"),
+    CHIN_UPS("chin_ups", "Chin Ups"),
+    DIPS("dips", "Dips");
+
+    companion object {
+        /** Variants stored in the encoded pushVariants column (everything except [PUSHUPS]). */
+        val EXTRAS: List<PushExercise> = entries.filter { it != PUSHUPS }
+    }
+}
+
 /** The five RPG attributes (Leveling System §5). */
 data class Stats(
     val strength: Int,

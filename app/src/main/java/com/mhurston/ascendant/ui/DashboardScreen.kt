@@ -61,6 +61,7 @@ fun DashboardScreen(
     onAddCustomReps: (String, Int) -> Unit = { _, _ -> },
     onAddCustomExercise: (String) -> Unit = {},
     onRemoveCustomExercise: (String) -> Unit = {},
+    onAddPushVariant: (String, Int) -> Unit = { _, _ -> },
     modifier: Modifier = Modifier
 ) {
     val c = state.character
@@ -142,7 +143,12 @@ fun DashboardScreen(
             style = MaterialTheme.typography.labelMedium, color = TextDim)
         Spacer(Modifier.height(8.dp))
 
-        ExerciseRow("Push-ups", today.pushups, { videoFor = "pushups" }) { onAddReps(ExerciseKind.PUSHUPS, it) }
+        PushUpsSection(
+            breakdown = today.pushBreakdown(),
+            total = today.pushTotal(),
+            onVideos = { videoFor = "pushups" },
+            onAddVariant = onAddPushVariant
+        )
         ExerciseRow("Squats", today.squats, { videoFor = "squats" }) { onAddReps(ExerciseKind.SQUATS, it) }
         ExerciseRow("Leg Lifts", today.legLifts, { videoFor = "leglifts" }) { onAddReps(ExerciseKind.LEG_LIFTS, it) }
         ExerciseRow("Calf Raises", today.calfRaises, { videoFor = "calfraises" }) { onAddReps(ExerciseKind.CALF_RAISES, it) }
@@ -290,6 +296,60 @@ private fun ExerciseRow(name: String, current: Int, onVideos: () -> Unit, onAdd:
             )
             Spacer(Modifier.height(8.dp))
             RepControls(current = current, onAdd = onAdd)
+        }
+    }
+}
+
+/** Push-ups goal, satisfied by any of the equivalent exercises. Each variant has its own
+ *  controls; all reps sum 1:1 toward the single rep target shown in the header. */
+@Composable
+private fun PushUpsSection(
+    breakdown: Map<String, Int>,
+    total: Int,
+    onVideos: () -> Unit,
+    onAddVariant: (String, Int) -> Unit
+) {
+    val target = Progression.REP_TARGET
+    val over = total - target
+    Card(
+        Modifier.fillMaxWidth().padding(vertical = 4.dp),
+        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface)
+    ) {
+        Column(Modifier.padding(12.dp)) {
+            Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
+                Row(verticalAlignment = Alignment.CenterVertically) {
+                    Text("Push-ups", style = MaterialTheme.typography.bodyLarge)
+                    Text("  ▶ form", color = AuraCyan,
+                        style = MaterialTheme.typography.labelMedium,
+                        modifier = Modifier.clickable(onClick = onVideos))
+                }
+                Row {
+                    if (over > 0) Text("OVERDRIVE +$over  ", color = XpGold,
+                        style = MaterialTheme.typography.labelMedium, fontWeight = FontWeight.Bold)
+                    Text("$total / $target", color = if (total >= target) AuraCyan else TextDim,
+                        fontWeight = FontWeight.Bold)
+                }
+            }
+            Text("Log any of these — they all count toward the goal.",
+                style = MaterialTheme.typography.labelMedium, color = TextDim)
+            Spacer(Modifier.height(6.dp))
+            ProgressTrack(
+                fraction = (total.toFloat() / target).coerceIn(0f, 1f),
+                color = if (over > 0) XpGold else ManaPurple
+            )
+            com.mhurston.ascendant.domain.PushExercise.entries.forEach { v ->
+                val reps = breakdown[v.id] ?: 0
+                Spacer(Modifier.height(12.dp))
+                Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween,
+                    verticalAlignment = Alignment.CenterVertically) {
+                    Text(v.label, style = MaterialTheme.typography.bodyMedium,
+                        color = if (reps > 0) MaterialTheme.colorScheme.onSurface else TextDim)
+                    Text("$reps", color = if (reps > 0) AuraCyan else TextDim,
+                        fontWeight = FontWeight.Bold)
+                }
+                Spacer(Modifier.height(4.dp))
+                RepControls(current = reps, onAdd = { onAddVariant(v.id, it) })
+            }
         }
     }
 }

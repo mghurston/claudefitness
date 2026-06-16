@@ -16,7 +16,7 @@ object Exporter {
         sb.append("date,pushups,squats,leglifts,calfraises,curls,miles,completion\n")
         days.sortedBy { it.date }.forEach { d ->
             val comp = Progression.completion(d.toDayData())
-            sb.append("${d.date},${d.pushups},${d.squats},${d.legLifts},")
+            sb.append("${d.date},${d.pushTotal()},${d.squats},${d.legLifts},")
             sb.append("${d.calfRaises},${d.curls},${d.miles},")
             sb.append(String.format("%.4f", comp)).append("\n")
         }
@@ -46,6 +46,7 @@ object Exporter {
             sb.append("\"isRestDay\": ${d.isRestDay}, ")
             sb.append("\"mood\": ${d.mood}, ")
             sb.append("\"customReps\": \"${esc(d.customReps)}\", ")
+            sb.append("\"pushVariants\": \"${esc(d.pushVariants)}\", ")
             sb.append("\"notes\": \"${esc(d.notes)}\"}")
             sb.append(if (i < sorted.lastIndex) ",\n" else "\n")
         }
@@ -83,7 +84,8 @@ object Exporter {
                         isRestDay = d.optBoolean("isRestDay", false),
                         notes = d.optString("notes", ""),
                         mood = d.optInt("mood", 0),
-                        customReps = d.optString("customReps", "")
+                        customReps = d.optString("customReps", ""),
+                        pushVariants = d.optString("pushVariants", "")
                     )
                 )
             }

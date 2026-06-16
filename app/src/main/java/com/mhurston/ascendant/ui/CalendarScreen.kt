@@ -53,6 +53,8 @@ fun CalendarScreen(
     onSetMood: (String, Int) -> Unit = { _, _ -> },
     onSetNotes: (String, String) -> Unit = { _, _ -> },
     onAddCustomReps: (String, String, Int) -> Unit = { _, _, _ -> },
+    onAddCustomExercise: (String) -> Unit = {},
+    onAddPushVariant: (String, String, Int) -> Unit = { _, _, _ -> },
     modifier: Modifier = Modifier
 ) {
     val today = LocalDate.now()
@@ -76,6 +78,8 @@ fun CalendarScreen(
             onSetNotes = { n -> onSetNotes(date.toString(), n) },
             customExercises = state.allCustomExercises,
             onAddCustomReps = { id, delta -> onAddCustomReps(date.toString(), id, delta) },
+            onAddCustomExercise = onAddCustomExercise,
+            onAddPushVariant = { id, delta -> onAddPushVariant(date.toString(), id, delta) },
             onDismiss = { selected = null }
         )
     }
@@ -243,9 +247,12 @@ private fun DayEditorDialog(
     onSetNotes: (String) -> Unit,
     customExercises: List<com.mhurston.ascendant.domain.CustomExercise> = emptyList(),
     onAddCustomReps: (String, Int) -> Unit = { _, _ -> },
+    onAddCustomExercise: (String) -> Unit = {},
+    onAddPushVariant: (String, Int) -> Unit = { _, _ -> },
     onDismiss: () -> Unit
 ) {
     var confirmReset by remember { mutableStateOf(false) }
+    var showAddCustom by remember { mutableStateOf(false) }
     val e = entity ?: WorkoutDayEntity(date = date.toString())
     val pct = (completion * 100).roundToInt()
 
@@ -264,6 +271,13 @@ private fun DayEditorDialog(
         )
     }
 
+    if (showAddCustom) {
+        AddCustomExerciseDialog(
+            onAdd = { name -> onAddCustomExercise(name); showAddCustom = false },
+            onDismiss = { showAddCustom = false }
+        )
+    }
+
     AlertDialog(
         onDismissRequest = onDismiss,
         title = {
@@ -274,22 +288,36 @@ private fun DayEditorDialog(
         },
         text = {
             Column(Modifier.verticalScroll(rememberScrollState())) {
-                EditRow("Push-ups", e.pushups) { onAddReps(ExerciseKind.PUSHUPS, it) }
+                val pushBreak = e.pushBreakdown()
+                Text("Push-ups — ${e.pushTotal()} / 100  (any of these count)",
+                    style = MaterialTheme.typography.labelMedium, color = TextDim)
+                com.mhurston.ascendant.domain.PushExercise.entries.forEach { v ->
+                    EditRow(v.label, pushBreak[v.id] ?: 0) { onAddPushVariant(v.id, it) }
+                }
+                Spacer(Modifier.height(4.dp))
                 EditRow("Squats", e.squats) { onAddReps(ExerciseKind.SQUATS, it) }
                 EditRow("Leg Lifts", e.legLifts) { onAddReps(ExerciseKind.LEG_LIFTS, it) }
                 EditRow("Calf Raises", e.calfRaises) { onAddReps(ExerciseKind.CALF_RAISES, it) }
                 EditRow("Curls", e.curls) { onAddReps(ExerciseKind.CURLS, it) }
                 MilesEditRow(e.miles, onAddMiles)
-                if (customExercises.isNotEmpty()) {
-                    val customReps = WorkoutDayEntity.decodeCustomReps(e.customReps)
-                    // Active exercises are always editable here; archived ones appear only on
-                    // days they were actually logged, so old entries stay visible after removal.
-                    customExercises
-                        .filter { !it.archived || (customReps[it.id] ?: 0) > 0 }
-                        .forEach { ex ->
-                            EditRow(ex.name, customReps[ex.id] ?: 0) { onAddCustomReps(ex.id, it) }
-                        }
+
+                Spacer(Modifier.height(8.dp))
+                // Custom exercises: add a new one (created globally) or log reps right here.
+                Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween,
+                    verticalAlignment = Alignment.CenterVertically) {
+                    Text("Custom", style = MaterialTheme.typography.labelMedium, color = TextDim)
+                    Text("＋ Add", color = ManaPurple, style = MaterialTheme.typography.labelMedium,
+                        fontWeight = FontWeight.Bold,
+                        modifier = Modifier.clickable { showAddCustom = true })
                 }
+                val customReps = WorkoutDayEntity.decodeCustomReps(e.customReps)
+                // Active exercises are always editable here; archived ones appear only on
+                // days they were actually logged, so old entries stay visible after removal.
+                customExercises
+                    .filter { !it.archived || (customReps[it.id] ?: 0) > 0 }
+                    .forEach { ex ->
+                        EditRow(ex.name, customReps[ex.id] ?: 0) { onAddCustomReps(ex.id, it) }
+                    }
                 Spacer(Modifier.height(12.dp))
                 JournalSection(
                     dateKey = date.toString(),
@@ -311,12 +339,45 @@ private fun DayEditorDialog(
     )
 }
 
+/** Name-entry dialog for creating a custom exercise from a logged day. Mirrors the
+ *  dashboard's add flow; the new exercise is created globally and then loggable here. */
+@Composable
+private fun AddCustomExerciseDialog(onAdd: (String) -> Unit, onDismiss: () -> Unit) {
+    var name by remember { mutableStateOf("") }
+    AlertDialog(
+        onDismissRequest = onDismiss,
+        title = { Text("Add custom exercise") },
+        text = {
+            Column {
+                Text("These earn bonus XP but don't change your completion % or stats.",
+                    style = MaterialTheme.typography.labelMedium, color = TextDim)
+                Spacer(Modifier.height(8.dp))
+                androidx.compose.material3.OutlinedTextField(
+                    value = name,
+                    onValueChange = { name = it.take(40) },
+                    singleLine = true,
+                    label = { Text("Name (e.g. Pull-ups, Plank sec)") },
+                    modifier = Modifier.fillMaxWidth()
+                )
+            }
+        },
+        confirmButton = {
+            TextButton(enabled = name.isNotBlank(), onClick = { onAdd(name.trim()) }) {
+                Text("Add", fontWeight = FontWeight.Bold)
+            }
+        },
+        dismissButton = { TextButton(onClick = onDismiss) { Text("Cancel") } }
+    )
+}
+
 @Composable
 private fun EditRow(name: String, value: Int, onAdd: (Int) -> Unit) {
     Row(Modifier.fillMaxWidth().padding(vertical = 4.dp),
-        horizontalArrangement = Arrangement.SpaceBetween,
+        horizontalArrangement = Arrangement.spacedBy(8.dp),
         verticalAlignment = Alignment.CenterVertically) {
-        Column {
+        // Flexible so long names (e.g. "Standing Dumbbell Chest Fly") wrap instead of
+        // pushing the rep buttons off-screen.
+        Column(Modifier.weight(1f)) {
             Text(name, style = MaterialTheme.typography.bodyLarge)
             Text("$value", style = MaterialTheme.typography.labelMedium, color = AuraCyan)
         }
