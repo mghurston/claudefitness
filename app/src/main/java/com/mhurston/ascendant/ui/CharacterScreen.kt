@@ -68,7 +68,10 @@ fun CharacterScreen(
             com.mhurston.ascendant.domain.Avatar.FEMALE_BLACK -> R.drawable.hero_portrait_female_black
             else -> R.drawable.hero_portrait
         }
-        RankPortrait(portrait = portrait, rank = c.rank, level = c.level)
+        Box(Modifier.fillMaxWidth(), contentAlignment = Alignment.Center) {
+            RankPortrait(portrait = portrait, rank = c.rank, level = c.level,
+                modifier = Modifier.fillMaxWidth(0.62f))
+        }
         Spacer(Modifier.height(10.dp))
         Text("Choose your character", style = MaterialTheme.typography.labelMedium, color = TextDim)
         Spacer(Modifier.height(6.dp))
@@ -77,7 +80,9 @@ fun CharacterScreen(
                 AvatarChoice(a.label, avatar == a, Modifier.weight(1f)) { onSetAvatar(a) }
             }
         }
-        Spacer(Modifier.height(8.dp))
+        Spacer(Modifier.height(16.dp))
+        StatusRings(state)
+        Spacer(Modifier.height(16.dp))
 
         Card(
             Modifier.fillMaxWidth(),
@@ -121,6 +126,38 @@ fun CharacterScreen(
         Spacer(Modifier.height(20.dp))
         ExportSection(state, onImportJson)
         Spacer(Modifier.height(24.dp))
+    }
+}
+
+/** Today's status at a glance — Goals completion and Active Burn, moved here from Training. */
+@Composable
+private fun StatusRings(state: UiState) {
+    val completionPct = (state.todayDerived.completion * 100).roundToInt()
+    val burn = com.mhurston.ascendant.domain.Calories
+        .activityBurn(state.profile, state.today.toDayData()).roundToInt()
+    val burnTarget = com.mhurston.ascendant.domain.Calories.dailyBurnTarget(state.profile)
+    Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceEvenly) {
+        Column(horizontalAlignment = Alignment.CenterHorizontally) {
+            CompletionRing(
+                completion = state.todayDerived.completion,
+                size = 150.dp,
+                centerLabel = "$completionPct%",
+                centerSub = "+${state.todayDerived.xp} XP"
+            )
+            Spacer(Modifier.height(6.dp))
+            Text("✓ Goals", style = MaterialTheme.typography.labelMedium, color = TextDim)
+        }
+        Column(horizontalAlignment = Alignment.CenterHorizontally) {
+            CompletionRing(
+                completion = if (burnTarget > 0) burn.toDouble() / burnTarget else 0.0,
+                size = 150.dp,
+                centerLabel = "$burn",
+                centerSub = "/ $burnTarget kcal",
+                centerColor = XpGold
+            )
+            Spacer(Modifier.height(6.dp))
+            Text("🔥 Active Burn", style = MaterialTheme.typography.labelMedium, color = TextDim)
+        }
     }
 }
 
@@ -209,12 +246,13 @@ private fun AvatarChoice(label: String, selected: Boolean, modifier: Modifier = 
 
 /** Hero portrait whose aura ring thickens and brightens as the rank climbs. */
 @Composable
-private fun RankPortrait(portrait: Int, rank: com.mhurston.ascendant.domain.Rank, level: Int) {
+private fun RankPortrait(portrait: Int, rank: com.mhurston.ascendant.domain.Rank, level: Int,
+    modifier: Modifier = Modifier) {
     val aura = rankAuraColor(rank)
     val tier = rank.ordinal // 0 (E) .. 7 (National-Level)
     val ring = (2 + tier).dp
     val glow = ring + 8.dp
-    Box(Modifier.fillMaxWidth().aspectRatio(0.85f)) {
+    Box(modifier.aspectRatio(0.85f)) {
         // Outer aura glow — thicker and brighter the higher the rank.
         Box(
             Modifier

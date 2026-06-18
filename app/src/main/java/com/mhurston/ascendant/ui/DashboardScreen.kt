@@ -72,7 +72,6 @@ fun DashboardScreen(
 ) {
     val c = state.character
     val today = state.today
-    val completionPct = (state.todayDerived.completion * 100).roundToInt()
     var confirmReset by remember { mutableStateOf(false) }
     var videoFor by remember { mutableStateOf<String?>(null) }
 
@@ -125,34 +124,6 @@ fun DashboardScreen(
         }
 
         Spacer(Modifier.height(20.dp))
-        val burn = com.mhurston.ascendant.domain.Calories.activityBurn(state.profile, today.toDayData())
-            .roundToInt()
-        val burnTarget = com.mhurston.ascendant.domain.Calories.dailyBurnTarget(state.profile)
-        Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceEvenly) {
-            Column(horizontalAlignment = Alignment.CenterHorizontally) {
-                CompletionRing(
-                    completion = state.todayDerived.completion,
-                    size = 150.dp,
-                    centerLabel = "$completionPct%",
-                    centerSub = "+${state.todayDerived.xp} XP"
-                )
-                Spacer(Modifier.height(6.dp))
-                Text("✓ Goals", style = MaterialTheme.typography.labelMedium, color = TextDim)
-            }
-            Column(horizontalAlignment = Alignment.CenterHorizontally) {
-                CompletionRing(
-                    completion = if (burnTarget > 0) burn.toDouble() / burnTarget else 0.0,
-                    size = 150.dp,
-                    centerLabel = "$burn",
-                    centerSub = "/ $burnTarget kcal",
-                    centerColor = XpGold
-                )
-                Spacer(Modifier.height(6.dp))
-                Text("🔥 Active Burn", style = MaterialTheme.typography.labelMedium, color = TextDim)
-            }
-        }
-
-        Spacer(Modifier.height(16.dp))
         Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(12.dp)) {
             StreakChip("🔥 Strength", c.strengthStreak, Modifier.weight(1f))
             StreakChip("⚡ Activity", c.activityStreak, Modifier.weight(1f))
