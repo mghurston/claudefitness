@@ -13,8 +13,11 @@ android {
         applicationId = "com.mhurston.ascendant"
         minSdk = 26
         targetSdk = 35
-        versionCode = 2
-        versionName = "0.1.1"
+        // Bump BOTH on every delivered build: versionCode +1 (Android uses this to
+        // gate installs — equal/lower is rejected on sideload), versionName as the
+        // human label (patch++, rolling 0.1.9 -> 0.2.0).
+        versionCode = 3
+        versionName = "0.1.2"
     }
 
     buildTypes {
