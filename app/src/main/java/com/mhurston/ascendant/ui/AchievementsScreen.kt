@@ -2,6 +2,7 @@ package com.mhurston.ascendant.ui
 
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -20,6 +21,8 @@ import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.mutableStateMapOf
+import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
@@ -47,11 +50,15 @@ fun AchievementsScreen(state: UiState, modifier: Modifier = Modifier) {
     val achievements = state.achievements
     val unlocked = achievements.count { it.unlocked }
     val bonusXp = com.mhurston.ascendant.domain.Achievements.unlockedXp(achievements)
-    // Unlocked first, then by progress descending.
-    val sorted = achievements.sortedWith(
-        compareByDescending<AchStatus> { it.unlocked }
-            .thenByDescending { it.current.toFloat() / it.target.coerceAtLeast(1) }
-    )
+
+    // Group by category, ordered by the domain's display order (unknowns appended).
+    val byCat = achievements.groupBy { it.def.category }
+    val order = com.mhurston.ascendant.domain.Achievements.CATEGORY_ORDER
+    val cats = (order.filter { byCat.containsKey(it) } +
+        byCat.keys.filterNot { it in order }).distinct()
+
+    // Collapsed by default so the long list is scannable; tap a section to expand it.
+    val expanded = remember { mutableStateMapOf<String, Boolean>() }
 
     Column(modifier.fillMaxSize().padding(horizontal = 20.dp)) {
         Spacer(Modifier.height(20.dp))
@@ -60,8 +67,55 @@ fun AchievementsScreen(state: UiState, modifier: Modifier = Modifier) {
             style = MaterialTheme.typography.labelMedium, color = TextDim)
         Spacer(Modifier.height(12.dp))
         LazyColumn {
-            items(sorted, key = { it.def.id }) { AchievementRow(it) }
+            cats.forEach { cat ->
+                val rows = byCat[cat].orEmpty().sortedWith(
+                    compareByDescending<AchStatus> { it.unlocked }
+                        .thenByDescending { it.current.toFloat() / it.target.coerceAtLeast(1) }
+                )
+                val earned = rows.count { it.unlocked }
+                val isOpen = expanded[cat] == true
+                item(key = "hdr_$cat") {
+                    CategoryHeader(cat, earned, rows.size, isOpen) {
+                        expanded[cat] = !isOpen
+                    }
+                }
+                if (isOpen) items(rows, key = { it.def.id }) { AchievementRow(it) }
+            }
             item { Spacer(Modifier.height(24.dp)) }
+        }
+    }
+}
+
+@Composable
+private fun CategoryHeader(
+    title: String,
+    earned: Int,
+    total: Int,
+    expanded: Boolean,
+    onToggle: () -> Unit
+) {
+    val complete = earned == total && total > 0
+    Card(
+        Modifier.fillMaxWidth().padding(vertical = 4.dp).clickable(onClick = onToggle),
+        colors = CardDefaults.cardColors(
+            containerColor = if (complete) XpGold.copy(alpha = 0.12f)
+            else MaterialTheme.colorScheme.surface
+        )
+    ) {
+        Row(
+            Modifier.fillMaxWidth().padding(horizontal = 14.dp, vertical = 14.dp),
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            Text(if (expanded) "▾" else "▸", color = AuraCyan, fontWeight = FontWeight.Bold)
+            Spacer(Modifier.size(10.dp))
+            Text(title, style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold,
+                color = MaterialTheme.colorScheme.onSurface, modifier = Modifier.weight(1f))
+            Text("$earned / $total", style = MaterialTheme.typography.labelMedium,
+                color = if (complete) XpGold else TextDim, fontWeight = FontWeight.Bold)
+            if (complete) {
+                Spacer(Modifier.size(6.dp))
+                Text("✓", color = XpGold, fontWeight = FontWeight.Bold)
+            }
         }
     }
 }

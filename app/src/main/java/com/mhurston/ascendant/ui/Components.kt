@@ -160,7 +160,8 @@ fun CompletionRing(
     completion: Double,
     size: Dp = 180.dp,
     centerLabel: String,
-    centerSub: String
+    centerSub: String,
+    centerColor: Color = AuraCyan
 ) {
     val frac = completion.coerceIn(0.0, 1.0).toFloat()
     Box(contentAlignment = Alignment.Center, modifier = Modifier.size(size)) {
@@ -191,7 +192,7 @@ fun CompletionRing(
             )
         }
         Column(horizontalAlignment = Alignment.CenterHorizontally) {
-            Text(centerLabel, style = MaterialTheme.typography.headlineMedium, color = AuraCyan)
+            Text(centerLabel, style = MaterialTheme.typography.headlineMedium, color = centerColor)
             Text(centerSub, style = MaterialTheme.typography.labelMedium, color = TextDim)
         }
     }

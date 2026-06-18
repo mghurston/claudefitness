@@ -72,7 +72,7 @@ class AppViewModel(app: Application) : AndroidViewModel(app) {
                 ?: WorkoutDayEntity(date = todayStr)
             val dayData: List<DayData> = days.map { it.toDayData() } +
                 if (days.any { it.date == todayStr }) emptyList() else listOf(todayEntity.toDayData())
-            val (character, derived) = Progression.rebuild(dayData, today, anchor)
+            val (character, derived) = Progression.rebuild(dayData, today, anchor, profile)
             UiState(
                 loading = false,
                 character = character,
@@ -82,7 +82,7 @@ class AppViewModel(app: Application) : AndroidViewModel(app) {
                 derivedByDate = derived,
                 profile = profile,
                 achievements = Achievements.evaluate(dayData, character),
-                quests = Quests.generate(today, todayEntity.toDayData(), dayData),
+                quests = Quests.generate(today, todayEntity.toDayData(), dayData, profile),
                 favoriteVideoUrls = favVideos,
                 userVideos = userVideos,
                 customExercises = customExercises.filterNot { it.archived },
@@ -177,6 +177,29 @@ class AppViewModel(app: Application) : AndroidViewModel(app) {
 
     fun addCustomRepsToday(id: String, delta: Int) = addCustomRepsForDate(todayStr(), id, delta)
 
+    // --- one-off activities (logged to a single day; never an option on other days) ----
+    /** Append a one-off (name + calorie estimate) to a day. Stays in that day's history. */
+    fun addOneOffForDate(date: String, name: String, kcal: Int) = mutateDay(date) { cur ->
+        val cleaned = name.trim().take(40)
+        if (cleaned.isEmpty()) return@mutateDay cur
+        val list = WorkoutDayEntity.decodeOneOffs(cur.oneOffs) +
+            com.mhurston.ascendant.domain.OneOff(cleaned, kcal.coerceAtLeast(0))
+        cur.copy(oneOffs = WorkoutDayEntity.encodeOneOffs(list))
+    }
+
+    fun addOneOffToday(name: String, kcal: Int) = addOneOffForDate(todayStr(), name, kcal)
+
+    fun removeOneOffForDate(date: String, index: Int) = mutateDay(date) { cur ->
+        val list = WorkoutDayEntity.decodeOneOffs(cur.oneOffs).toMutableList()
+        if (index in list.indices) list.removeAt(index)
+        cur.copy(oneOffs = WorkoutDayEntity.encodeOneOffs(list))
+    }
+
+    fun removeOneOffToday(index: Int) = removeOneOffForDate(todayStr(), index)
+
+    /** "Pin" a one-off so it becomes a reusable recurring custom exercise going forward. */
+    fun pinOneOffAsExercise(name: String) { viewModelScope.launch { repo.addCustomExercise(name) } }
+
     // --- push-ups variants (all sum 1:1 toward the push-ups goal) ------------
     /** Add reps to one Push-ups variant. The base "pushups" variant writes its own column;
      *  the alternatives live in the encoded pushVariants column. */
@@ -193,6 +216,34 @@ class AppViewModel(app: Application) : AndroidViewModel(app) {
 
     fun addPushVariantToday(variantId: String, delta: Int) =
         addPushVariantForDate(todayStr(), variantId, delta)
+
+    // --- core variants (Leg Lifts / Sit-ups / High Knees all sum 1:1 toward the core goal) --
+    /** Add reps to one Core variant. The base "leglifts" variant writes its own column;
+     *  the alternatives live in the encoded coreVariants column. */
+    fun addCoreVariantForDate(date: String, variantId: String, delta: Int) = mutateDay(date) { cur ->
+        if (variantId == com.mhurston.ascendant.domain.CoreExercise.LEG_LIFTS.id) {
+            cur.copy(legLifts = (cur.legLifts + delta).coerceAtLeast(0))
+        } else {
+            val m = WorkoutDayEntity.decodeCustomReps(cur.coreVariants).toMutableMap()
+            val next = ((m[variantId] ?: 0) + delta).coerceAtLeast(0)
+            if (next == 0) m.remove(variantId) else m[variantId] = next
+            cur.copy(coreVariants = WorkoutDayEntity.encodeCustomReps(m))
+        }
+    }
+
+    fun addCoreVariantToday(variantId: String, delta: Int) =
+        addCoreVariantForDate(todayStr(), variantId, delta)
+
+    // --- time-based extra cardio (bike/swim): minutes → calories → XP, own thing -------------
+    fun addCardioMinutesForDate(date: String, activityId: String, deltaMin: Int) = mutateDay(date) { cur ->
+        val m = WorkoutDayEntity.decodeCustomReps(cur.cardioMinutes).toMutableMap()
+        val next = ((m[activityId] ?: 0) + deltaMin).coerceAtLeast(0)
+        if (next == 0) m.remove(activityId) else m[activityId] = next
+        cur.copy(cardioMinutes = WorkoutDayEntity.encodeCustomReps(m))
+    }
+
+    fun addCardioMinutesToday(activityId: String, deltaMin: Int) =
+        addCardioMinutesForDate(todayStr(), activityId, deltaMin)
 
     fun resetToday() = resetDay(todayStr())
 

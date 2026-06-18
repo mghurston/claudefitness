@@ -18,6 +18,7 @@ data class AchDef(
     val rarity: Rarity,
     val target: Int,
     val hidden: Boolean = false,
+    val category: String = "General",
     val value: (AchFacts) -> Int
 )
 
@@ -56,14 +57,25 @@ object Achievements {
 
     private fun rankAtLeast(s: CharacterState, r: Rank) = s.rank.ordinal >= r.ordinal
 
-    val ALL: List<AchDef> = listOf(
-        // --- Onboarding ---
+    /** Tag a group of achievements with a user-facing category (used to group the Trophies UI). */
+    private fun cat(name: String, defs: List<AchDef>): List<AchDef> = defs.map { it.copy(category = name) }
+
+    /** Display order of categories on the Trophies screen. */
+    val CATEGORY_ORDER: List<String> = listOf(
+        "Getting Started", "Push-ups", "Squats", "Arms & Core", "Walking",
+        "Streaks", "Boss Days", "Levels & Ranks", "Stats", "Mastery",
+        "Personal Records", "Journal"
+    )
+
+    val ALL: List<AchDef> =
+        cat("Getting Started", listOf(
         AchDef("first_blood", "First Blood", "Log your very first workout.", Rarity.COMMON, 1) { it.flag(it.activeDays >= 1) },
         AchDef("awakening", "The Awakening", "Complete your first full 100% day.", Rarity.COMMON, 1) { it.flag(it.full100Days >= 1) },
         AchDef("hello_world", "Hello, World", "Log all six exercises in a single day.", Rarity.COMMON, 1) { it.flag(it.anyAllSix) },
         AchDef("import_complete", "Import Complete", "Migrate your 30 days of history.", Rarity.UNCOMMON, 30) { it.loggedDays },
 
-        // --- Push-ups ---
+        )) +
+        cat("Push-ups", listOf(
         AchDef("push_start", "Push Start", "100 lifetime push-ups.", Rarity.COMMON, 100) { it.pushups },
         AchDef("press_forward", "Press Forward", "500 lifetime push-ups.", Rarity.COMMON, 500) { it.pushups },
         AchDef("thousand_fists", "Thousand Fists", "1,000 lifetime push-ups.", Rarity.UNCOMMON, 1000) { it.pushups },
@@ -72,7 +84,8 @@ object Achievements {
         AchDef("the_hundred", "The Hundred", "100 push-ups in a single day.", Rarity.COMMON, 100) { it.bestPushups },
         AchDef("over_capacity", "Over Capacity", "110+ push-ups in a day.", Rarity.UNCOMMON, 110) { it.bestPushups },
 
-        // --- Squats ---
+        )) +
+        cat("Squats", listOf(
         AchDef("knees_bent", "Knees Bent", "100 lifetime squats.", Rarity.COMMON, 100) { it.squats },
         AchDef("leg_day", "Leg Day", "1,000 lifetime squats.", Rarity.UNCOMMON, 1000) { it.squats },
         AchDef("pillars", "Pillars", "5,000 lifetime squats.", Rarity.RARE, 5000) { it.squats },
@@ -80,7 +93,8 @@ object Achievements {
         AchDef("squat_century", "Squat Century", "100 squats in one day.", Rarity.COMMON, 100) { it.bestSquats },
         AchDef("deep_resolve", "Deep Resolve", "110+ squats in one day.", Rarity.UNCOMMON, 110) { it.bestSquats },
 
-        // --- Curls / Leg lifts / Calf raises ---
+        )) +
+        cat("Arms & Core", listOf(
         AchDef("curl_up", "Curl Up", "1,000 lifetime curls.", Rarity.UNCOMMON, 1000) { it.curls },
         AchDef("peak_contraction", "Peak Contraction", "5,000 lifetime curls.", Rarity.RARE, 5000) { it.curls },
         AchDef("guns_loaded", "Guns Loaded", "120 curls in a day.", Rarity.UNCOMMON, 120) { it.bestCurls },
@@ -90,7 +104,8 @@ object Achievements {
         AchDef("mountain_stance", "Mountain Stance", "5,000 lifetime calf raises.", Rarity.RARE, 5000) { it.calfRaises },
         AchDef("tiptoe_titan", "Tiptoe Titan", "120 calf raises in a day.", Rarity.UNCOMMON, 120) { it.bestCalfRaises },
 
-        // --- Walking / Endurance ---
+        )) +
+        cat("Walking", listOf(
         AchDef("first_mile", "First Mile", "Walk 1 lifetime mile.", Rarity.COMMON, 1) { it.miles },
         AchDef("marathoner", "Marathoner", "26 lifetime miles.", Rarity.COMMON, 26) { it.miles },
         AchDef("century_walker", "Century Walker", "100 lifetime miles.", Rarity.UNCOMMON, 100) { it.miles },
@@ -101,7 +116,8 @@ object Achievements {
         AchDef("never_skip_cardio", "Never Skip Cardio", "30-day walking streak.", Rarity.RARE, 30) { it.longestWalkStreak },
         AchDef("pilgrimage", "Pilgrimage", "50-day walking streak.", Rarity.EPIC, 50) { it.longestWalkStreak },
 
-        // --- Streaks & consistency ---
+        )) +
+        cat("Streaks", listOf(
         AchDef("spark", "Spark", "2-day strength streak.", Rarity.COMMON, 2) { it.state.longestStrengthStreak },
         AchDef("momentum", "Momentum", "3-day strength streak.", Rarity.COMMON, 3) { it.state.longestStrengthStreak },
         AchDef("the_five", "The Five", "5-day strength streak.", Rarity.UNCOMMON, 5) { it.state.longestStrengthStreak },
@@ -115,7 +131,8 @@ object Achievements {
         AchDef("perfect_week", "Perfect Week", "100% completion 7 days in a row.", Rarity.EPIC, 7) { it.state.perfectStreak },
         AchDef("no_zero_days", "No Zero Days", "30 days with some activity.", Rarity.RARE, 30) { it.activeDays },
 
-        // --- Boss days (Wed/Fri/Sat) ---
+        )) +
+        cat("Boss Days", listOf(
         AchDef("hump_day_hero", "Hump-Day Hero", "100% on a Wednesday.", Rarity.UNCOMMON, 1) { it.flag(it.perfectWeds >= 1) },
         AchDef("wed_warlord", "Wednesday Warlord", "100% on 4 Wednesdays.", Rarity.RARE, 4) { it.perfectWeds },
         AchDef("friday_fever", "Friday Night Fever", "100% on a Friday.", Rarity.UNCOMMON, 1) { it.flag(it.perfectFris >= 1) },
@@ -123,7 +140,8 @@ object Achievements {
         AchDef("saturday_slayer", "Saturday Slayer", "100% on a Saturday.", Rarity.UNCOMMON, 1) { it.flag(it.perfectSats >= 1) },
         AchDef("weekend_wont_win", "Weekend Won't Win", "100% on 4 Saturdays.", Rarity.RARE, 4) { it.perfectSats },
 
-        // --- Levels, ranks, volume ---
+        )) +
+        cat("Levels & Ranks", listOf(
         AchDef("apprentice", "Apprentice", "Reach Level 5.", Rarity.COMMON, 5) { it.state.level },
         AchDef("stand_user", "Stand User", "Reach Level 10.", Rarity.UNCOMMON, 10) { it.state.level },
         AchDef("rank_c", "Rank Up: C", "Reach Rank C.", Rarity.UNCOMMON, 1) { it.flag(rankAtLeast(it.state, Rank.C)) },
@@ -137,7 +155,8 @@ object Achievements {
         AchDef("fifty_k", "50K Reps", "50,000 total strength reps.", Rarity.LEGENDARY, 50000) { it.state.totalStrengthReps },
         AchDef("xp_magnate", "XP Magnate", "Earn 100,000 lifetime XP.", Rarity.EPIC, 100000) { it.state.earnedXp.toInt().coerceAtLeast(0) },
 
-        // --- Stats ---
+        )) +
+        cat("Stats", listOf(
         AchDef("mighty", "Mighty", "Reach STR 10.", Rarity.UNCOMMON, 10) { it.state.stats.strength },
         AchDef("herculean", "Herculean", "Reach STR 25.", Rarity.EPIC, 25) { it.state.stats.strength },
         AchDef("marathon_lungs", "Marathon Lungs", "Reach END 25.", Rarity.UNCOMMON, 25) { it.state.stats.endurance },
@@ -156,16 +175,19 @@ object Achievements {
             it.flag(minOf(s.strength, s.endurance, s.agility, s.discipline, s.consistency) >= 25)
         },
 
-        // --- Behavior / mastery ---
+        )) +
+        cat("Mastery", listOf(
         AchDef("overdrive", "Overdrive", "Exceed every daily target in one day.", Rarity.RARE, 1) { it.flag(it.overdriveDay) },
         AchDef("double_overdrive", "Double Overdrive", "Exceed every target on back-to-back days.", Rarity.EPIC, 1, hidden = true) { it.flag(it.doubleOverdrive) },
 
-        // --- Personal records ---
+        )) +
+        cat("Personal Records", listOf(
         AchDef("new_best", "New Personal Best", "Beat one of your own records.", Rarity.UNCOMMON, 1) { it.flag(it.prEvents >= 1) },
         AchDef("record_breaker", "Record Breaker", "Set 10 personal records.", Rarity.RARE, 10) { it.prEvents },
         AchDef("relentless", "Relentless", "Set 25 personal records.", Rarity.EPIC, 25) { it.prEvents },
 
-        // --- Journal: notes + mood ---
+        )) +
+        cat("Journal", listOf(
         AchDef("field_notes", "Field Notes", "Write a note on 5 days.", Rarity.COMMON, 5) { it.notesDays },
         AchDef("dear_diary", "Dear Diary", "Write a note on 25 days.", Rarity.RARE, 25) { it.notesDays },
         AchDef("self_aware", "Self-Aware", "Log your mood on 10 days.", Rarity.UNCOMMON, 10) { it.moodDays },
@@ -175,7 +197,7 @@ object Achievements {
             // Counted post-hoc in evaluate(); placeholder value filled there.
             0
         }
-    )
+    ))
 
     fun computeFacts(days: List<DayData>, state: CharacterState): AchFacts {
         val sorted = days.sortedBy { it.date }

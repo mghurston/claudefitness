@@ -55,6 +55,10 @@ fun CalendarScreen(
     onAddCustomReps: (String, String, Int) -> Unit = { _, _, _ -> },
     onAddCustomExercise: (String) -> Unit = {},
     onAddPushVariant: (String, String, Int) -> Unit = { _, _, _ -> },
+    onAddCoreVariant: (String, String, Int) -> Unit = { _, _, _ -> },
+    onAddCardioMinutes: (String, String, Int) -> Unit = { _, _, _ -> },
+    onAddOneOff: (String, String, Int) -> Unit = { _, _, _ -> },
+    onRemoveOneOff: (String, Int) -> Unit = { _, _ -> },
     modifier: Modifier = Modifier
 ) {
     val today = LocalDate.now()
@@ -80,6 +84,10 @@ fun CalendarScreen(
             onAddCustomReps = { id, delta -> onAddCustomReps(date.toString(), id, delta) },
             onAddCustomExercise = onAddCustomExercise,
             onAddPushVariant = { id, delta -> onAddPushVariant(date.toString(), id, delta) },
+            onAddCoreVariant = { id, delta -> onAddCoreVariant(date.toString(), id, delta) },
+            onAddCardioMinutes = { id, delta -> onAddCardioMinutes(date.toString(), id, delta) },
+            onAddOneOff = { name, kcal -> onAddOneOff(date.toString(), name, kcal) },
+            onRemoveOneOff = { idx -> onRemoveOneOff(date.toString(), idx) },
             onDismiss = { selected = null }
         )
     }
@@ -249,10 +257,15 @@ private fun DayEditorDialog(
     onAddCustomReps: (String, Int) -> Unit = { _, _ -> },
     onAddCustomExercise: (String) -> Unit = {},
     onAddPushVariant: (String, Int) -> Unit = { _, _ -> },
+    onAddCoreVariant: (String, Int) -> Unit = { _, _ -> },
+    onAddCardioMinutes: (String, Int) -> Unit = { _, _ -> },
+    onAddOneOff: (String, Int) -> Unit = { _, _ -> },
+    onRemoveOneOff: (Int) -> Unit = {},
     onDismiss: () -> Unit
 ) {
     var confirmReset by remember { mutableStateOf(false) }
     var showAddCustom by remember { mutableStateOf(false) }
+    var showOneOff by remember { mutableStateOf(false) }
     val e = entity ?: WorkoutDayEntity(date = date.toString())
     val pct = (completion * 100).roundToInt()
 
@@ -278,6 +291,17 @@ private fun DayEditorDialog(
         )
     }
 
+    if (showOneOff) {
+        OneOffDialog(
+            onAdd = { name, kcal, pin ->
+                onAddOneOff(name, kcal)
+                if (pin) onAddCustomExercise(name)
+                showOneOff = false
+            },
+            onDismiss = { showOneOff = false }
+        )
+    }
+
     AlertDialog(
         onDismissRequest = onDismiss,
         title = {
@@ -294,18 +318,50 @@ private fun DayEditorDialog(
                 com.mhurston.ascendant.domain.PushExercise.entries.forEach { v ->
                     EditRow(v.label, pushBreak[v.id] ?: 0) { onAddPushVariant(v.id, it) }
                 }
+                Spacer(Modifier.height(8.dp))
+                val coreBreak = e.coreBreakdown()
+                Text("Core — ${e.coreTotal()} / 100  (any of these count)",
+                    style = MaterialTheme.typography.labelMedium, color = TextDim)
+                com.mhurston.ascendant.domain.CoreExercise.entries.forEach { v ->
+                    EditRow(v.label, coreBreak[v.id] ?: 0) { onAddCoreVariant(v.id, it) }
+                }
                 Spacer(Modifier.height(4.dp))
                 EditRow("Squats", e.squats) { onAddReps(ExerciseKind.SQUATS, it) }
-                EditRow("Leg Lifts", e.legLifts) { onAddReps(ExerciseKind.LEG_LIFTS, it) }
                 EditRow("Calf Raises", e.calfRaises) { onAddReps(ExerciseKind.CALF_RAISES, it) }
                 EditRow("Curls", e.curls) { onAddReps(ExerciseKind.CURLS, it) }
                 MilesEditRow(e.miles, onAddMiles)
+                val cardioMin = WorkoutDayEntity.decodeCustomReps(e.cardioMinutes)
+                com.mhurston.ascendant.domain.CardioActivity.entries.forEach { act ->
+                    EditRow("${act.label} (min)", cardioMin[act.id] ?: 0) { onAddCardioMinutes(act.id, it) }
+                }
 
                 Spacer(Modifier.height(8.dp))
-                // Custom exercises: add a new one (created globally) or log reps right here.
+                // One-off activities — logged to THIS day only, kept in history forever.
                 Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween,
                     verticalAlignment = Alignment.CenterVertically) {
-                    Text("Custom", style = MaterialTheme.typography.labelMedium, color = TextDim)
+                    Text("One-offs (this day only)", style = MaterialTheme.typography.labelMedium, color = TextDim)
+                    Text("＋ One-off", color = ManaPurple, style = MaterialTheme.typography.labelMedium,
+                        fontWeight = FontWeight.Bold,
+                        modifier = Modifier.clickable { showOneOff = true })
+                }
+                WorkoutDayEntity.decodeOneOffs(e.oneOffs).forEachIndexed { i, o ->
+                    Row(Modifier.fillMaxWidth().padding(vertical = 4.dp),
+                        horizontalArrangement = Arrangement.SpaceBetween,
+                        verticalAlignment = Alignment.CenterVertically) {
+                        Text(o.name, style = MaterialTheme.typography.bodyLarge, modifier = Modifier.weight(1f))
+                        Text("+${o.kcal} XP", color = XpGold, style = MaterialTheme.typography.labelMedium,
+                            fontWeight = FontWeight.Bold)
+                        Text("  ✕", color = com.mhurston.ascendant.ui.theme.DangerRed,
+                            style = MaterialTheme.typography.labelMedium,
+                            modifier = Modifier.clickable { onRemoveOneOff(i) })
+                    }
+                }
+
+                Spacer(Modifier.height(8.dp))
+                // Pinned recurring custom exercises — rep-based, available every day.
+                Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween,
+                    verticalAlignment = Alignment.CenterVertically) {
+                    Text("Pinned 📌", style = MaterialTheme.typography.labelMedium, color = TextDim)
                     Text("＋ Add", color = ManaPurple, style = MaterialTheme.typography.labelMedium,
                         fontWeight = FontWeight.Bold,
                         modifier = Modifier.clickable { showAddCustom = true })

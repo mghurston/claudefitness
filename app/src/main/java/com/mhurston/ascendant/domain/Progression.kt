@@ -1,6 +1,5 @@
 package com.mhurston.ascendant.domain
 
-import java.time.DayOfWeek
 import java.time.LocalDate
 import java.time.temporal.ChronoUnit
 import kotlin.math.floor
@@ -18,29 +17,22 @@ object Progression {
     const val REP_TARGET = 100
     const val MILE_TARGET = 5.0
 
-    // XP base rates per unit (Leveling §2)
-    private const val XP_PUSHUP = 1.0
-    private const val XP_SQUAT = 1.0
-    private const val XP_CURL = 0.8
-    private const val XP_LEGLIFT = 0.7
-    private const val XP_CALF = 0.6
-    private const val XP_PER_MILE = 20.0
-    private const val WALK_SOFTCAP_BEYOND = 0.25 // 25% beyond the 5-mile target
+    // --- Burn-based XP (the core "less arbitrary" model) ----------------------
+    // 1 calorie burned through activity = 1 XP. Activity burn (walking + strength +
+    // pinned customs + one-offs) comes from Calories.activityBurn, so XP, the Energy
+    // screen, and the day log all read the same number.
+    const val XP_PER_KCAL = 1.0
 
-    private val WEAK_DAYS = setOf(DayOfWeek.WEDNESDAY, DayOfWeek.FRIDAY, DayOfWeek.SATURDAY)
+    // Multipliers (kept deliberately few so XP stays legible):
+    private const val COMPLETION_BONUS = 0.25      // +25% on days you hit 100% of your targets
+    private const val STREAK_BONUS_PER_DAY = 0.05  // +5%/strength-day, capped below
+    private const val STREAK_BONUS_CAP_DAYS = 10   // → max +50%
+    // Deficit bonus: eating under your total burn earns up to +50%, scaling with the gap.
+    private const val DEFICIT_FULL_BONUS_KCAL = 600.0 // a 600+ kcal deficit = the full bonus
+    private const val DEFICIT_BONUS_MAX = 0.50
 
-    // Custom (supplementary) exercises: flat bonus XP, no completion/stat/multiplier effect.
-    // Capped per exercise per day so side work can't dwarf the tuned core.
-    const val CUSTOM_XP_PER_REP = 0.5
-    const val CUSTOM_REP_SOFTCAP = 200
-
-    /** Bonus XP from supplementary custom exercises — added raw, outside all multipliers. */
-    fun customBonusXp(d: DayData): Long =
-        Math.round(d.customReps.values.sumOf { min(it.coerceAtLeast(0), CUSTOM_REP_SOFTCAP) * CUSTOM_XP_PER_REP })
-
-    // Inactivity decay (user choice): each idle day costs HALF of a full target day's
-    // base XP. A full 100×5-reps + 5-mile day = 510 base XP → 255 lost per idle day.
-    const val DECAY_PER_IDLE_DAY = 255L
+    // Inactivity decay: each idle day costs roughly half of a solid active day's XP.
+    const val DECAY_PER_IDLE_DAY = 150L
     const val DECAY_GRACE_DAYS = 1 // today is always free; decay starts on the 2nd missed day
 
     /** Completion ratio 0..n — reproduces the spreadsheet formula exactly (Mapping §3). */
@@ -49,29 +41,20 @@ object Progression {
             d.calfRaises / 100.0 + d.curls / 100.0 + d.miles / MILE_TARGET) / 6.0
     }
 
-    private fun walkingXp(miles: Double): Double {
-        return if (miles <= MILE_TARGET) miles * XP_PER_MILE
-        else MILE_TARGET * XP_PER_MILE + (miles - MILE_TARGET) * XP_PER_MILE * WALK_SOFTCAP_BEYOND
-    }
+    /** Base XP before multipliers = calories burned through activity (1 kcal = 1 XP). */
+    fun baseXp(p: Profile, d: DayData): Double = Calories.activityBurn(p, d) * XP_PER_KCAL
 
-    /** Base XP before multipliers. */
-    fun baseXp(d: DayData): Double {
-        return d.pushups * XP_PUSHUP + d.squats * XP_SQUAT + d.curls * XP_CURL +
-            d.legLifts * XP_LEGLIFT + d.calfRaises * XP_CALF + walkingXp(d.miles)
-    }
-
-    /** XP for a day, applying the consistency multipliers (Leveling §3). */
-    private fun dayXp(d: DayData, strengthStreak: Int): Long {
-        val base = baseXp(d)
+    /** XP for a day: calories burned, scaled by consistency + deficit multipliers. */
+    private fun dayXp(p: Profile, d: DayData, strengthStreak: Int): Long {
+        val base = baseXp(p, d)
         if (base <= 0.0) return 0L
-        val comp = completion(d)
-        val completionMult = if (comp >= 1.0) 1.5 else 1.0
-        val overdrive = d.pushups > REP_TARGET || d.squats > REP_TARGET || d.legLifts > REP_TARGET ||
-            d.calfRaises > REP_TARGET || d.curls > REP_TARGET || d.miles > MILE_TARGET
-        val overdriveMult = if (overdrive) 1.1 else 1.0
-        val weakDayMult = if (d.hasActivity && d.date.dayOfWeek in WEAK_DAYS) 1.2 else 1.0
-        val streakMult = 1.0 + 0.05 * min(strengthStreak, 10) // +5%/day, cap +50%
-        return Math.round(base * completionMult * overdriveMult * weakDayMult * streakMult)
+        val completionMult = if (completion(d) >= 1.0) 1.0 + COMPLETION_BONUS else 1.0
+        val streakMult = 1.0 + STREAK_BONUS_PER_DAY * min(strengthStreak, STREAK_BONUS_CAP_DAYS)
+        val deficit = Calories.deficit(p, d)
+        val deficitMult = if (deficit > 0)
+            1.0 + DEFICIT_BONUS_MAX * min(deficit / DEFICIT_FULL_BONUS_KCAL, 1.0)
+        else 1.0
+        return Math.round(base * completionMult * streakMult * deficitMult)
     }
 
     /** XP required to advance FROM level n to n+1 (Leveling §4). */
@@ -127,7 +110,8 @@ object Progression {
     fun rebuild(
         days: List<DayData>,
         today: LocalDate? = null,
-        decayAnchor: LocalDate? = null
+        decayAnchor: LocalDate? = null,
+        profile: Profile = Profile()
     ): Pair<CharacterState, Map<LocalDate, DayDerived>> {
         val sorted = days.sortedBy { it.date }
         val derived = LinkedHashMap<LocalDate, DayDerived>()
@@ -159,7 +143,7 @@ object Progression {
             }
             longestStrength = maxOf(longestStrength, strengthStreak)
 
-            val xp = dayXp(d, strengthStreak) + customBonusXp(d)
+            val xp = dayXp(profile, d, strengthStreak)
             totalXp += xp
             val comp = completion(d)
             derived[d.date] = DayDerived(comp, xp)

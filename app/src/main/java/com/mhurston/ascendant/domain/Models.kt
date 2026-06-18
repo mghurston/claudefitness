@@ -2,6 +2,11 @@ package com.mhurston.ascendant.domain
 
 import java.time.LocalDate
 
+/** A single ad-hoc activity logged to one specific day (e.g. "Marathon", "Rock climbing").
+ *  Lives only on that day — never appears as an option on other days. Carries its own
+ *  calorie estimate, which feeds XP directly under the burn-based model. */
+data class OneOff(val name: String, val kcal: Int)
+
 /** Plain, Android-free representation of one day's logged work (mirrors the spreadsheet row). */
 data class DayData(
     val date: LocalDate,
@@ -11,16 +16,26 @@ data class DayData(
     val calfRaises: Int = 0,
     val curls: Int = 0,
     val miles: Double = 0.0,
+    val caloriesConsumed: Int = 0,
     val isRestDay: Boolean = false,
     val notes: String = "",
     val mood: Int = 0, // 0 = unset, 1..5 (see WorkoutDayEntity.mood)
-    /** Supplementary user-defined exercises: customExerciseId -> reps for the day.
-     *  Earns bonus XP only — never affects completion %, stats, or streaks. */
-    val customReps: Map<String, Int> = emptyMap()
+    /** Pinned recurring custom exercises: customExerciseId -> reps for the day.
+     *  Counted as strength-equivalent burn (so they earn XP via calories like the core). */
+    val customReps: Map<String, Int> = emptyMap(),
+    /** Time-based extra cardio: CardioActivity.id -> minutes for the day. Burns calories
+     *  via the MET formula (see Calories), separate from the walking-miles goal. */
+    val cardioMinutes: Map<String, Int> = emptyMap(),
+    /** Ad-hoc one-off activities logged to this day only (name + calorie estimate). */
+    val oneOffs: List<OneOff> = emptyList()
 ) {
     val strengthReps: Int get() = pushups + squats + legLifts + calfRaises + curls
+    /** Reps from pinned custom exercises, counted as strength-equivalent for burn. */
+    val customRepsTotal: Int get() = customReps.values.sumOf { it.coerceAtLeast(0) }
+    /** Calories from one-off activities (their own estimates). */
+    val oneOffKcal: Int get() = oneOffs.sumOf { it.kcal.coerceAtLeast(0) }
     val hasStrength: Boolean get() = strengthReps > 0
-    val hasActivity: Boolean get() = hasStrength || miles > 0.0
+    val hasActivity: Boolean get() = hasStrength || miles > 0.0 || customRepsTotal > 0 || oneOffKcal > 0
 }
 
 /**
@@ -40,6 +55,37 @@ enum class PushExercise(val id: String, val label: String) {
     companion object {
         /** Variants stored in the encoded pushVariants column (everything except [PUSHUPS]). */
         val EXTRAS: List<PushExercise> = entries.filter { it != PUSHUPS }
+    }
+}
+
+/**
+ * The Core goal can be satisfied by any of these equivalent exercises — reps from all of them
+ * sum 1:1 toward the same daily target (Progression.REP_TARGET). [LEG_LIFTS] is kept in
+ * WorkoutDayEntity.legLifts (its own column, backward-compatible); the rest are stored in
+ * WorkoutDayEntity.coreVariants. Fixed built-in list.
+ */
+enum class CoreExercise(val id: String, val label: String) {
+    LEG_LIFTS("leglifts", "Leg Lifts"),
+    SITUPS("situps", "Sit-ups"),
+    HIGH_KNEES("high_knees", "High Knees");
+
+    companion object {
+        /** Variants stored in the encoded coreVariants column (everything except [LEG_LIFTS]). */
+        val EXTRAS: List<CoreExercise> = entries.filter { it != LEG_LIFTS }
+    }
+}
+
+/**
+ * Extra cardio logged by the minute (not distance), so it can't sensibly fill the walking-miles
+ * goal. Instead each minute burns calories via the MET formula and feeds XP directly — these are
+ * "their own thing," separate from the 5-mile walking target. Stored in WorkoutDayEntity.cardioMinutes.
+ */
+enum class CardioActivity(val id: String, val label: String, val met: Double) {
+    BIKE("bike", "Bike Riding", 8.0),
+    SWIM("swim", "Swimming", 7.0);
+
+    companion object {
+        fun metFor(id: String): Double = entries.firstOrNull { it.id == id }?.met ?: 0.0
     }
 }
 

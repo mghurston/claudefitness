@@ -204,7 +204,8 @@ private fun ReminderCard(enabled: Boolean, onSet: (Boolean) -> Unit) {
                 verticalAlignment = Alignment.CenterVertically) {
                 Column(Modifier.weight(1f)) {
                     Text("Daily reminder", style = MaterialTheme.typography.titleLarge, color = AuraCyan)
-                    Text("A 6 PM nudge — stronger on Wed/Fri/Sat. Local only, no internet.",
+                    Text("Fires at UTC midnight (≈5 PM Pacific) — stronger on Wed/Fri/Sat. " +
+                        "Local only, no internet.",
                         style = MaterialTheme.typography.labelMedium, color = TextDim)
                 }
                 Switch(

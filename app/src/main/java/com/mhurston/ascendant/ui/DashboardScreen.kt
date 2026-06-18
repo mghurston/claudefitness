@@ -12,6 +12,7 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.BasicTextField
@@ -30,6 +31,7 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -62,6 +64,10 @@ fun DashboardScreen(
     onAddCustomExercise: (String) -> Unit = {},
     onRemoveCustomExercise: (String) -> Unit = {},
     onAddPushVariant: (String, Int) -> Unit = { _, _ -> },
+    onAddCoreVariant: (String, Int) -> Unit = { _, _ -> },
+    onAddCardioMinutes: (String, Int) -> Unit = { _, _ -> },
+    onAddOneOff: (String, Int) -> Unit = { _, _ -> },
+    onRemoveOneOff: (Int) -> Unit = {},
     modifier: Modifier = Modifier
 ) {
     val c = state.character
@@ -119,12 +125,31 @@ fun DashboardScreen(
         }
 
         Spacer(Modifier.height(20.dp))
-        Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.Center) {
-            CompletionRing(
-                completion = state.todayDerived.completion,
-                centerLabel = "$completionPct%",
-                centerSub = "today  ·  +${state.todayDerived.xp} XP"
-            )
+        val burn = com.mhurston.ascendant.domain.Calories.activityBurn(state.profile, today.toDayData())
+            .roundToInt()
+        val burnTarget = com.mhurston.ascendant.domain.Calories.dailyBurnTarget(state.profile)
+        Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceEvenly) {
+            Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                CompletionRing(
+                    completion = state.todayDerived.completion,
+                    size = 150.dp,
+                    centerLabel = "$completionPct%",
+                    centerSub = "+${state.todayDerived.xp} XP"
+                )
+                Spacer(Modifier.height(6.dp))
+                Text("✓ Goals", style = MaterialTheme.typography.labelMedium, color = TextDim)
+            }
+            Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                CompletionRing(
+                    completion = if (burnTarget > 0) burn.toDouble() / burnTarget else 0.0,
+                    size = 150.dp,
+                    centerLabel = "$burn",
+                    centerSub = "/ $burnTarget kcal",
+                    centerColor = XpGold
+                )
+                Spacer(Modifier.height(6.dp))
+                Text("🔥 Active Burn", style = MaterialTheme.typography.labelMedium, color = TextDim)
+            }
         }
 
         Spacer(Modifier.height(16.dp))
@@ -139,29 +164,62 @@ fun DashboardScreen(
 
         Spacer(Modifier.height(20.dp))
         Text("Today's Training", style = MaterialTheme.typography.titleLarge, color = AuraCyan)
-        Text("100 is the goal — going over earns bonus XP (Overdrive).",
+        Text("100 is the goal — every rep and mile burns calories, and calories are XP. " +
+            "Tap a group to log it.",
             style = MaterialTheme.typography.labelMedium, color = TextDim)
-        Spacer(Modifier.height(8.dp))
+        Spacer(Modifier.height(4.dp))
 
-        PushUpsSection(
-            breakdown = today.pushBreakdown(),
-            total = today.pushTotal(),
-            onVideos = { videoFor = "pushups" },
-            onAddVariant = onAddPushVariant
-        )
-        ExerciseRow("Squats", today.squats, { videoFor = "squats" }) { onAddReps(ExerciseKind.SQUATS, it) }
-        ExerciseRow("Leg Lifts", today.legLifts, { videoFor = "leglifts" }) { onAddReps(ExerciseKind.LEG_LIFTS, it) }
-        ExerciseRow("Calf Raises", today.calfRaises, { videoFor = "calfraises" }) { onAddReps(ExerciseKind.CALF_RAISES, it) }
-        ExerciseRow("Curls", today.curls, { videoFor = "curls" }) { onAddReps(ExerciseKind.CURLS, it) }
-        WalkingRow(today.miles, { videoFor = "walking" }, onAddMiles)
+        val upperReps = today.pushTotal() + today.curls
+        CollapsibleSection("Upper Body", "$upperReps / 200") {
+            VariantGoalSection(
+                name = "Push-ups",
+                variants = com.mhurston.ascendant.domain.PushExercise.entries.map { it.id to it.label },
+                breakdown = today.pushBreakdown(),
+                total = today.pushTotal(),
+                onVideos = { videoFor = "pushups" },
+                onAddVariant = onAddPushVariant
+            )
+            ExerciseRow("Curls", today.curls, { videoFor = "curls" }) { onAddReps(ExerciseKind.CURLS, it) }
+        }
+        CollapsibleSection("Core", "${today.coreTotal()} / 100") {
+            VariantGoalSection(
+                name = "Core",
+                variants = com.mhurston.ascendant.domain.CoreExercise.entries.map { it.id to it.label },
+                breakdown = today.coreBreakdown(),
+                total = today.coreTotal(),
+                onVideos = { videoFor = "leglifts" },
+                onAddVariant = onAddCoreVariant
+            )
+        }
+        val lowerReps = today.squats + today.calfRaises
+        CollapsibleSection("Lower Body", "$lowerReps / 200") {
+            ExerciseRow("Squats", today.squats, { videoFor = "squats" }) { onAddReps(ExerciseKind.SQUATS, it) }
+            ExerciseRow("Calf Raises", today.calfRaises, { videoFor = "calfraises" }) { onAddReps(ExerciseKind.CALF_RAISES, it) }
+        }
+        CollapsibleSection("Cardio", "%.1f / 5.0 mi".format(today.miles)) {
+            WalkingRow(today.miles, { videoFor = "walking" }, onAddMiles)
+            val cardioMin = com.mhurston.ascendant.data.WorkoutDayEntity.decodeCustomReps(today.cardioMinutes)
+            com.mhurston.ascendant.domain.CardioActivity.entries.forEach { act ->
+                CardioMinutesRow(
+                    label = act.label,
+                    minutes = cardioMin[act.id] ?: 0,
+                    kcalPerMin = act.met * 3.5 * state.profile.weightKg / 200.0,
+                    onAdd = { onAddCardioMinutes(act.id, it) }
+                )
+            }
+        }
 
         Spacer(Modifier.height(20.dp))
-        CustomExerciseSection(
+        ExtrasSection(
             customExercises = state.customExercises,
             todayReps = com.mhurston.ascendant.data.WorkoutDayEntity.decodeCustomReps(today.customReps),
+            oneOffs = com.mhurston.ascendant.data.WorkoutDayEntity.decodeOneOffs(today.oneOffs),
+            weightKg = state.profile.weightKg,
             onAddReps = onAddCustomReps,
             onAddExercise = onAddCustomExercise,
-            onRemoveExercise = onRemoveCustomExercise
+            onRemoveExercise = onRemoveCustomExercise,
+            onAddOneOff = onAddOneOff,
+            onRemoveOneOff = onRemoveOneOff
         )
 
         Spacer(Modifier.height(20.dp))
@@ -278,9 +336,8 @@ private fun ExerciseRow(name: String, current: Int, onVideos: () -> Unit, onAdd:
             Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
                 Row(verticalAlignment = Alignment.CenterVertically) {
                     Text(name, style = MaterialTheme.typography.bodyLarge)
-                    Text("  ▶ form", color = AuraCyan,
-                        style = MaterialTheme.typography.labelMedium,
-                        modifier = Modifier.clickable(onClick = onVideos))
+                    Spacer(Modifier.width(8.dp))
+                    FormVideoChip(onVideos)
                 }
                 Row {
                     if (over > 0) Text("OVERDRIVE +$over  ", color = XpGold,
@@ -300,10 +357,12 @@ private fun ExerciseRow(name: String, current: Int, onVideos: () -> Unit, onAdd:
     }
 }
 
-/** Push-ups goal, satisfied by any of the equivalent exercises. Each variant has its own
- *  controls; all reps sum 1:1 toward the single rep target shown in the header. */
+/** A single rep goal satisfied by any of several equivalent exercises (e.g. Push-ups, or Core).
+ *  Each variant has its own controls; all reps sum 1:1 toward the single target in the header. */
 @Composable
-private fun PushUpsSection(
+private fun VariantGoalSection(
+    name: String,
+    variants: List<Pair<String, String>>, // id to label
     breakdown: Map<String, Int>,
     total: Int,
     onVideos: () -> Unit,
@@ -318,10 +377,9 @@ private fun PushUpsSection(
         Column(Modifier.padding(12.dp)) {
             Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
                 Row(verticalAlignment = Alignment.CenterVertically) {
-                    Text("Push-ups", style = MaterialTheme.typography.bodyLarge)
-                    Text("  ▶ form", color = AuraCyan,
-                        style = MaterialTheme.typography.labelMedium,
-                        modifier = Modifier.clickable(onClick = onVideos))
+                    Text(name, style = MaterialTheme.typography.bodyLarge)
+                    Spacer(Modifier.width(8.dp))
+                    FormVideoChip(onVideos)
                 }
                 Row {
                     if (over > 0) Text("OVERDRIVE +$over  ", color = XpGold,
@@ -337,18 +395,71 @@ private fun PushUpsSection(
                 fraction = (total.toFloat() / target).coerceIn(0f, 1f),
                 color = if (over > 0) XpGold else ManaPurple
             )
-            com.mhurston.ascendant.domain.PushExercise.entries.forEach { v ->
-                val reps = breakdown[v.id] ?: 0
+            variants.forEach { (id, label) ->
+                val reps = breakdown[id] ?: 0
                 Spacer(Modifier.height(12.dp))
                 Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween,
                     verticalAlignment = Alignment.CenterVertically) {
-                    Text(v.label, style = MaterialTheme.typography.bodyMedium,
+                    Text(label, style = MaterialTheme.typography.bodyMedium,
                         color = if (reps > 0) MaterialTheme.colorScheme.onSurface else TextDim)
                     Text("$reps", color = if (reps > 0) AuraCyan else TextDim,
                         fontWeight = FontWeight.Bold)
                 }
                 Spacer(Modifier.height(4.dp))
-                RepControls(current = reps, onAdd = { onAddVariant(v.id, it) })
+                RepControls(current = reps, onAdd = { onAddVariant(id, it) })
+            }
+        }
+    }
+}
+
+/** Time-based cardio (bike/swim): logged in minutes, shown with its calorie/XP estimate.
+ *  Does not count toward the walking-miles goal — it's its own calorie earner. */
+@Composable
+private fun CardioMinutesRow(label: String, minutes: Int, kcalPerMin: Double, onAdd: (Int) -> Unit) {
+    val kcal = (kcalPerMin * minutes).roundToInt()
+    Card(
+        Modifier.fillMaxWidth().padding(vertical = 4.dp),
+        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface)
+    ) {
+        Column(Modifier.padding(12.dp)) {
+            Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween,
+                verticalAlignment = Alignment.CenterVertically) {
+                Text(label, style = MaterialTheme.typography.bodyLarge)
+                Row(verticalAlignment = Alignment.CenterVertically) {
+                    if (minutes > 0) Text("≈$kcal XP  ", color = XpGold,
+                        style = MaterialTheme.typography.labelMedium, fontWeight = FontWeight.Bold)
+                    Text("$minutes min", color = if (minutes > 0) AuraCyan else TextDim,
+                        fontWeight = FontWeight.Bold)
+                }
+            }
+            Spacer(Modifier.height(8.dp))
+            MinuteControls(minutes = minutes, onAdd = onAdd)
+        }
+    }
+}
+
+/** +15 / −15 minute steps, a free-text minutes entry, and a reset. */
+@Composable
+private fun MinuteControls(minutes: Int, onAdd: (Int) -> Unit) {
+    var custom by remember { mutableStateOf("") }
+    Column {
+        Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(6.dp)) {
+            AddBtn("+15 min", Modifier.weight(1f)) { onAdd(15) }
+            AddBtn("−15 min", Modifier.weight(1f)) { onAdd(-15) }
+        }
+        Spacer(Modifier.height(6.dp))
+        Row(
+            Modifier.fillMaxWidth(),
+            horizontalArrangement = Arrangement.spacedBy(6.dp),
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            NumberField(custom, { custom = it }, "Minutes", modifier = Modifier.weight(1.4f))
+            AddBtn("Add", Modifier.weight(1f)) {
+                custom.toIntOrNull()?.let { if (it != 0) onAdd(it) }
+                custom = ""
+            }
+            AddBtn("Reset", Modifier.weight(1f), contentColor = DangerRed) {
+                if (minutes != 0) onAdd(-minutes)
             }
         }
     }
@@ -365,9 +476,8 @@ private fun WalkingRow(miles: Double, onVideos: () -> Unit, onAdd: (Double) -> U
             Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
                 Row(verticalAlignment = Alignment.CenterVertically) {
                     Text("Walking", style = MaterialTheme.typography.bodyLarge)
-                    Text("  ▶ form", color = AuraCyan,
-                        style = MaterialTheme.typography.labelMedium,
-                        modifier = Modifier.clickable(onClick = onVideos))
+                    Spacer(Modifier.width(8.dp))
+                    FormVideoChip(onVideos)
                 }
                 Row {
                     if (over > 0) Text("OVERDRIVE +${"%.1f".format(over)}mi  ", color = XpGold,
@@ -388,105 +498,215 @@ private fun WalkingRow(miles: Double, onVideos: () -> Unit, onAdd: (Double) -> U
     }
 }
 
+/** A tappable group header that expands/collapses its content. Keeps the Train tab short:
+ *  body-part groups are collapsed by default with a one-line summary, tap to log. */
 @Composable
-private fun CustomExerciseSection(
+private fun CollapsibleSection(
+    title: String,
+    summary: String = "",
+    defaultExpanded: Boolean = false,
+    action: (@Composable () -> Unit)? = null,
+    content: @Composable () -> Unit
+) {
+    var expanded by rememberSaveable(title) { mutableStateOf(defaultExpanded) }
+    Column(Modifier.fillMaxWidth()) {
+        Row(
+            Modifier.fillMaxWidth().clickable { expanded = !expanded }.padding(vertical = 10.dp),
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            Text(if (expanded) "▾" else "▸", color = AuraCyan, fontWeight = FontWeight.Bold)
+            Spacer(Modifier.width(10.dp))
+            Text(title, style = MaterialTheme.typography.titleLarge, color = AuraCyan,
+                modifier = Modifier.weight(1f))
+            if (summary.isNotEmpty()) Text(summary, style = MaterialTheme.typography.labelMedium,
+                color = TextDim, fontWeight = FontWeight.Bold)
+            action?.let { Spacer(Modifier.width(12.dp)); it() }
+        }
+        if (expanded) content()
+    }
+}
+
+/** A small, obvious tappable pill for opening the form-video dialog. */
+@Composable
+private fun FormVideoChip(onClick: () -> Unit) {
+    Box(
+        Modifier
+            .clip(RoundedCornerShape(20.dp))
+            .border(1.dp, AuraCyan.copy(alpha = 0.7f), RoundedCornerShape(20.dp))
+            .clickable(onClick = onClick)
+            .padding(horizontal = 10.dp, vertical = 3.dp)
+    ) {
+        Text("▶ Videos", color = AuraCyan, style = MaterialTheme.typography.labelMedium,
+            fontWeight = FontWeight.Bold)
+    }
+}
+
+/** Extras: pinned recurring custom exercises (rep-based) + per-day one-off activities
+ *  (calorie-based). One-offs live only on today; pinning promotes one to a daily option. */
+@Composable
+private fun ExtrasSection(
     customExercises: List<com.mhurston.ascendant.domain.CustomExercise>,
     todayReps: Map<String, Int>,
+    oneOffs: List<com.mhurston.ascendant.domain.OneOff>,
+    weightKg: Double,
     onAddReps: (String, Int) -> Unit,
     onAddExercise: (String) -> Unit,
-    onRemoveExercise: (String) -> Unit
+    onRemoveExercise: (String) -> Unit,
+    onAddOneOff: (String, Int) -> Unit,
+    onRemoveOneOff: (Int) -> Unit
 ) {
-    var showAdd by remember { mutableStateOf(false) }
+    var showOneOff by remember { mutableStateOf(false) }
     var removing by remember { mutableStateOf<com.mhurston.ascendant.domain.CustomExercise?>(null) }
 
-    if (showAdd) {
-        var name by remember { mutableStateOf("") }
-        AlertDialog(
-            onDismissRequest = { showAdd = false },
-            title = { Text("Add custom exercise") },
-            text = {
-                Column {
-                    Text("These earn bonus XP but don't change your completion % or stats.",
-                        style = MaterialTheme.typography.labelMedium, color = TextDim)
-                    Spacer(Modifier.height(8.dp))
-                    androidx.compose.material3.OutlinedTextField(
-                        value = name,
-                        onValueChange = { name = it.take(40) },
-                        singleLine = true,
-                        label = { Text("Name (e.g. Pull-ups, Plank sec)") },
-                        modifier = Modifier.fillMaxWidth()
-                    )
-                }
+    if (showOneOff) {
+        OneOffDialog(
+            onAdd = { name, kcal, pin ->
+                onAddOneOff(name, kcal)
+                if (pin) onAddExercise(name)
+                showOneOff = false
             },
-            confirmButton = {
-                TextButton(
-                    enabled = name.isNotBlank(),
-                    onClick = { onAddExercise(name.trim()); showAdd = false }
-                ) { Text("Add", fontWeight = FontWeight.Bold) }
-            },
-            dismissButton = { TextButton(onClick = { showAdd = false }) { Text("Cancel") } }
+            onDismiss = { showOneOff = false }
         )
     }
 
     removing?.let { ex ->
         AlertDialog(
             onDismissRequest = { removing = null },
-            title = { Text("Remove \"${ex.name}\"?") },
-            text = { Text("Removes it from today's options. Days you already logged it keep " +
+            title = { Text("Unpin \"${ex.name}\"?") },
+            text = { Text("Removes it from your daily options. Days you already logged it keep " +
                 "their entry (visible in the Log), and the XP you earned stays.") },
             confirmButton = {
                 TextButton(onClick = { onRemoveExercise(ex.id); removing = null }) {
-                    Text("Remove", color = DangerRed, fontWeight = FontWeight.Bold)
+                    Text("Unpin", color = DangerRed, fontWeight = FontWeight.Bold)
                 }
             },
             dismissButton = { TextButton(onClick = { removing = null }) { Text("Cancel") } }
         )
     }
 
-    Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween,
-        verticalAlignment = Alignment.CenterVertically) {
-        Text("Custom Exercises", style = MaterialTheme.typography.titleLarge, color = AuraCyan)
-        Text("＋ Add", color = ManaPurple, style = MaterialTheme.typography.labelMedium,
-            fontWeight = FontWeight.Bold, modifier = Modifier.clickable { showAdd = true })
-    }
-    Text("Side work that earns bonus XP — your tuned core stays untouched.",
+    CollapsibleSection(
+        title = "Extra Work",
+        summary = "${oneOffs.size + customExercises.size}",
+        action = {
+            Text("＋ One-off", color = ManaPurple, style = MaterialTheme.typography.labelMedium,
+                fontWeight = FontWeight.Bold, modifier = Modifier.clickable { showOneOff = true })
+        }
+    ) {
+    Text("One-offs (a run, a class) are logged to today only. Pin one to make it a daily option.",
         style = MaterialTheme.typography.labelMedium, color = TextDim)
     Spacer(Modifier.height(8.dp))
 
-    if (customExercises.isEmpty()) {
-        Text("No custom exercises yet. Tap ＋ Add to track extras like pull-ups or planks.",
-            style = MaterialTheme.typography.bodyLarge, color = TextDim)
-    } else {
-        customExercises.forEach { ex ->
-            val reps = todayReps[ex.id] ?: 0
-            val bonus = Progression.customBonusXp(
-                com.mhurston.ascendant.domain.DayData(java.time.LocalDate.now(), customReps = mapOf(ex.id to reps))
-            )
-            Card(
-                Modifier.fillMaxWidth().padding(vertical = 4.dp),
-                colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface)
-            ) {
-                Column(Modifier.padding(12.dp)) {
-                    Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
-                        Text(ex.name, style = MaterialTheme.typography.bodyLarge)
-                        Row(verticalAlignment = Alignment.CenterVertically) {
-                            if (reps > 0) Text("+$bonus XP  ", color = XpGold,
-                                style = MaterialTheme.typography.labelMedium, fontWeight = FontWeight.Bold)
-                            Text("$reps", color = if (reps > 0) AuraCyan else TextDim,
-                                fontWeight = FontWeight.Bold)
-                            Text("  ✕", color = DangerRed, style = MaterialTheme.typography.labelMedium,
-                                modifier = Modifier.clickable { removing = ex })
-                        }
-                    }
-                    Spacer(Modifier.height(8.dp))
-                    RepControls(
-                        current = reps,
-                        onAdd = { onAddReps(ex.id, it) }
-                    )
-                }
+    // Today's one-off activities — each lives only on this day.
+    oneOffs.forEachIndexed { i, o ->
+        Card(
+            Modifier.fillMaxWidth().padding(vertical = 4.dp),
+            colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface)
+        ) {
+            Row(Modifier.fillMaxWidth().padding(12.dp),
+                horizontalArrangement = Arrangement.SpaceBetween,
+                verticalAlignment = Alignment.CenterVertically) {
+                Text(o.name, style = MaterialTheme.typography.bodyLarge, modifier = Modifier.weight(1f))
+                Text("+${o.kcal} XP", color = XpGold, style = MaterialTheme.typography.labelMedium,
+                    fontWeight = FontWeight.Bold)
+                Text("  ✕", color = DangerRed, style = MaterialTheme.typography.labelMedium,
+                    modifier = Modifier.clickable { onRemoveOneOff(i) })
             }
         }
     }
+
+    // Pinned recurring custom exercises — rep-based, available every day.
+    customExercises.forEach { ex ->
+        val reps = todayReps[ex.id] ?: 0
+        val kcal = (0.0019 * weightKg * reps).roundToInt()
+        Card(
+            Modifier.fillMaxWidth().padding(vertical = 4.dp),
+            colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface)
+        ) {
+            Column(Modifier.padding(12.dp)) {
+                Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
+                    Row(verticalAlignment = Alignment.CenterVertically) {
+                        Text(ex.name, style = MaterialTheme.typography.bodyLarge)
+                        Text("  📌", style = MaterialTheme.typography.labelMedium)
+                    }
+                    Row(verticalAlignment = Alignment.CenterVertically) {
+                        if (reps > 0) Text("≈$kcal XP  ", color = XpGold,
+                            style = MaterialTheme.typography.labelMedium, fontWeight = FontWeight.Bold)
+                        Text("$reps", color = if (reps > 0) AuraCyan else TextDim,
+                            fontWeight = FontWeight.Bold)
+                        Text("  ✕", color = DangerRed, style = MaterialTheme.typography.labelMedium,
+                            modifier = Modifier.clickable { removing = ex })
+                    }
+                }
+                Spacer(Modifier.height(8.dp))
+                RepControls(current = reps, onAdd = { onAddReps(ex.id, it) })
+            }
+        }
+    }
+
+    if (oneOffs.isEmpty() && customExercises.isEmpty()) {
+        Text("Nothing extra yet. Tap ＋ One-off to log something like a marathon or a yoga class.",
+            style = MaterialTheme.typography.bodyLarge, color = TextDim)
+    }
+    }
+}
+
+/** Name + calorie entry for a one-off activity, with an optional "pin as daily option". */
+@Composable
+internal fun OneOffDialog(onAdd: (String, Int, Boolean) -> Unit, onDismiss: () -> Unit) {
+    var name by remember { mutableStateOf("") }
+    var kcal by remember { mutableStateOf("") }
+    var pin by remember { mutableStateOf(false) }
+    var nameError by remember { mutableStateOf(false) }
+    AlertDialog(
+        onDismissRequest = onDismiss,
+        title = { Text("Log a one-off") },
+        text = {
+            Column {
+                Text("A single activity for today — e.g. \"Marathon\" or \"Spin class\". " +
+                    "Your calorie estimate becomes XP (1 kcal = 1 XP).",
+                    style = MaterialTheme.typography.labelMedium, color = TextDim)
+                Spacer(Modifier.height(8.dp))
+                androidx.compose.material3.OutlinedTextField(
+                    value = name,
+                    onValueChange = { name = it.take(40); nameError = false },
+                    singleLine = true,
+                    isError = nameError,
+                    label = { Text("Activity name (required)") },
+                    supportingText = if (nameError) {
+                        { Text("Enter a name to save this activity", color = DangerRed) }
+                    } else null,
+                    modifier = Modifier.fillMaxWidth()
+                )
+                Spacer(Modifier.height(8.dp))
+                androidx.compose.material3.OutlinedTextField(
+                    value = kcal,
+                    onValueChange = { v -> kcal = v.filter { it.isDigit() }.take(5) },
+                    singleLine = true,
+                    keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
+                    label = { Text("Calories burned (estimate)") },
+                    modifier = Modifier.fillMaxWidth()
+                )
+                Spacer(Modifier.height(8.dp))
+                Row(verticalAlignment = Alignment.CenterVertically,
+                    modifier = Modifier.clickable { pin = !pin }) {
+                    Text(if (pin) "☑" else "☐", color = ManaPurple,
+                        style = MaterialTheme.typography.titleLarge)
+                    Spacer(Modifier.width(8.dp))
+                    Text("Also pin as a daily option (recurring)",
+                        style = MaterialTheme.typography.bodyMedium)
+                }
+            }
+        },
+        confirmButton = {
+            TextButton(
+                onClick = {
+                    if (name.isBlank()) nameError = true
+                    else onAdd(name.trim(), kcal.toIntOrNull() ?: 0, pin)
+                }
+            ) { Text("Add", fontWeight = FontWeight.Bold) }
+        },
+        dismissButton = { TextButton(onClick = onDismiss) { Text("Cancel") } }
+    )
 }
 
 /** Recording controls: +10 / −10, a free-text custom entry, and a reset. */

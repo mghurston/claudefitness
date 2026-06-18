@@ -27,8 +27,11 @@ class AchievementsTest {
     fun specificRetroactiveAchievementsUnlock() {
         val (state, _) = Progression.rebuild(seed())
         val byId = Achievements.evaluate(seed(), state).associateBy { it.def.id }
+        // rank_c is omitted: under the burn-based XP model the seed month lands at Rank D,
+        // so the Rank C achievement no longer unlocks on import. These are activity-based
+        // and unlock regardless of the XP curve.
         listOf("thousand_fists", "never_skip_cardio", "the_five", "century_walker",
-            "over_capacity", "rank_c").forEach {
+            "over_capacity").forEach {
             assertTrue("$it should be unlocked on import", byId[it]?.unlocked == true)
         }
     }

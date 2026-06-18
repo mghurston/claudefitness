@@ -2,6 +2,7 @@ package com.mhurston.ascendant
 
 import com.mhurston.ascendant.data.SeedData
 import com.mhurston.ascendant.domain.DayData
+import com.mhurston.ascendant.domain.OneOff
 import com.mhurston.ascendant.domain.Progression
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertTrue
@@ -38,14 +39,14 @@ class ProgressionTest {
     }
 
     @Test
-    fun seedImport_landsAroundLevel11_RankC() {
+    fun seedImport_landsAroundLevel8_RankD_underCalorieModel() {
         val (state, _) = Progression.rebuild(seedDays())
         println("Seed import → Level ${state.level}, Rank ${state.rank}, XP ${state.totalXp}, " +
             "STR ${state.stats.strength} END ${state.stats.endurance} AGI ${state.stats.agility} " +
             "DIS ${state.stats.discipline} CON ${state.stats.consistency}")
-        // Spec target: imports around Level 10–12, Rank C.
-        assertTrue("level should be 8..14 but was ${state.level}", state.level in 8..14)
-        assertEquals("rank should be C", "C", state.rank.label)
+        // Burn-based XP (1 kcal = 1 XP): the 30-day month lands ~Level 8, Rank D.
+        assertTrue("level should be 6..10 but was ${state.level}", state.level in 6..10)
+        assertEquals("rank should be D", "D", state.rank.label)
     }
 
     @Test
@@ -94,22 +95,39 @@ class ProgressionTest {
         val today = LocalDate.parse("2026-06-13") // ~1 year after the seed's last day
         val (state, _) = Progression.rebuild(seedDays(), today, today)
         assertEquals("no penalty on first open", 0L, state.idlePenaltyXp)
-        assertEquals("C", state.rank.label) // still imports at Rank C
+        assertEquals("D", state.rank.label) // imports at Rank D under the calorie model
     }
 
     @Test
-    fun customExercises_addBonusXpOnly_neverTouchingCoreFormula() {
+    fun customReps_addCalorieXp_withoutChangingCompletionOrStats() {
         val base = DayData(LocalDate.parse("2026-02-01"), 100, 100, 100, 100, 100, 5.0)
-        val withCustom = base.copy(customReps = mapOf("c1" to 50, "c2" to 300))
-        // Completion is identical — custom work never changes the tuned formula.
+        val withCustom = base.copy(customReps = mapOf("c1" to 200))
+        // Completion is identical — pinned customs never change the tuned core formula.
         assertEquals(Progression.completion(base), Progression.completion(withCustom), 0.0)
-        // Bonus = 50*0.5 + min(300,200)*0.5 = 25 + 100 = 125.
-        assertEquals(125L, Progression.customBonusXp(withCustom))
         val (s0, _) = Progression.rebuild(listOf(base))
         val (s1, _) = Progression.rebuild(listOf(withCustom))
-        assertEquals(s0.earnedXp + 125L, s1.earnedXp)         // XP rises by exactly the bonus
-        assertEquals(s0.stats.strength, s1.stats.strength)    // stats unaffected
+        assertTrue("custom reps burn calories → more XP", s1.earnedXp > s0.earnedXp)
+        assertEquals(s0.stats.strength, s1.stats.strength)    // core stats count only core lifts
         assertEquals(s0.stats.consistency, s1.stats.consistency)
+    }
+
+    @Test
+    fun oneOffs_addTheirCaloriesDirectlyToXp() {
+        val base = DayData(LocalDate.parse("2026-03-01"), pushups = 50)
+        val withRun = base.copy(oneOffs = listOf(OneOff("Marathon", 2600)))
+        val (s0, _) = Progression.rebuild(listOf(base))
+        val (s1, _) = Progression.rebuild(listOf(withRun))
+        // 1 kcal = 1 XP, so a 2600-kcal one-off adds well over 2000 XP.
+        assertTrue("one-off calories become XP", s1.earnedXp > s0.earnedXp + 2000)
+    }
+
+    @Test
+    fun deficit_earnsBonusXp_onlyWhenFoodIsLogged() {
+        val day = DayData(LocalDate.parse("2026-04-01"), 100, 100, 100, 100, 100, 5.0)
+        val deficitDay = day.copy(caloriesConsumed = 100) // tiny intake → large deficit
+        val (s0, _) = Progression.rebuild(listOf(day))         // no food logged → no bonus
+        val (s1, _) = Progression.rebuild(listOf(deficitDay))  // big deficit → bonus
+        assertTrue("a logged deficit multiplies XP", s1.earnedXp > s0.earnedXp)
     }
 
     @Test

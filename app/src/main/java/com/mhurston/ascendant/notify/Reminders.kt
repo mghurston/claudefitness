@@ -18,10 +18,10 @@ import androidx.work.Worker
 import androidx.work.WorkerParameters
 import com.mhurston.ascendant.R
 import java.time.DayOfWeek
+import java.time.Duration
+import java.time.Instant
 import java.time.LocalDate
-import java.time.LocalDateTime
-import java.time.LocalTime
-import java.time.temporal.ChronoUnit
+import java.time.ZoneOffset
 import java.util.concurrent.TimeUnit
 
 /** Local, offline daily reminders. Day-aware: stronger nudge on Wed/Fri/Sat (the cliffs). */
@@ -29,7 +29,6 @@ object Reminders {
     const val CHANNEL_ID = "ascendant_reminders"
     private const val WORK_NAME = "ascendant_daily_reminder"
     private const val NOTIF_ID = 4242
-    const val DEFAULT_HOUR = 18
 
     fun ensureChannel(context: Context) {
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
@@ -41,12 +40,16 @@ object Reminders {
         }
     }
 
-    fun schedule(context: Context, hour: Int = DEFAULT_HOUR) {
+    /** Fires once a day at 00:00 UTC (≈ 5 PM Pacific Daylight Time). The day's rollover is
+     *  the same wall-clock instant everywhere, so the nudge lands as the global day flips. */
+    fun schedule(context: Context) {
         ensureChannel(context)
-        val now = LocalDateTime.now()
-        var next = now.toLocalDate().atTime(LocalTime.of(hour, 0))
-        if (!next.isAfter(now)) next = next.plusDays(1)
-        val delay = ChronoUnit.MILLIS.between(now, next)
+        val now = Instant.now()
+        val nextUtcMidnight = LocalDate.now(ZoneOffset.UTC)
+            .plusDays(1)
+            .atStartOfDay(ZoneOffset.UTC)
+            .toInstant()
+        val delay = Duration.between(now, nextUtcMidnight).toMillis().coerceAtLeast(0)
         val req = PeriodicWorkRequestBuilder<ReminderWorker>(1, TimeUnit.DAYS)
             .setInitialDelay(delay, TimeUnit.MILLISECONDS)
             .build()

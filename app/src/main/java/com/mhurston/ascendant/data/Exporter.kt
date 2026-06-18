@@ -25,7 +25,21 @@ object Exporter {
 
     /** Full backup of every field + profile. Hand-built JSON (no extra deps). */
     fun toJson(days: List<WorkoutDayEntity>, profile: Profile, exportedAt: String): String {
-        fun esc(s: String) = s.replace("\\", "\\\\").replace("\"", "\\\"")
+        // Escape JSON specials AND control chars (the oneOffs column uses U+001F/U+001E
+        // delimiters, which are illegal raw in JSON and must be \u-escaped).
+        fun esc(s: String) = buildString {
+            s.forEach { c ->
+                when {
+                    c == '\\' -> append("\\\\")
+                    c == '"' -> append("\\\"")
+                    c == '\n' -> append("\\n")
+                    c == '\r' -> append("\\r")
+                    c == '\t' -> append("\\t")
+                    c < ' ' -> append("\\u%04x".format(c.code))
+                    else -> append(c)
+                }
+            }
+        }
         val sb = StringBuilder()
         sb.append("{\n")
         sb.append("  \"app\": \"ASCENDANT\",\n")
@@ -47,6 +61,9 @@ object Exporter {
             sb.append("\"mood\": ${d.mood}, ")
             sb.append("\"customReps\": \"${esc(d.customReps)}\", ")
             sb.append("\"pushVariants\": \"${esc(d.pushVariants)}\", ")
+            sb.append("\"coreVariants\": \"${esc(d.coreVariants)}\", ")
+            sb.append("\"cardioMinutes\": \"${esc(d.cardioMinutes)}\", ")
+            sb.append("\"oneOffs\": \"${esc(d.oneOffs)}\", ")
             sb.append("\"notes\": \"${esc(d.notes)}\"}")
             sb.append(if (i < sorted.lastIndex) ",\n" else "\n")
         }
@@ -85,7 +102,10 @@ object Exporter {
                         notes = d.optString("notes", ""),
                         mood = d.optInt("mood", 0),
                         customReps = d.optString("customReps", ""),
-                        pushVariants = d.optString("pushVariants", "")
+                        pushVariants = d.optString("pushVariants", ""),
+                        coreVariants = d.optString("coreVariants", ""),
+                        cardioMinutes = d.optString("cardioMinutes", ""),
+                        oneOffs = d.optString("oneOffs", "")
                     )
                 )
             }
