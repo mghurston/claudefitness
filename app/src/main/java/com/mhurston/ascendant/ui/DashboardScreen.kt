@@ -230,17 +230,27 @@ fun DashboardScreen(
 private fun QuestSection(state: UiState) {
     val daily = state.quests.filter { it.cadence == com.mhurston.ascendant.domain.Cadence.DAILY }
     val weekly = state.quests.filter { it.cadence == com.mhurston.ascendant.domain.Cadence.WEEKLY }
+    val dailyDone = daily.count { it.done }
+    val weeklyDone = weekly.count { it.done }
     val allDailyClear = daily.isNotEmpty() && daily.all { it.done }
-    Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
-        Text("Quests", style = MaterialTheme.typography.titleLarge, color = AuraCyan)
-        if (allDailyClear) Text("ALL CLEAR ✓ +100 XP", color = XpGold,
-            style = MaterialTheme.typography.labelMedium, fontWeight = FontWeight.Bold)
+
+    CollapsibleSection(
+        title = "Daily Quests",
+        summary = if (allDailyClear) "ALL CLEAR ✓ +100 XP" else "$dailyDone / ${daily.size}",
+        defaultExpanded = true
+    ) {
+        Text("Bonus goals layered on today's training — hit them for extra XP.",
+            style = MaterialTheme.typography.labelMedium, color = TextDim)
+        Spacer(Modifier.height(6.dp))
+        daily.forEach { QuestRow(it) }
     }
-    Spacer(Modifier.height(8.dp))
-    daily.forEach { QuestRow(it) }
-    Spacer(Modifier.height(6.dp))
-    Text("This Week", style = MaterialTheme.typography.labelMedium, color = TextDim)
-    weekly.forEach { QuestRow(it) }
+    CollapsibleSection(
+        title = "Weekly Quests",
+        summary = "$weeklyDone / ${weekly.size}",
+        defaultExpanded = false
+    ) {
+        weekly.forEach { QuestRow(it) }
+    }
 }
 
 @Composable
@@ -257,6 +267,7 @@ private fun QuestRow(q: com.mhurston.ascendant.domain.Quest) {
                 Text("+${q.xpReward}", style = MaterialTheme.typography.labelMedium,
                     color = if (q.done) XpGold else TextDim, fontWeight = FontWeight.Bold)
             }
+            Text(q.desc, style = MaterialTheme.typography.labelMedium, color = TextDim)
             Spacer(Modifier.height(6.dp))
             ProgressTrack(fraction = q.progress, color = if (q.done) XpGold else AuraCyan)
             Text("${q.current} / ${q.target}", style = MaterialTheme.typography.labelMedium, color = TextDim)
@@ -479,7 +490,7 @@ private fun CollapsibleSection(
     action: (@Composable () -> Unit)? = null,
     content: @Composable () -> Unit
 ) {
-    var expanded by rememberSaveable(title) { mutableStateOf(defaultExpanded) }
+    var expanded by rememberSaveable(key = title) { mutableStateOf(defaultExpanded) }
     Column(Modifier.fillMaxWidth()) {
         Row(
             Modifier.fillMaxWidth().clickable { expanded = !expanded }.padding(vertical = 10.dp),

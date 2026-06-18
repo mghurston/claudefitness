@@ -40,8 +40,12 @@ object Quests {
         val isBossDay = today.dayOfWeek in setOf(DayOfWeek.WEDNESDAY, DayOfWeek.FRIDAY, DayOfWeek.SATURDAY)
         val coreXp = if (isBossDay) 180 else 150 // weak-day quests pay a little more
         return listOf(
-            Quest("d_full", if (isBossDay) "Boss Rush: 100%" else "Reach 100% today",
-                "Complete every target today.", compPct, 100, coreXp, Cadence.DAILY),
+            Quest("d_full", if (isBossDay) "Boss Rush — clear the day" else "Clear the day",
+                if (isBossDay)
+                    "Boss day (Wed/Fri/Sat): hit 100% across all of today's training targets for bonus XP."
+                else
+                    "Hit 100% across all of today's training targets.",
+                compPct, 100, coreXp, Cadence.DAILY),
             Quest("d_burn", "Burn $burnTarget active calories",
                 "Everything counts — reps, miles, cardio, extras.", burn, burnTarget, 120, Cadence.DAILY),
             Quest("d_pushups", "Complete 100 push-ups",
