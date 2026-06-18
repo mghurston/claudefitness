@@ -52,14 +52,15 @@ object Quests {
                 "The lift you skip most.", d.pushups, 100, 100, Cadence.DAILY),
             Quest("d_safety", "Do 20 reps of anything",
                 "Bare minimum keeps the streak alive.", anyReps, 20, 50, Cadence.DAILY),
-            Quest("d_walk", "Walk 4 miles", "Bonus cardio.", (d.miles).toInt(), 4, 60, Cadence.DAILY)
+            Quest("d_walk", "Walk 4 miles", "Bonus cardio — tracked steps + treadmill.",
+                (d.walkMiles).toInt(), 4, 60, Cadence.DAILY)
         )
     }
 
     private fun weeklyQuests(today: LocalDate, allDays: List<DayData>, profile: Profile): List<Quest> {
         val week = allDays.filter { isSameWeek(it.date, today) }
         val strengthDays = week.count { it.hasStrength }
-        val weekMiles = week.sumOf { it.miles }.toInt()
+        val weekMiles = week.sumOf { it.walkMiles }.toInt()
         val weekBurn = Math.round(week.sumOf { Calories.activityBurn(profile, it) }).toInt()
         val weekTarget = Calories.weeklyBurnTarget(profile)
         val bestStreakThisWeek = currentStreakWithinWeek(week, today)

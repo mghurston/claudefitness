@@ -38,7 +38,7 @@ object Progression {
     /** Completion ratio 0..n — reproduces the spreadsheet formula exactly (Mapping §3). */
     fun completion(d: DayData): Double {
         return (d.pushups / 100.0 + d.squats / 100.0 + d.legLifts / 100.0 +
-            d.calfRaises / 100.0 + d.curls / 100.0 + d.miles / MILE_TARGET) / 6.0
+            d.calfRaises / 100.0 + d.curls / 100.0 + d.walkMiles / MILE_TARGET) / 6.0
     }
 
     /** Base XP before multipliers = calories burned through activity (1 kcal = 1 XP). */

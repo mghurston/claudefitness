@@ -167,8 +167,14 @@ fun DashboardScreen(
             ExerciseRow("Squats", today.squats, { videoFor = "squats" }) { onAddReps(ExerciseKind.SQUATS, it) }
             ExerciseRow("Calf Raises", today.calfRaises, { videoFor = "calfraises" }) { onAddReps(ExerciseKind.CALF_RAISES, it) }
         }
-        CollapsibleSection("Cardio", "%.1f / 5.0 mi".format(today.miles)) {
-            WalkingRow(today.miles, { videoFor = "walking" }, onAddMiles)
+        CollapsibleSection("Cardio", "%.1f / 5.0 mi".format(today.walkMiles)) {
+            WalkingRow(
+                treadmillMiles = today.miles,
+                trackedMiles = today.trackedMiles,
+                steps = today.passiveSteps,
+                onVideos = { videoFor = "walking" },
+                onAdd = onAddMiles
+            )
             val cardioMin = com.mhurston.ascendant.data.WorkoutDayEntity.decodeCustomReps(today.cardioMinutes)
             com.mhurston.ascendant.domain.CardioActivity.entries.forEach { act ->
                 CardioMinutesRow(
@@ -237,7 +243,7 @@ private fun QuestSection(state: UiState) {
     CollapsibleSection(
         title = "Daily Quests",
         summary = if (allDailyClear) "ALL CLEAR ✓ +100 XP" else "$dailyDone / ${daily.size}",
-        defaultExpanded = true
+        defaultExpanded = false
     ) {
         Text("Bonus goals layered on today's training — hit them for extra XP.",
             style = MaterialTheme.typography.labelMedium, color = TextDim)
@@ -447,9 +453,20 @@ private fun MinuteControls(minutes: Int, onAdd: (Int) -> Unit) {
     }
 }
 
+/** Walking = cumulative total of two sources toward the 5-mile goal:
+ *  - "Tracked" — estimated from Health Connect steps (~2000 steps/mi), read-only.
+ *  - "Treadmill / manual" — logged by hand for walking done off-phone (e.g. a treadmill).
+ *  Only the manual part is editable; the header shows the combined total + goal. */
 @Composable
-private fun WalkingRow(miles: Double, onVideos: () -> Unit, onAdd: (Double) -> Unit) {
-    val over = miles - Progression.MILE_TARGET
+private fun WalkingRow(
+    treadmillMiles: Double,
+    trackedMiles: Double,
+    steps: Int,
+    onVideos: () -> Unit,
+    onAdd: (Double) -> Unit
+) {
+    val total = treadmillMiles + trackedMiles
+    val over = total - Progression.MILE_TARGET
     Card(
         Modifier.fillMaxWidth().padding(vertical = 4.dp),
         colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface)
@@ -464,18 +481,40 @@ private fun WalkingRow(miles: Double, onVideos: () -> Unit, onAdd: (Double) -> U
                 Row {
                     if (over > 0) Text("OVERDRIVE +${"%.1f".format(over)}mi  ", color = XpGold,
                         style = MaterialTheme.typography.labelMedium, fontWeight = FontWeight.Bold)
-                    Text("${"%.1f".format(miles)} / 5.0 mi",
-                        color = if (miles >= Progression.MILE_TARGET) AuraCyan else TextDim,
+                    Text("${"%.1f".format(total)} / 5.0 mi",
+                        color = if (total >= Progression.MILE_TARGET) AuraCyan else TextDim,
                         fontWeight = FontWeight.Bold)
                 }
             }
             Spacer(Modifier.height(6.dp))
             ProgressTrack(
-                fraction = (miles / Progression.MILE_TARGET).coerceIn(0.0, 1.0).toFloat(),
+                fraction = (total / Progression.MILE_TARGET).coerceIn(0.0, 1.0).toFloat(),
                 color = if (over > 0) XpGold else AuraCyan
             )
+
+            // Breakdown: tracked (steps) appears once anything has synced.
+            if (steps > 0) {
+                Spacer(Modifier.height(12.dp))
+                Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween,
+                    verticalAlignment = Alignment.CenterVertically) {
+                    Text("Tracked (steps)", style = MaterialTheme.typography.bodyMedium)
+                    Text("${"%.1f".format(trackedMiles)} mi  ·  ${"%,d".format(steps)} steps",
+                        color = AuraCyan, fontWeight = FontWeight.Bold)
+                }
+                Text("Auto from Health Connect — no phone needed for the treadmill, add that below.",
+                    style = MaterialTheme.typography.labelMedium, color = TextDim)
+            }
+
+            Spacer(Modifier.height(12.dp))
+            Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween,
+                verticalAlignment = Alignment.CenterVertically) {
+                Text("Treadmill / manual", style = MaterialTheme.typography.bodyMedium,
+                    color = if (treadmillMiles > 0) MaterialTheme.colorScheme.onSurface else TextDim)
+                Text("${"%.1f".format(treadmillMiles)} mi",
+                    color = if (treadmillMiles > 0) AuraCyan else TextDim, fontWeight = FontWeight.Bold)
+            }
             Spacer(Modifier.height(8.dp))
-            MileControls(miles = miles, onAdd = onAdd)
+            MileControls(miles = treadmillMiles, onAdd = onAdd)
         }
     }
 }

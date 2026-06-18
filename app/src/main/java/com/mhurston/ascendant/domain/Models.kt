@@ -39,6 +39,14 @@ data class DayData(
     val strengthReps: Int get() = pushups + squats + legLifts + calfRaises + curls
     /** Reps from pinned custom exercises, counted as strength-equivalent for burn. */
     val customRepsTotal: Int get() = customReps.values.sumOf { it.coerceAtLeast(0) }
+    /** Distance estimated from passively-tracked steps (~2000 steps/mi). This is the
+     *  "tracked walked" portion of walking. Its calories are already counted via
+     *  passiveKcal (or the step estimate) in Calories.activityBurn — so feeding it into
+     *  the walking goal/completion below never double-counts XP. */
+    val trackedMiles: Double get() = passiveSteps.coerceAtLeast(0) / Calories.STEPS_PER_MILE
+    /** Total walking that fills the daily 5-mile goal & completion: manually-logged
+     *  (treadmill / off-phone) miles + the step-estimated tracked distance. */
+    val walkMiles: Double get() = miles + trackedMiles
     /** Calories from one-off activities (their own estimates). */
     val oneOffKcal: Int get() = oneOffs.sumOf { it.kcal.coerceAtLeast(0) }
     val hasStrength: Boolean get() = strengthReps > 0

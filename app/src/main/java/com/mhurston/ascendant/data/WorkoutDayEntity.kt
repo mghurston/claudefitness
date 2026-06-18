@@ -64,6 +64,14 @@ data class WorkoutDayEntity(
         passiveKcal = passiveKcal
     )
 
+    /** Distance estimated from passive steps (~2000 steps/mi) — the "tracked walked" part of
+     *  walking. Mirrors DayData.trackedMiles so the UI can read it off the entity directly. */
+    val trackedMiles: Double
+        get() = passiveSteps.coerceAtLeast(0) / com.mhurston.ascendant.domain.Calories.STEPS_PER_MILE
+
+    /** Total walking toward the 5-mi goal = manual/treadmill miles + tracked. */
+    val walkMiles: Double get() = miles + trackedMiles
+
     /** Total push-ups reps across every variant (base column + alternatives) — what counts
      *  toward the push-ups goal, XP, and stats. */
     fun pushTotal(): Int = pushups + decodeCustomReps(pushVariants).values.sum()

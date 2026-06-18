@@ -39,6 +39,24 @@ writes UTF-16/BOM and corrupts the PNG.
 Bottom-nav tabs (1080-wide screen, y≈2230): Hero x98 · Train x324 · Trophies x540 · Log x756 · Energy x972.
 Navigate with `adb shell input tap/swipe/text`. Delete temp `shot*.png` from repo root when done.
 
+## Testing steps / passive activity — turn Health Connect sync OFF first
+The emulator has NO Health Connect step data. If passive sync is ON, every app
+foreground re-syncs and banks HC's authoritative **0** over today's `passiveSteps`/
+`passiveKcal` — so any injected/observed steps reset to 0 (Steps ring + tracked-walking
+vanish). **Before testing anything step-related, disable passive sync** (Energy tab toggle).
+This is expected overwrite-not-add behavior, not a bug.
+
+To force a step value for UI testing (debuggable build, has `/system/bin/sqlite3`):
+```bash
+ADB=/g/claudefitness/android-sdk/platform-tools/adb.exe
+"$ADB" shell am force-stop com.mhurston.ascendant            # release the DB lock
+"$ADB" shell "run-as com.mhurston.ascendant sqlite3 databases/ascendant.db \
+  \"UPDATE workout_day SET passiveSteps=7500,passiveKcal=320 WHERE date='<today ISO>'; PRAGMA wal_checkpoint(TRUNCATE);\""
+```
+DB: `ascendant.db`, table `workout_day` (PK `date` = ISO yyyy-MM-dd). Revert to 0 when done
+so test data doesn't inflate XP/level. (Use the Bash tool, not PowerShell — `/sdcard` &
+`(*)` get mangled by PS/MSYS path conversion.)
+
 ## Verification rules
 - The user CANNOT see my screenshots — he watches the emulator window himself.
   **Leave the emulator running** after checks; don't `adb emu kill`. Use my screenshots
