@@ -13,15 +13,12 @@ android {
         applicationId = "com.mhurston.ascendant"
         minSdk = 26
         targetSdk = 35
-        versionCode = 2
-        versionName = "0.2.0"
+        versionCode = 1
+        versionName = "0.1.0"
     }
 
     buildTypes {
         release {
-            // Personal sideload build: sign with the debug key so the APK installs and updates
-            // in place over existing installs (same signature). Not for Play Store distribution.
-            signingConfig = signingConfigs.getByName("debug")
             isMinifyEnabled = false
             proguardFiles(
                 getDefaultProguardFile("proguard-android-optimize.txt"),
