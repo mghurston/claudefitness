@@ -39,6 +39,14 @@ data class EnergyEstimate(
 /** Calorie estimates: Mifflin–St Jeor BMR + activity from the day's logged work. */
 object Calories {
 
+    /** Rough steps-per-mile used to estimate passive burn when a device reports steps but no
+     *  active-calorie record. Walking burn then reuses the same 0.57 kcal/kg/mile model. */
+    const val STEPS_PER_MILE = 2000.0
+
+    /** Display-only daily step goal for the passive "Steps today" ring. Not part of the
+     *  workout completion formula or any RPG goal — purely a movement target for the ring. */
+    const val PASSIVE_STEP_GOAL = 10_000
+
     fun bmr(p: Profile): Double {
         if (p.weightKg <= 0 || p.heightCm <= 0 || p.age <= 0) return 0.0
         val base = 10 * p.weightKg + 6.25 * p.heightCm - 5 * p.age
@@ -57,7 +65,11 @@ object Calories {
             com.mhurston.ascendant.domain.CardioActivity.metFor(id) * 3.5 * p.weightKg / 200.0 *
                 min.coerceAtLeast(0)
         }
-        return walk + strength + cardio + day.oneOffKcal
+        // Passive activity from Health Connect: trust measured active calories; fall back to a
+        // step-based estimate (same walking model) only when no calorie record exists.
+        val passive = if (day.passiveKcal > 0) day.passiveKcal.toDouble()
+            else 0.57 * p.weightKg * (day.passiveSteps.coerceAtLeast(0) / STEPS_PER_MILE)
+        return walk + strength + cardio + day.oneOffKcal + passive
     }
 
     fun estimate(p: Profile, day: DayData, consumed: Int): EnergyEstimate {

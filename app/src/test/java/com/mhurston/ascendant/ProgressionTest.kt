@@ -131,6 +131,54 @@ class ProgressionTest {
     }
 
     @Test
+    fun passiveKcal_addsFullXp_andIsXpOnly_notMilesOrEndurance() {
+        val base = DayData(LocalDate.parse("2026-05-01"), pushups = 50)
+        val withPassive = base.copy(passiveSteps = 8000, passiveKcal = 300)
+        val (s0, _) = Progression.rebuild(listOf(base))
+        val (s1, _) = Progression.rebuild(listOf(withPassive))
+        // 1 kcal = 1 XP at full rate → ~300 more XP (before/with the same streak multiplier).
+        assertTrue("passive calories become XP", s1.earnedXp > s0.earnedXp + 250)
+        // Passive distance is XP-only: it must NOT inflate miles or the endurance stat.
+        assertEquals("passive steps never add miles", s0.totalMiles, s1.totalMiles, 0.0)
+        assertEquals("passive steps never build endurance", s0.stats.endurance, s1.stats.endurance)
+    }
+
+    @Test
+    fun passiveSteps_estimateXp_whenNoCalorieRecord() {
+        // Steps-only device (no active-calorie record) still earns XP via the step estimate.
+        val base = DayData(LocalDate.parse("2026-05-02"))
+        val stepsOnly = base.copy(passiveSteps = 10000)
+        val (s0, _) = Progression.rebuild(listOf(base))
+        val (s1, _) = Progression.rebuild(listOf(stepsOnly))
+        assertTrue("steps alone earn estimated XP", s1.earnedXp > s0.earnedXp)
+    }
+
+    @Test
+    fun passiveMovement_sustainsActivityStreak_butNotStrengthStreak() {
+        // A day with only passive steps (>= threshold) counts as activity, not strength.
+        val day = DayData(LocalDate.parse("2026-05-03"), passiveSteps = 2000)
+        val (state, _) = Progression.rebuild(listOf(day))
+        assertEquals("passive movement sustains the activity streak", 1, state.activityStreak)
+        assertEquals("passive movement is not strength", 0, state.strengthStreak)
+    }
+
+    @Test
+    fun passiveSteps_belowThreshold_doNotCountAsActivity() {
+        val day = DayData(LocalDate.parse("2026-05-04"), passiveSteps = 500) // under 1000
+        val (state, _) = Progression.rebuild(listOf(day))
+        assertEquals("a few steps is not an active day", 0, state.activityStreak)
+    }
+
+    @Test
+    fun reSync_overwritesPassiveTotals_neverDoubleCounts() {
+        // Banking is overwrite-not-add: re-reading the same day with the same aggregate is idempotent.
+        val day = DayData(LocalDate.parse("2026-05-05"), passiveKcal = 400)
+        val (once, _) = Progression.rebuild(listOf(day))
+        val (twice, _) = Progression.rebuild(listOf(day.copy(passiveKcal = 400)))
+        assertEquals("re-syncing the same totals yields the same XP", once.earnedXp, twice.earnedXp)
+    }
+
+    @Test
     fun streakBreaksOnCalendarGap() {
         val days = listOf(
             DayData(LocalDate.parse("2025-07-01"), pushups = 50),

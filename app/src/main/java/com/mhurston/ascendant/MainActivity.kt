@@ -33,4 +33,11 @@ class MainActivity : ComponentActivity() {
             }
         }
     }
+
+    override fun onResume() {
+        super.onResume()
+        // Pull the latest passively-tracked steps/calories whenever the app comes to the front.
+        // No-ops unless the user enabled sync and granted Health Connect permission.
+        viewModel.syncPassiveNow()
+    }
 }

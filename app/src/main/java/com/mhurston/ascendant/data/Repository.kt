@@ -17,11 +17,23 @@ class Repository private constructor(
     val favoriteVideoUrls: Flow<Set<String>> = profileStore.favoriteVideoUrls
     val userVideos: Flow<List<VideoLink>> = profileStore.userVideos
     val reminderEnabled: Flow<Boolean> = profileStore.reminderEnabled
+    val passiveSyncEnabled: Flow<Boolean> = profileStore.passiveSyncEnabled
+    val lastPassiveSync: Flow<String?> = profileStore.lastPassiveSync
     val unitSystem: Flow<com.mhurston.ascendant.domain.UnitSystem> = profileStore.unitSystem
     val avatar: Flow<com.mhurston.ascendant.domain.Avatar> = profileStore.avatar
     val customExercises: Flow<List<com.mhurston.ascendant.domain.CustomExercise>> = profileStore.customExercises
 
     suspend fun setReminderEnabled(on: Boolean) = profileStore.setReminderEnabled(on)
+    suspend fun setPassiveSyncEnabled(on: Boolean) = profileStore.setPassiveSyncEnabled(on)
+    suspend fun setLastPassiveSync(instant: String) = profileStore.setLastPassiveSync(instant)
+
+    /** Overwrite a day's passive (Health Connect) totals, preserving everything else logged.
+     *  Overwrite-not-add: each sync re-reads the authoritative aggregate, so re-syncing the
+     *  same day can never double count. */
+    suspend fun bankPassive(date: String, steps: Int, kcal: Int) {
+        val cur = dao.getDay(date) ?: WorkoutDayEntity(date = date)
+        dao.upsert(cur.copy(passiveSteps = steps.coerceAtLeast(0), passiveKcal = kcal.coerceAtLeast(0)))
+    }
     suspend fun setUnitSystem(u: com.mhurston.ascendant.domain.UnitSystem) = profileStore.setUnitSystem(u)
     suspend fun setAvatar(a: com.mhurston.ascendant.domain.Avatar) = profileStore.setAvatar(a)
     suspend fun addCustomExercise(name: String) = profileStore.addCustomExercise(name)

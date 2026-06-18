@@ -39,7 +39,11 @@ data class WorkoutDayEntity(
     /** Ad-hoc one-off activities logged to this day only. Encoded with control-char
      *  delimiters (unit-sep U+001F between name and kcal, record-sep U+001E between entries)
      *  so arbitrary user names are safe. Stays in history; never an option on other days. */
-    val oneOffs: String = ""
+    val oneOffs: String = "",
+    /** Steps banked from Health Connect for this day (overwritten on each sync, never summed). */
+    val passiveSteps: Int = 0,
+    /** Active calories banked from Health Connect for this day (preferred passive kcal source). */
+    val passiveKcal: Int = 0
 ) {
     fun toDayData(): DayData = DayData(
         date = LocalDate.parse(date),
@@ -55,7 +59,9 @@ data class WorkoutDayEntity(
         mood = mood,
         customReps = decodeCustomReps(customReps),
         cardioMinutes = decodeCustomReps(cardioMinutes),
-        oneOffs = decodeOneOffs(oneOffs)
+        oneOffs = decodeOneOffs(oneOffs),
+        passiveSteps = passiveSteps,
+        passiveKcal = passiveKcal
     )
 
     /** Total push-ups reps across every variant (base column + alternatives) — what counts

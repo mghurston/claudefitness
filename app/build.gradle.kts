@@ -16,8 +16,8 @@ android {
         // Bump BOTH on every delivered build: versionCode +1 (Android uses this to
         // gate installs — equal/lower is rejected on sideload), versionName as the
         // human label (patch++, rolling 0.1.9 -> 0.2.0).
-        versionCode = 3
-        versionName = "0.1.2"
+        versionCode = 4
+        versionName = "0.1.3"
     }
 
     buildTypes {
@@ -58,6 +58,7 @@ dependencies {
     implementation(libs.androidx.datastore.preferences)
     implementation(libs.androidx.browser)
     implementation(libs.androidx.work.runtime)
+    implementation(libs.androidx.health.connect)
     debugImplementation(libs.androidx.ui.tooling)
     testImplementation("junit:junit:4.13.2")
 }

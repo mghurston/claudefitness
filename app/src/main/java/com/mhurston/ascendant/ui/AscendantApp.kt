@@ -30,6 +30,8 @@ private enum class Tab(val label: String, val glyph: String) {
 fun AscendantApp(vm: AppViewModel) {
     val state by vm.state.collectAsState()
     val reminderOn by vm.reminderEnabled.collectAsState()
+    val passiveSyncOn by vm.passiveSyncEnabled.collectAsState()
+    val lastPassiveSync by vm.lastPassiveSync.collectAsState()
     val unitSystem by vm.unitSystem.collectAsState()
     val avatar by vm.avatar.collectAsState()
     var tab by rememberSaveable { mutableIntStateOf(0) }
@@ -117,6 +119,9 @@ fun AscendantApp(vm: AppViewModel) {
                 onSetUnit = vm::setUnitSystem,
                 reminderEnabled = reminderOn,
                 onSetReminder = vm::setReminderEnabled,
+                passiveSyncEnabled = passiveSyncOn,
+                lastPassiveSync = lastPassiveSync,
+                onSetPassiveSync = vm::setPassiveSyncEnabled,
                 modifier = content
             )
         }

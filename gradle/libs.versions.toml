@@ -11,10 +11,14 @@ datastore = "1.1.1"
 navigationCompose = "2.8.4"
 browser = "1.8.0"
 work = "2.9.1"
+# Pinned to the last release that compiles against SDK 35 / AGP 8.7.3 — newer 1.1.0 stable
+# requires compileSdk 36 + AGP 8.9.1. Has all the aggregate + permission APIs we use.
+healthConnect = "1.1.0-alpha10"
 
 [libraries]
 androidx-browser = { group = "androidx.browser", name = "browser", version.ref = "browser" }
 androidx-work-runtime = { group = "androidx.work", name = "work-runtime-ktx", version.ref = "work" }
+androidx-health-connect = { group = "androidx.health.connect", name = "connect-client", version.ref = "healthConnect" }
 androidx-core-ktx = { group = "androidx.core", name = "core-ktx", version.ref = "coreKtx" }
 androidx-lifecycle-runtime-ktx = { group = "androidx.lifecycle", name = "lifecycle-runtime-ktx", version.ref = "lifecycleRuntimeKtx" }
 androidx-lifecycle-viewmodel-compose = { group = "androidx.lifecycle", name = "lifecycle-viewmodel-compose", version.ref = "lifecycleRuntimeKtx" }

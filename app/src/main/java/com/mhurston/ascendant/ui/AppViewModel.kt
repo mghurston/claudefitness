@@ -299,6 +299,35 @@ class AppViewModel(app: Application) : AndroidViewModel(app) {
         }
     }
 
+    // --- passive activity sync (Health Connect) ------------------------------
+    val passiveSyncEnabled: StateFlow<Boolean> =
+        repo.passiveSyncEnabled.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), false)
+
+    val lastPassiveSync: StateFlow<String?> =
+        repo.lastPassiveSync.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), null)
+
+    /** Toggle passive sync. Enabling schedules the background job and runs an immediate sync;
+     *  disabling cancels the job. Caller must have already secured Health Connect permission. */
+    fun setPassiveSyncEnabled(on: Boolean) {
+        viewModelScope.launch {
+            repo.setPassiveSyncEnabled(on)
+            val app = getApplication<Application>()
+            if (on) {
+                com.mhurston.ascendant.health.PassiveSync.schedule(app)
+                com.mhurston.ascendant.health.PassiveSync.sync(app)
+            } else {
+                com.mhurston.ascendant.health.PassiveSync.cancel(app)
+            }
+        }
+    }
+
+    /** Foreground trigger — pull the latest passive totals when the app comes to the front. */
+    fun syncPassiveNow() {
+        viewModelScope.launch {
+            com.mhurston.ascendant.health.PassiveSync.sync(getApplication())
+        }
+    }
+
     fun importBackupJson(json: String, onResult: (Boolean, String) -> Unit) {
         viewModelScope.launch {
             try {

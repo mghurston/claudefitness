@@ -33,6 +33,8 @@ class ProfileStore(private val context: Context) {
         val FAV_VIDEOS = stringSetPreferencesKey("fav_videos")  // favorited URLs
         val USER_VIDEOS = stringSetPreferencesKey("user_videos") // "key<|>title<|>url"
         val REMINDER_ON = booleanPreferencesKey("reminder_on")
+        val PASSIVE_SYNC_ON = booleanPreferencesKey("passive_sync_on") // Health Connect sync enabled
+        val LAST_PASSIVE_SYNC = stringPreferencesKey("last_passive_sync") // ISO-8601 instant
         val UNIT_SYSTEM = stringPreferencesKey("unit_system")
         val AVATAR = stringPreferencesKey("avatar")
         val CUSTOM_EXERCISES = stringSetPreferencesKey("custom_exercises") // "id<|>name"
@@ -97,6 +99,21 @@ class ProfileStore(private val context: Context) {
 
     suspend fun setReminderEnabled(on: Boolean) {
         context.dataStore.edit { it[Keys.REMINDER_ON] = on }
+    }
+
+    // --- Passive activity sync (Health Connect) -------------------------------
+    val passiveSyncEnabled: Flow<Boolean> =
+        context.dataStore.data.map { it[Keys.PASSIVE_SYNC_ON] ?: false }
+
+    suspend fun setPassiveSyncEnabled(on: Boolean) {
+        context.dataStore.edit { it[Keys.PASSIVE_SYNC_ON] = on }
+    }
+
+    /** ISO-8601 instant of the last successful passive sync, or null if never synced. */
+    val lastPassiveSync: Flow<String?> = context.dataStore.data.map { it[Keys.LAST_PASSIVE_SYNC] }
+
+    suspend fun setLastPassiveSync(instant: String) {
+        context.dataStore.edit { it[Keys.LAST_PASSIVE_SYNC] = instant }
     }
 
     // Default to IMPERIAL (US units) unless the user switches to metric.

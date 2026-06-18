@@ -64,6 +64,8 @@ object Exporter {
             sb.append("\"coreVariants\": \"${esc(d.coreVariants)}\", ")
             sb.append("\"cardioMinutes\": \"${esc(d.cardioMinutes)}\", ")
             sb.append("\"oneOffs\": \"${esc(d.oneOffs)}\", ")
+            sb.append("\"passiveSteps\": ${d.passiveSteps}, ")
+            sb.append("\"passiveKcal\": ${d.passiveKcal}, ")
             sb.append("\"notes\": \"${esc(d.notes)}\"}")
             sb.append(if (i < sorted.lastIndex) ",\n" else "\n")
         }
@@ -105,7 +107,9 @@ object Exporter {
                         pushVariants = d.optString("pushVariants", ""),
                         coreVariants = d.optString("coreVariants", ""),
                         cardioMinutes = d.optString("cardioMinutes", ""),
-                        oneOffs = d.optString("oneOffs", "")
+                        oneOffs = d.optString("oneOffs", ""),
+                        passiveSteps = d.optInt("passiveSteps", 0),
+                        passiveKcal = d.optInt("passiveKcal", 0)
                     )
                 )
             }

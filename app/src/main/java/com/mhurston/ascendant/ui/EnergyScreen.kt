@@ -54,6 +54,9 @@ fun EnergyScreen(
     onSetUnit: (UnitSystem) -> Unit = {},
     reminderEnabled: Boolean = false,
     onSetReminder: (Boolean) -> Unit = {},
+    passiveSyncEnabled: Boolean = false,
+    lastPassiveSync: String? = null,
+    onSetPassiveSync: (Boolean) -> Unit = {},
     modifier: Modifier = Modifier
 ) {
     val p = state.profile
@@ -173,9 +176,86 @@ fun EnergyScreen(
         )
 
         Spacer(Modifier.height(20.dp))
+        HealthConnectCard(
+            enabled = passiveSyncEnabled,
+            lastSync = lastPassiveSync,
+            stepsToday = state.today.passiveSteps,
+            onSet = onSetPassiveSync
+        )
+
+        Spacer(Modifier.height(20.dp))
         ReminderCard(reminderEnabled, onSetReminder)
         Spacer(Modifier.height(24.dp))
     }
+}
+
+/** "Sync steps & activity" toggle — reads passively-tracked steps + active calories from
+ *  Health Connect and folds them into XP. Hidden entirely when Health Connect is unavailable. */
+@Composable
+private fun HealthConnectCard(
+    enabled: Boolean,
+    lastSync: String?,
+    stepsToday: Int,
+    onSet: (Boolean) -> Unit
+) {
+    val context = LocalContext.current
+    val available = remember { com.mhurston.ascendant.health.HealthConnect.isAvailable(context) }
+
+    val permLauncher = androidx.activity.compose.rememberLauncherForActivityResult(
+        com.mhurston.ascendant.health.HealthConnect.permissionContract()
+    ) { granted ->
+        // Only enable once every read permission we need is actually granted.
+        onSet(granted.containsAll(com.mhurston.ascendant.health.HealthConnect.PERMISSIONS))
+    }
+
+    Card(
+        Modifier.fillMaxWidth(),
+        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface)
+    ) {
+        Column(Modifier.padding(20.dp)) {
+            Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween,
+                verticalAlignment = Alignment.CenterVertically) {
+                Column(Modifier.weight(1f)) {
+                    Text("Sync steps & activity", style = MaterialTheme.typography.titleLarge, color = AuraCyan)
+                    Text(
+                        if (available)
+                            "Reads steps & active calories your phone (and any watch) already " +
+                                "track via Health Connect, and earns full XP — no manual logging."
+                        else
+                            "Health Connect isn't available on this device, so passive tracking " +
+                                "is off. Logged workouts still work normally.",
+                        style = MaterialTheme.typography.labelMedium, color = TextDim
+                    )
+                }
+                Switch(
+                    enabled = available,
+                    checked = enabled,
+                    onCheckedChange = { want ->
+                        if (want) {
+                            // Launch the Health Connect permission flow; enable on grant.
+                            permLauncher.launch(com.mhurston.ascendant.health.HealthConnect.PERMISSIONS)
+                        } else onSet(false)
+                    }
+                )
+            }
+            if (available && enabled) {
+                Spacer(Modifier.height(10.dp))
+                Stat("Steps today", "$stepsToday", AuraCyan)
+                Stat("Last synced", formatSyncTime(lastSync), TextDim)
+            }
+        }
+    }
+}
+
+/** Human label for the last-sync instant, e.g. "2:14 PM" today or a short date otherwise. */
+private fun formatSyncTime(instant: String?): String {
+    if (instant.isNullOrBlank()) return "never"
+    val t = runCatching { java.time.Instant.parse(instant) }.getOrNull() ?: return "never"
+    val ldt = java.time.LocalDateTime.ofInstant(t, java.time.ZoneId.systemDefault())
+    val today = java.time.LocalDate.now()
+    val timeFmt = java.time.format.DateTimeFormatter.ofPattern("h:mm a")
+    return if (ldt.toLocalDate() == today) ldt.format(timeFmt)
+    else ldt.format(java.time.format.DateTimeFormatter.ofPattern("MMM d, h:mm a"))
 }
 
 private fun trimNum(v: Double): String =

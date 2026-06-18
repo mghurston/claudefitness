@@ -129,18 +129,23 @@ fun CharacterScreen(
     }
 }
 
-/** Today's status at a glance — Goals completion and Active Burn, moved here from Training. */
+/** Today's status at a glance — Goals completion, Active Burn, and (when passive sync is on)
+ *  passively-tracked Steps. Moved here from Training. */
 @Composable
 private fun StatusRings(state: UiState) {
     val completionPct = (state.todayDerived.completion * 100).roundToInt()
     val burn = com.mhurston.ascendant.domain.Calories
         .activityBurn(state.profile, state.today.toDayData()).roundToInt()
     val burnTarget = com.mhurston.ascendant.domain.Calories.dailyBurnTarget(state.profile)
+    val steps = state.today.passiveSteps
+    val showSteps = steps > 0
+    // Three rings need to be smaller to fit a phone width; two can stay large.
+    val ringSize = if (showSteps) 108.dp else 150.dp
     Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceEvenly) {
         Column(horizontalAlignment = Alignment.CenterHorizontally) {
             CompletionRing(
                 completion = state.todayDerived.completion,
-                size = 150.dp,
+                size = ringSize,
                 centerLabel = "$completionPct%",
                 centerSub = "+${state.todayDerived.xp} XP"
             )
@@ -150,13 +155,27 @@ private fun StatusRings(state: UiState) {
         Column(horizontalAlignment = Alignment.CenterHorizontally) {
             CompletionRing(
                 completion = if (burnTarget > 0) burn.toDouble() / burnTarget else 0.0,
-                size = 150.dp,
+                size = ringSize,
                 centerLabel = "$burn",
                 centerSub = "/ $burnTarget kcal",
                 centerColor = XpGold
             )
             Spacer(Modifier.height(6.dp))
             Text("🔥 Active Burn", style = MaterialTheme.typography.labelMedium, color = TextDim)
+        }
+        if (showSteps) {
+            val goal = com.mhurston.ascendant.domain.Calories.PASSIVE_STEP_GOAL
+            Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                CompletionRing(
+                    completion = if (goal > 0) steps.toDouble() / goal else 0.0,
+                    size = ringSize,
+                    centerLabel = if (steps >= 1000) "%.1fk".format(steps / 1000.0) else "$steps",
+                    centerSub = "/ ${goal / 1000}k",
+                    centerColor = AuraCyan
+                )
+                Spacer(Modifier.height(6.dp))
+                Text("👟 Steps", style = MaterialTheme.typography.labelMedium, color = TextDim)
+            }
         }
     }
 }

@@ -27,7 +27,14 @@ data class DayData(
      *  via the MET formula (see Calories), separate from the walking-miles goal. */
     val cardioMinutes: Map<String, Int> = emptyMap(),
     /** Ad-hoc one-off activities logged to this day only (name + calorie estimate). */
-    val oneOffs: List<OneOff> = emptyList()
+    val oneOffs: List<OneOff> = emptyList(),
+    /** Steps banked from Health Connect for this day (phone + any synced watch/app).
+     *  XP-only: earns calories like everything else but never feeds the walking-miles goal,
+     *  the END stat, or completion. See docs/Passive Activity Tracking. */
+    val passiveSteps: Int = 0,
+    /** Active calories banked from Health Connect for this day. Preferred kcal source for
+     *  passive burn; when 0 (device reports steps only) we estimate from passiveSteps. */
+    val passiveKcal: Int = 0
 ) {
     val strengthReps: Int get() = pushups + squats + legLifts + calfRaises + curls
     /** Reps from pinned custom exercises, counted as strength-equivalent for burn. */
@@ -35,7 +42,17 @@ data class DayData(
     /** Calories from one-off activities (their own estimates). */
     val oneOffKcal: Int get() = oneOffs.sumOf { it.kcal.coerceAtLeast(0) }
     val hasStrength: Boolean get() = strengthReps > 0
-    val hasActivity: Boolean get() = hasStrength || miles > 0.0 || customRepsTotal > 0 || oneOffKcal > 0
+    /** A real-movement day from passive tracking — enough steps to count as "active." */
+    val hasPassiveMovement: Boolean get() = passiveSteps >= PASSIVE_ACTIVITY_THRESHOLD
+    val hasActivity: Boolean
+        get() = hasStrength || miles > 0.0 || customRepsTotal > 0 || oneOffKcal > 0 ||
+            hasPassiveMovement
+
+    companion object {
+        /** Passive steps at/above this count make a day "active" — it sustains the activity
+         *  streak and resets the idle-decay anchor (strength streak stays strength-only). */
+        const val PASSIVE_ACTIVITY_THRESHOLD = 1000
+    }
 }
 
 /**
