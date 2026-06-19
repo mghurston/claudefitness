@@ -159,14 +159,95 @@ $adb="$env:ANDROID_HOME\platform-tools\adb.exe"
 | **Rebrand identity** | App name (`strings.xml`), launcher icon (`res/mipmap-*`), hero portraits (`res/drawable/hero_portrait*`), theme/colors in `ui/theme/`. |
 | **Personal links** | The **About** card on the Hero screen (`ui/CharacterScreen.kt`) — website + Linktree URLs. |
 | **Ship a new build** | Bump **both** `versionCode` (+1) and `versionName` in `app/build.gradle.kts` on **every** delivered build — sideloads reject an equal/lower `versionCode`. |
-| **Release (signed) build** | No release keystore is configured; `buildTypes.release` has `isMinifyEnabled = false` and no signing. Add a keystore + `signingConfigs` before distributing a release APK. |
+| **Release (signed) build** | No release keystore is configured; `buildTypes.release` has `isMinifyEnabled = false` and no signing. Add a keystore + `signingConfigs` before distributing a release APK. For full Play Store publishing (upload key, AAB, Play App Signing) see **§7**. |
 | **Bump a dependency / Gradle / AGP / SDK** | Edit `gradle/libs.versions.toml` (single source of truth). Note Health Connect is pinned to `1.1.0-alpha10` because newer needs `compileSdk 36` / AGP 8.9.1. |
 | **Change permissions** | `app/src/main/AndroidManifest.xml` declares `POST_NOTIFICATIONS` + Health Connect read perms and the HC rationale deep-links. |
 | **Seed/import history** | `data/` seeding is disabled so fresh installs start at Level 1; `docs/assets/seed_history.csv` + the in-app JSON/CSV restore are the import paths. |
 
 ---
 
-## 7. Gotchas
+## 7. Publishing to the Play Store (optional — not the default path)
+
+This app is built to be **sideloaded** (debug or self-signed release APK). You do **not**
+need any of this for personal use. It's here only for someone who wants to put their own
+fork on Google Play. Publishing means using **Play App Signing**, where Google holds the
+real *app signing key* and you only ever sign uploads with an **upload key** you generate.
+
+### A. One-time account + identity setup
+1. Make this a distinct app first (so you're not colliding with the author's package):
+   change `namespace` **and** `applicationId` in `app/build.gradle.kts` and the package
+   folders under `app/src/main/java/...` (see §6, "Make it your own app"). `applicationId`
+   is permanent once published — pick it deliberately.
+2. Create a **Google Play Developer account** at <https://play.google.com/console>
+   (one-time **$25** fee, identity verification can take a few days).
+3. In Play Console: **Create app** → set name, default language, app/game, free/paid.
+
+### B. Generate your upload key (do this once, then guard it)
+```bash
+keytool -genkey -v -keystore upload-keystore.jks \
+  -keyalg RSA -keysize 2048 -validity 10000 -alias ascendant-upload
+```
+- Keep `upload-keystore.jks` and its passwords **out of git** (it's already covered by the
+  `*.jks` / keystore patterns — verify before committing). Back it up to your own cloud.
+- This is your **upload** key, not the app signing key. If you ever lose it, Google can
+  reset it; if you lost the *app signing* key in a self-managed setup you'd be stuck — which
+  is exactly why Play App Signing is the recommended route.
+
+### C. Wire signing into Gradle (release build type)
+`buildTypes.release` currently has **no** `signingConfig`. Add one driven by env vars or a
+git-ignored `keystore.properties` (never hard-code passwords):
+```kotlin
+// app/build.gradle.kts
+val keystoreProps = Properties().apply {
+    val f = rootProject.file("keystore.properties")   // git-ignored
+    if (f.exists()) load(f.inputStream())
+}
+android {
+    signingConfigs {
+        create("release") {
+            storeFile = file(keystoreProps.getProperty("storeFile") ?: "upload-keystore.jks")
+            storePassword = keystoreProps.getProperty("storePassword")
+            keyAlias = keystoreProps.getProperty("keyAlias")
+            keyPassword = keystoreProps.getProperty("keyPassword")
+        }
+    }
+    buildTypes {
+        release {
+            signingConfig = signingConfigs.getByName("release")
+            // consider isMinifyEnabled = true + a proguard config before a real launch
+        }
+    }
+}
+```
+
+### D. Build an App Bundle (Play requires AAB, not APK)
+```powershell
+. .\setenv.ps1
+.\gradlew.bat :app:bundleRelease
+```
+Output: `app/build/outputs/bundle/release/app-release.aab`.
+
+### E. Upload + enroll in Play App Signing
+1. Play Console → your app → **Release** → pick a track (start with **Internal testing**).
+2. **Create release** → on first upload, accept **Play App Signing** (default). Google
+   generates and stores the app signing key; your AAB is signed with your upload key and
+   re-signed by Google for distribution.
+3. Upload the `.aab`, add release notes, roll out to the track, add tester emails.
+4. Promote Internal → Closed → Production once you're happy. Production also needs the
+   store listing, content rating, data-safety form, and privacy policy completed.
+
+### F. Updating after launch
+- Bump **both** `versionCode` (+1) and `versionName` every upload (Play rejects a reused
+  `versionCode` — same rule as sideloads, see §6).
+- Always sign updates with the **same upload key** from step B.
+
+> Reality check: for a single user this is overkill — the $25 account, store listing,
+> content rating, and review wait buy you nothing over sideloading. Recommended only if you
+> genuinely want public distribution.
+
+---
+
+## 8. Gotchas
 
 - **Re-source `setenv` per shell.** A command run in an un-activated shell has a blank
   `ANDROID_HOME`; don't trust a negative result (e.g. a `Test-Path` False) from one.

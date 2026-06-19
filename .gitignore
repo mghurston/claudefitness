@@ -11,6 +11,11 @@ local.properties
 /android-sdk/
 /gradle-dist/
 
+# Signing secrets (Play Store / release builds — never commit, see RUNBOOK §7)
+*.jks
+*.keystore
+keystore.properties
+
 # Emulator / QA artifacts (machine-local)
 .avd/
 qa-*.png
