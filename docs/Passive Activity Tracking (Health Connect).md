@@ -54,10 +54,12 @@ val passiveKcal: Int = 0       // active calories banked (preferred kcal source;
 
 Then:
 ```kotlin
-// Calories.activityBurn(): prefer measured active-calories from Health Connect; if a device
-// only reports steps, estimate from steps using the same walking model already in use.
-val passive = if (day.passiveKcal > 0) day.passiveKcal.toDouble()
-              else 0.57 * p.weightKg * (day.passiveSteps / STEPS_PER_MILE)
+// Calories.activityBurn(): take the GREATER of the device's measured active-calories and our
+// own step-based estimate, both via the shared gross walking model (~1.2 kcal/kg/mile). Phone
+// pedometers report a low net number, so max() keeps plain walking honest without discarding
+// real workout data (max, not sum — both describe the same steps).
+val stepEstimate = walkKcal(p.weightKg, day.passiveSteps / STEPS_PER_MILE)
+val passive = maxOf(day.passiveKcal.toDouble(), stepEstimate)
 return walk + strength + cardio + passive + day.oneOffKcal
 ```
 `STEPS_PER_MILE ≈ 2000` (could later refine from height/stride).

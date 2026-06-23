@@ -40,8 +40,37 @@ data class EnergyEstimate(
 object Calories {
 
     /** Rough steps-per-mile used to estimate passive burn when a device reports steps but no
-     *  active-calorie record. Walking burn then reuses the same 0.57 kcal/kg/mile model. */
+     *  active-calorie record. Walking burn then reuses the same WALK_KCAL_PER_KG_PER_MILE model. */
     const val STEPS_PER_MILE = 2000.0
+
+    // ── Activity-energy model ────────────────────────────────────────────────────────────────
+    // Every activity's calorie burn scales with the body weight entered on the Energy tab, via
+    // the ACSM/Compendium MET formula:  kcal/min = MET × 3.5 × weightKg / 200.
+    // These are *gross* calories — the same thing a treadmill or fitness tracker shows and what
+    // "walking a mile burns ~X calories" references quote — so the numbers match expectations.
+    // Burn is 1:1 XP (Progression.XP_PER_KCAL), so a heavier body, or one doing more work, earns
+    // proportionally more. The constants below are the only place these rates are defined.
+
+    /** Gross walking energy, per kg, per mile. Walking is logged as distance (not time), and
+     *  gross kcal/mile is nearly pace-independent across normal speeds (a faster pace means a
+     *  higher MET but proportionally less time). We use ~3.5 MET at ~3 mph (20 min/mi):
+     *  3.5 × 3.5 × kg / 200 × 20 ≈ 1.2 kcal/kg/mile. For a 96 kg (212 lb) walker that's
+     *  ≈115 kcal/mile — squarely in the commonly cited 105–120 kcal/mile for that body. */
+    const val WALK_KCAL_PER_KG_PER_MILE = 1.2
+
+    /** Gross strength/calisthenics energy, per kg, per rep. General moderate effort (~3.8 MET)
+     *  at ~3 s per rep: 3.8 × 3.5 × kg / 200 × (3/60) ≈ 0.0033 kcal/kg/rep — ≈32 kcal per 100
+     *  reps for a 96 kg lifter. Covers the core lifts and pinned custom exercises alike. */
+    const val STRENGTH_KCAL_PER_KG_PER_REP = 0.0033
+
+    /** Gross walking calories for [miles] at [weightKg]. */
+    fun walkKcal(weightKg: Double, miles: Double): Double =
+        WALK_KCAL_PER_KG_PER_MILE * weightKg.coerceAtLeast(0.0) * miles.coerceAtLeast(0.0)
+
+    /** Gross calories for [reps] strength/calisthenics reps at [weightKg]. Single source of
+     *  truth shared by the burn engine and the UI's per-exercise rep-XP preview. */
+    fun strengthKcal(weightKg: Double, reps: Int): Double =
+        STRENGTH_KCAL_PER_KG_PER_REP * weightKg.coerceAtLeast(0.0) * reps.coerceAtLeast(0)
 
     /** Display-only daily step goal for the passive "Steps today" ring. Not part of the
      *  workout completion formula or any RPG goal — purely a movement target for the ring. */
@@ -53,22 +82,27 @@ object Calories {
         return if (p.sex == Sex.MALE) base + 5 else base - 161
     }
 
-    /** Walking ≈ 0.57 kcal/kg/mile; strength (core + pinned customs) ≈ small per-rep burn;
-     *  one-off activities carry their own calorie estimate. This single number drives both
-     *  the Energy screen's "activity" line and the burn-based XP engine, so they always agree. */
+    /** Total gross activity calories for the day, all scaled by the entered body weight:
+     *  walking (treadmill/manual miles) + strength (core lifts + pinned customs) + time cardio
+     *  (bike/swim via MET) + one-off activities + passive walking from Health Connect. This one
+     *  number drives both the Energy screen's "activity" line and the burn-based XP engine, so
+     *  they always agree. */
     fun activityBurn(p: Profile, day: DayData): Double {
         if (p.weightKg <= 0) return 0.0
-        val walk = 0.57 * p.weightKg * day.miles
-        val strength = 0.0019 * p.weightKg * (day.strengthReps + day.customRepsTotal)
+        val walk = walkKcal(p.weightKg, day.miles)
+        val strength = strengthKcal(p.weightKg, day.strengthReps + day.customRepsTotal)
         // MET-based time cardio (bike/swim): kcal/min = MET × 3.5 × kg / 200.
         val cardio = day.cardioMinutes.entries.sumOf { (id, min) ->
             com.mhurston.ascendant.domain.CardioActivity.metFor(id) * 3.5 * p.weightKg / 200.0 *
                 min.coerceAtLeast(0)
         }
-        // Passive activity from Health Connect: trust measured active calories; fall back to a
-        // step-based estimate (same walking model) only when no calorie record exists.
-        val passive = if (day.passiveKcal > 0) day.passiveKcal.toDouble()
-            else 0.57 * p.weightKg * (day.passiveSteps.coerceAtLeast(0) / STEPS_PER_MILE)
+        // Passive activity from Health Connect. Phone pedometers report a conservative net
+        // active-calorie number, so take the GREATER of the measured value and our own
+        // step-based walking estimate — that way measured workout data is never discarded, but
+        // plain walking can never read below the honest moderate-pace estimate. (max, not sum:
+        // both describe the same steps, so adding would double count.)
+        val stepEstimate = walkKcal(p.weightKg, day.passiveSteps.coerceAtLeast(0) / STEPS_PER_MILE)
+        val passive = maxOf(day.passiveKcal.toDouble(), stepEstimate)
         return walk + strength + cardio + day.oneOffKcal + passive
     }
 

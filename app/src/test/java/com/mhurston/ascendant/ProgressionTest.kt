@@ -39,14 +39,15 @@ class ProgressionTest {
     }
 
     @Test
-    fun seedImport_landsAroundLevel8_RankD_underCalorieModel() {
+    fun seedImport_landsAroundLevel11_RankC_underCalorieModel() {
         val (state, _) = Progression.rebuild(seedDays())
         println("Seed import → Level ${state.level}, Rank ${state.rank}, XP ${state.totalXp}, " +
             "STR ${state.stats.strength} END ${state.stats.endurance} AGI ${state.stats.agility} " +
             "DIS ${state.stats.discipline} CON ${state.stats.consistency}")
-        // Burn-based XP (1 kcal = 1 XP): the 30-day month lands ~Level 8, Rank D.
-        assertTrue("level should be 6..10 but was ${state.level}", state.level in 6..10)
-        assertEquals("rank should be D", "D", state.rank.label)
+        // Burn-based XP (1 kcal = 1 XP) with the gross MET activity model: the 30-day month
+        // lands ~Level 11, Rank C (every mile/rep is body-weight-scaled gross calories).
+        assertTrue("level should be 9..13 but was ${state.level}", state.level in 9..13)
+        assertEquals("rank should be C", "C", state.rank.label)
     }
 
     @Test
@@ -95,7 +96,7 @@ class ProgressionTest {
         val today = LocalDate.parse("2026-06-13") // ~1 year after the seed's last day
         val (state, _) = Progression.rebuild(seedDays(), today, today)
         assertEquals("no penalty on first open", 0L, state.idlePenaltyXp)
-        assertEquals("D", state.rank.label) // imports at Rank D under the calorie model
+        assertEquals("C", state.rank.label) // imports at Rank C under the gross calorie model
     }
 
     @Test

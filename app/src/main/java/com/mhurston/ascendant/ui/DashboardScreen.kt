@@ -638,7 +638,7 @@ private fun ExtrasSection(
     // Pinned recurring custom exercises — rep-based, available every day.
     customExercises.forEach { ex ->
         val reps = todayReps[ex.id] ?: 0
-        val kcal = (0.0019 * weightKg * reps).roundToInt()
+        val kcal = com.mhurston.ascendant.domain.Calories.strengthKcal(weightKg, reps).roundToInt()
         Card(
             Modifier.fillMaxWidth().padding(vertical = 4.dp),
             colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface)
