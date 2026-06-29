@@ -57,8 +57,10 @@ fun CalendarScreen(
     onAddPushVariant: (String, String, Int) -> Unit = { _, _, _ -> },
     onAddCoreVariant: (String, String, Int) -> Unit = { _, _, _ -> },
     onAddCardioMinutes: (String, String, Int) -> Unit = { _, _, _ -> },
-    onAddOneOff: (String, String, Int) -> Unit = { _, _, _ -> },
+    onAddOneOff: (String, com.mhurston.ascendant.domain.OneOff) -> Unit = { _, _ -> },
+    onUpdateOneOff: (String, Int, com.mhurston.ascendant.domain.OneOff) -> Unit = { _, _, _ -> },
     onRemoveOneOff: (String, Int) -> Unit = { _, _ -> },
+    unitSystem: com.mhurston.ascendant.domain.UnitSystem = com.mhurston.ascendant.domain.UnitSystem.IMPERIAL,
     modifier: Modifier = Modifier
 ) {
     val today = LocalDate.now()
@@ -86,34 +88,32 @@ fun CalendarScreen(
             onAddPushVariant = { id, delta -> onAddPushVariant(date.toString(), id, delta) },
             onAddCoreVariant = { id, delta -> onAddCoreVariant(date.toString(), id, delta) },
             onAddCardioMinutes = { id, delta -> onAddCardioMinutes(date.toString(), id, delta) },
-            onAddOneOff = { name, kcal -> onAddOneOff(date.toString(), name, kcal) },
+            weightKg = state.profile.weightKg,
+            unitSystem = unitSystem,
+            onAddOneOff = { oneOff -> onAddOneOff(date.toString(), oneOff) },
+            onUpdateOneOff = { idx, oneOff -> onUpdateOneOff(date.toString(), idx, oneOff) },
             onRemoveOneOff = { idx -> onRemoveOneOff(date.toString(), idx) },
             onDismiss = { selected = null }
         )
     }
 
     Column(modifier.fillMaxSize().verticalScroll(rememberScrollState()).padding(20.dp)) {
-        Text("Workout Log", style = MaterialTheme.typography.headlineMedium, color = ManaPurple)
-        Text("${state.days.count { it.date <= today.toString() }} days recorded · tap any day to view or fix it",
-            style = MaterialTheme.typography.labelMedium, color = TextDim)
+        ScreenTitle("Workout Log")
+        ScreenSubtitle("${state.days.count { it.date <= today.toString() }} days recorded · tap any day to view or fix it")
         Spacer(Modifier.height(16.dp))
 
         // Month header with navigation
         Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween,
             verticalAlignment = Alignment.CenterVertically) {
             NavBtn("‹") { month = month.minusMonths(1) }
-            Text(
-                "${month.month.getDisplayName(TextStyle.FULL, Locale.getDefault())} ${month.year}",
-                style = MaterialTheme.typography.titleLarge, color = AuraCyan,
-                fontWeight = FontWeight.Bold
-            )
+            SectionHeader("${month.month.getDisplayName(TextStyle.FULL, Locale.getDefault())} ${month.year}")
             NavBtn("›") { month = month.plusMonths(1) }
         }
         Spacer(Modifier.height(12.dp))
 
-        // Weekday header (Mon..Sun)
+        // Weekday header (Sun..Sat)
         Row(Modifier.fillMaxWidth()) {
-            listOf("M", "T", "W", "T", "F", "S", "S").forEach {
+            listOf("S", "M", "T", "W", "T", "F", "S").forEach {
                 Box(Modifier.weight(1f), contentAlignment = Alignment.Center) {
                     Text(it, style = MaterialTheme.typography.labelMedium, color = TextDim)
                 }
@@ -142,8 +142,8 @@ private fun MonthGrid(
     onClick: (LocalDate) -> Unit
 ) {
     val first = month.atDay(1)
-    // ISO: Monday=1..Sunday=7 → leading blanks before the 1st.
-    val leading = first.dayOfWeek.value - 1
+    // Sunday-first week: ISO Monday=1..Sunday=7 → Sun=0, Mon=1, … Sat=6 leading blanks.
+    val leading = first.dayOfWeek.value % 7
     val daysInMonth = month.lengthOfMonth()
     val cells = leading + daysInMonth
     val rows = (cells + 6) / 7
@@ -259,13 +259,17 @@ private fun DayEditorDialog(
     onAddPushVariant: (String, Int) -> Unit = { _, _ -> },
     onAddCoreVariant: (String, Int) -> Unit = { _, _ -> },
     onAddCardioMinutes: (String, Int) -> Unit = { _, _ -> },
-    onAddOneOff: (String, Int) -> Unit = { _, _ -> },
+    weightKg: Double = 0.0,
+    unitSystem: com.mhurston.ascendant.domain.UnitSystem = com.mhurston.ascendant.domain.UnitSystem.IMPERIAL,
+    onAddOneOff: (com.mhurston.ascendant.domain.OneOff) -> Unit = {},
+    onUpdateOneOff: (Int, com.mhurston.ascendant.domain.OneOff) -> Unit = { _, _ -> },
     onRemoveOneOff: (Int) -> Unit = {},
     onDismiss: () -> Unit
 ) {
     var confirmReset by remember { mutableStateOf(false) }
     var showAddCustom by remember { mutableStateOf(false) }
     var showOneOff by remember { mutableStateOf(false) }
+    var editingOneOff by remember { mutableStateOf<Pair<Int, com.mhurston.ascendant.domain.OneOff>?>(null) }
     val e = entity ?: WorkoutDayEntity(date = date.toString())
     val pct = (completion * 100).roundToInt()
 
@@ -293,12 +297,27 @@ private fun DayEditorDialog(
 
     if (showOneOff) {
         OneOffDialog(
-            onAdd = { name, kcal, pin ->
-                onAddOneOff(name, kcal)
-                if (pin) onAddCustomExercise(name)
+            weightKg = weightKg,
+            unitSystem = unitSystem,
+            onAdd = { oneOff, pin ->
+                onAddOneOff(oneOff)
+                if (pin) onAddCustomExercise(oneOff.name)
                 showOneOff = false
             },
             onDismiss = { showOneOff = false }
+        )
+    }
+
+    editingOneOff?.let { (index, existing) ->
+        OneOffDialog(
+            weightKg = weightKg,
+            unitSystem = unitSystem,
+            initial = existing,
+            onAdd = { updated, _ ->
+                onUpdateOneOff(index, updated)
+                editingOneOff = null
+            },
+            onDismiss = { editingOneOff = null }
         )
     }
 
@@ -340,20 +359,23 @@ private fun DayEditorDialog(
                 Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween,
                     verticalAlignment = Alignment.CenterVertically) {
                     Text("One-offs (this day only)", style = MaterialTheme.typography.labelMedium, color = TextDim)
-                    Text("＋ One-off", color = ManaPurple, style = MaterialTheme.typography.labelMedium,
-                        fontWeight = FontWeight.Bold,
-                        modifier = Modifier.clickable { showOneOff = true })
+                    AddLink("One-off") { showOneOff = true }
                 }
                 WorkoutDayEntity.decodeOneOffs(e.oneOffs).forEachIndexed { i, o ->
                     Row(Modifier.fillMaxWidth().padding(vertical = 4.dp),
                         horizontalArrangement = Arrangement.SpaceBetween,
                         verticalAlignment = Alignment.CenterVertically) {
-                        Text(o.name, style = MaterialTheme.typography.bodyLarge, modifier = Modifier.weight(1f))
+                        Column(Modifier.weight(1f).clickable { editingOneOff = i to o }) {
+                            Text(o.name, style = MaterialTheme.typography.bodyLarge)
+                            val label = o.metricsLabel(unitSystem)
+                            if (label.isNotEmpty()) {
+                                Text(label, style = MaterialTheme.typography.labelMedium, color = TextDim)
+                            }
+                        }
                         Text("+${o.kcal} XP", color = XpGold, style = MaterialTheme.typography.labelMedium,
                             fontWeight = FontWeight.Bold)
-                        Text("  ✕", color = com.mhurston.ascendant.ui.theme.DangerRed,
-                            style = MaterialTheme.typography.labelMedium,
-                            modifier = Modifier.clickable { onRemoveOneOff(i) })
+                        EditIcon { editingOneOff = i to o }
+                        RemoveIcon { onRemoveOneOff(i) }
                     }
                 }
 
@@ -362,9 +384,7 @@ private fun DayEditorDialog(
                 Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween,
                     verticalAlignment = Alignment.CenterVertically) {
                     Text("Pinned 📌", style = MaterialTheme.typography.labelMedium, color = TextDim)
-                    Text("＋ Add", color = ManaPurple, style = MaterialTheme.typography.labelMedium,
-                        fontWeight = FontWeight.Bold,
-                        modifier = Modifier.clickable { showAddCustom = true })
+                    AddLink("Exercise") { showAddCustom = true }
                 }
                 val customReps = WorkoutDayEntity.decodeCustomReps(e.customReps)
                 // Active exercises are always editable here; archived ones appear only on

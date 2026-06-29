@@ -18,6 +18,7 @@ import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
@@ -26,13 +27,20 @@ import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.res.painterResource
 import com.mhurston.ascendant.R
 import androidx.compose.foundation.verticalScroll
+import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
+import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
+import com.mhurston.ascendant.domain.Progression
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
@@ -56,14 +64,16 @@ fun CharacterScreen(
 ) {
     val c = state.character
     val s = c.stats
+    var showTiers by remember { mutableStateOf(false) }
+    if (showTiers) RankTiersDialog(currentLevel = c.level) { showTiers = false }
     Column(
         modifier
             .fillMaxSize()
             .verticalScroll(rememberScrollState())
             .padding(20.dp)
     ) {
-        Text("ASCENDANT", style = MaterialTheme.typography.headlineMedium, color = ManaPurple)
-        Text("PROGRESS SHEET", style = MaterialTheme.typography.labelMedium, color = TextDim)
+        ScreenTitle("Ascendant")
+        ScreenSubtitle("Progress sheet")
         Spacer(Modifier.height(16.dp))
 
         // Hero portrait — choose your character; the aura border follows your rank.
@@ -105,7 +115,13 @@ fun CharacterScreen(
                 Column {
                     Text("Level ${c.level}", style = MaterialTheme.typography.headlineMedium,
                         color = XpGold, fontWeight = FontWeight.Bold)
-                    Text(c.title, style = MaterialTheme.typography.titleLarge, color = AuraCyan)
+                    Row(verticalAlignment = Alignment.CenterVertically,
+                        modifier = Modifier.clickable { showTiers = true }) {
+                        Text(c.title, style = MaterialTheme.typography.titleLarge, color = AuraCyan)
+                        Spacer(Modifier.width(6.dp))
+                        // Tap to see the full rank/title ladder — not documented anywhere else.
+                        Text("ⓘ", style = MaterialTheme.typography.titleLarge, color = ManaPurple)
+                    }
                     Text("${c.totalXp} XP" +
                         if (c.idlePenaltyXp > 0) "  (−${c.idlePenaltyXp} idle)" else "",
                         style = MaterialTheme.typography.labelMedium, color = TextDim)
@@ -115,7 +131,7 @@ fun CharacterScreen(
         }
 
         Spacer(Modifier.height(20.dp))
-        Text("Attributes", style = MaterialTheme.typography.titleLarge, color = AuraCyan)
+        SectionHeader("Attributes")
         LabeledBar("STRENGTH", s.strength, statBarMax(s.strength), ManaPurple)
         LabeledBar("ENDURANCE", s.endurance, statBarMax(s.endurance), AuraCyan)
         LabeledBar("AGILITY", s.agility, statBarMax(s.agility), XpGold)
@@ -123,7 +139,7 @@ fun CharacterScreen(
         LabeledBar("CONSISTENCY", s.consistency, statBarMax(s.consistency), AuraCyan)
 
         Spacer(Modifier.height(20.dp))
-        Text("Records", style = MaterialTheme.typography.titleLarge, color = AuraCyan)
+        SectionHeader("Records")
         Spacer(Modifier.height(8.dp))
         InfoRow("Current strength streak", "${c.strengthStreak} days")
         InfoRow("Longest strength streak", "${c.longestStrengthStreak} days")
@@ -139,6 +155,52 @@ fun CharacterScreen(
         ExportSection(state, onImportJson)
         Spacer(Modifier.height(24.dp))
     }
+}
+
+/** The rank/title ladder — the level at which each rank and its title unlock. This progression
+ *  isn't surfaced anywhere else, so the ⓘ next to the current title opens it. The row matching the
+ *  hero's current level is highlighted. */
+@Composable
+private fun RankTiersDialog(currentLevel: Int, onDismiss: () -> Unit) {
+    // Driven by Progression so the dialog can never drift from the real thresholds.
+    val tierLevels = listOf(1, 5, 10, 20, 35, 50, 75, 100)
+    AlertDialog(
+        onDismissRequest = onDismiss,
+        title = { Text("Rank & title tiers") },
+        text = {
+            Column(Modifier.verticalScroll(rememberScrollState())) {
+                Text("Level up by earning XP (1 calorie = 1 XP). Each tier unlocks a new rank and title:",
+                    style = MaterialTheme.typography.labelMedium, color = TextDim)
+                Spacer(Modifier.height(12.dp))
+                tierLevels.forEach { lvl ->
+                    val rank = Progression.rankForLevel(lvl)
+                    val title = Progression.titleForLevel(lvl)
+                    val isCurrent = currentLevel >= lvl &&
+                        (tierLevels.firstOrNull { it > lvl }?.let { currentLevel < it } ?: true)
+                    Row(
+                        Modifier.fillMaxWidth().padding(vertical = 5.dp),
+                        horizontalArrangement = Arrangement.SpaceBetween,
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        Text(
+                            "Lv $lvl",
+                            style = MaterialTheme.typography.labelMedium,
+                            color = if (isCurrent) XpGold else TextDim,
+                            fontWeight = if (isCurrent) FontWeight.Bold else FontWeight.Normal
+                        )
+                        Text(
+                            "${rank.label} · $title",
+                            style = MaterialTheme.typography.bodyLarge,
+                            color = if (isCurrent) XpGold else AuraCyan,
+                            fontWeight = if (isCurrent) FontWeight.Bold else FontWeight.Normal,
+                            modifier = Modifier.padding(start = 12.dp)
+                        )
+                    }
+                }
+            }
+        },
+        confirmButton = { TextButton(onClick = onDismiss) { Text("Got it", fontWeight = FontWeight.Bold) } }
+    )
 }
 
 /** Today's status at a glance — Goals completion, Active Burn, and (when passive sync is on)
@@ -196,7 +258,7 @@ private fun RingStat(
             centerColor = color
         )
         Spacer(Modifier.width(12.dp))
-        Text(label, style = MaterialTheme.typography.bodyMedium, color = TextDim)
+        BodyText(label, color = TextDim)
     }
 }
 
@@ -223,7 +285,7 @@ private fun AboutSection() {
         }
     }
 
-    Text("About", style = MaterialTheme.typography.titleLarge, color = AuraCyan)
+    SectionHeader("About")
     Text("ASCENDANT turns your daily workouts into an anime RPG — every rep and mile " +
         "becomes XP, levels, and ranks built from your real training.",
         style = MaterialTheme.typography.labelMedium, color = TextDim)
@@ -280,7 +342,7 @@ private fun ExportSection(state: UiState, onImportJson: (String, (Boolean, Strin
         }
     }
 
-    Text("Backup & Export", style = MaterialTheme.typography.titleLarge, color = AuraCyan)
+    SectionHeader("Backup & Export")
     Text("Your data is yours — export anytime. CSV matches the original spreadsheet columns.",
         style = MaterialTheme.typography.labelMedium, color = TextDim)
     Spacer(Modifier.height(8.dp))

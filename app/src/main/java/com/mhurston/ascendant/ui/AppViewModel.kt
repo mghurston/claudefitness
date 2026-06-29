@@ -178,16 +178,41 @@ class AppViewModel(app: Application) : AndroidViewModel(app) {
     fun addCustomRepsToday(id: String, delta: Int) = addCustomRepsForDate(todayStr(), id, delta)
 
     // --- one-off activities (logged to a single day; never an option on other days) ----
-    /** Append a one-off (name + calorie estimate) to a day. Stays in that day's history. */
-    fun addOneOffForDate(date: String, name: String, kcal: Int) = mutateDay(date) { cur ->
-        val cleaned = name.trim().take(40)
+    /** Append a one-off (name + calorie estimate + optional distance/reps metrics) to a day.
+     *  Stays in that day's history. */
+    fun addOneOffForDate(date: String, oneOff: com.mhurston.ascendant.domain.OneOff) = mutateDay(date) { cur ->
+        val cleaned = oneOff.name.trim().take(40)
         if (cleaned.isEmpty()) return@mutateDay cur
         val list = WorkoutDayEntity.decodeOneOffs(cur.oneOffs) +
-            com.mhurston.ascendant.domain.OneOff(cleaned, kcal.coerceAtLeast(0))
+            oneOff.copy(
+                name = cleaned,
+                kcal = oneOff.kcal.coerceAtLeast(0),
+                distanceMi = oneOff.distanceMi.coerceAtLeast(0.0),
+                reps = oneOff.reps.coerceAtLeast(0)
+            )
         cur.copy(oneOffs = WorkoutDayEntity.encodeOneOffs(list))
     }
 
-    fun addOneOffToday(name: String, kcal: Int) = addOneOffForDate(todayStr(), name, kcal)
+    fun addOneOffToday(oneOff: com.mhurston.ascendant.domain.OneOff) = addOneOffForDate(todayStr(), oneOff)
+
+    /** Replace the one-off at [index] on a day with edited values (name + calories + metrics). */
+    fun updateOneOffForDate(date: String, index: Int, oneOff: com.mhurston.ascendant.domain.OneOff) =
+        mutateDay(date) { cur ->
+            val list = WorkoutDayEntity.decodeOneOffs(cur.oneOffs).toMutableList()
+            if (index !in list.indices) return@mutateDay cur
+            val cleaned = oneOff.name.trim().take(40)
+            if (cleaned.isEmpty()) return@mutateDay cur
+            list[index] = oneOff.copy(
+                name = cleaned,
+                kcal = oneOff.kcal.coerceAtLeast(0),
+                distanceMi = oneOff.distanceMi.coerceAtLeast(0.0),
+                reps = oneOff.reps.coerceAtLeast(0)
+            )
+            cur.copy(oneOffs = WorkoutDayEntity.encodeOneOffs(list))
+        }
+
+    fun updateOneOffToday(index: Int, oneOff: com.mhurston.ascendant.domain.OneOff) =
+        updateOneOffForDate(todayStr(), index, oneOff)
 
     fun removeOneOffForDate(date: String, index: Int) = mutateDay(date) { cur ->
         val list = WorkoutDayEntity.decodeOneOffs(cur.oneOffs).toMutableList()

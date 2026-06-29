@@ -62,9 +62,8 @@ fun AchievementsScreen(state: UiState, modifier: Modifier = Modifier) {
 
     Column(modifier.fillMaxSize().padding(horizontal = 20.dp)) {
         Spacer(Modifier.height(20.dp))
-        Text("Achievements", style = MaterialTheme.typography.headlineMedium, color = ManaPurple)
-        Text("$unlocked / ${achievements.size} unlocked · +$bonusXp bonus XP earned",
-            style = MaterialTheme.typography.labelMedium, color = TextDim)
+        ScreenTitle("Achievements")
+        ScreenSubtitle("$unlocked / ${achievements.size} unlocked · +$bonusXp bonus XP earned")
         Spacer(Modifier.height(12.dp))
         LazyColumn {
             cats.forEach { cat ->
@@ -108,8 +107,7 @@ private fun CategoryHeader(
         ) {
             Text(if (expanded) "▾" else "▸", color = AuraCyan, fontWeight = FontWeight.Bold)
             Spacer(Modifier.size(10.dp))
-            Text(title, style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold,
-                color = MaterialTheme.colorScheme.onSurface, modifier = Modifier.weight(1f))
+            SectionHeader(title, modifier = Modifier.weight(1f))
             Text("$earned / $total", style = MaterialTheme.typography.labelMedium,
                 color = if (complete) XpGold else TextDim, fontWeight = FontWeight.Bold)
             if (complete) {

@@ -101,8 +101,8 @@ fun EnergyScreen(
     Column(
         modifier.fillMaxSize().verticalScroll(rememberScrollState()).padding(20.dp)
     ) {
-        Text("Energy Balance", style = MaterialTheme.typography.headlineMedium, color = ManaPurple)
-        Text("Uses today's logged activity", style = MaterialTheme.typography.labelMedium, color = TextDim)
+        ScreenTitle("Energy Balance")
+        ScreenSubtitle("Uses today's logged activity")
         Spacer(Modifier.height(12.dp))
 
         // Units toggle
@@ -216,7 +216,7 @@ private fun HealthConnectCard(
             Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween,
                 verticalAlignment = Alignment.CenterVertically) {
                 Column(Modifier.weight(1f)) {
-                    Text("Sync steps & activity", style = MaterialTheme.typography.titleLarge, color = AuraCyan)
+                    SectionHeader("Sync steps & activity")
                     Text(
                         if (available)
                             "Reads steps & active calories your phone (and any watch) already " +
@@ -283,7 +283,7 @@ private fun ReminderCard(enabled: Boolean, onSet: (Boolean) -> Unit) {
             Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween,
                 verticalAlignment = Alignment.CenterVertically) {
                 Column(Modifier.weight(1f)) {
-                    Text("Daily reminder", style = MaterialTheme.typography.titleLarge, color = AuraCyan)
+                    SectionHeader("Daily reminder")
                     Text("Fires at UTC midnight (≈5 PM Pacific) — stronger on Wed/Fri/Sat. " +
                         "Local only, no internet.",
                         style = MaterialTheme.typography.labelMedium, color = TextDim)
@@ -317,7 +317,7 @@ private fun WeightGoalCard(p: Profile, imperial: Boolean, onResetGoalStart: (Dou
     ) {
         Column(Modifier.padding(20.dp)) {
             Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
-                Text("Weight Goal", style = MaterialTheme.typography.titleLarge, color = AuraCyan)
+                SectionHeader("Weight Goal")
                 Text("${(p.goalProgress * 100).toInt()}%", color = XpGold, fontWeight = FontWeight.Bold)
             }
             Spacer(Modifier.height(10.dp))

@@ -3,9 +3,34 @@ package com.mhurston.ascendant.domain
 import java.time.LocalDate
 
 /** A single ad-hoc activity logged to one specific day (e.g. "Marathon", "Rock climbing").
- *  Lives only on that day — never appears as an option on other days. Carries its own
- *  calorie estimate, which feeds XP directly under the burn-based model. */
-data class OneOff(val name: String, val kcal: Int)
+ *  Lives only on that day — never appears as an option on other days.
+ *
+ *  [kcal] is the single calorie value that feeds XP directly (1 kcal = 1 XP). [reps] and
+ *  [distanceMi] are optional metrics recorded for the log — they don't add XP on their own
+ *  (only [kcal] does), but the entry dialog uses them to auto-estimate [kcal] from the same
+ *  strength/walking models the rest of the app uses (override-able). */
+data class OneOff(
+    val name: String,
+    val kcal: Int,
+    val distanceMi: Double = 0.0,
+    val reps: Int = 0
+) {
+    /** Short "60 reps · 5.0 mi" subtitle for display; empty when no metrics were recorded.
+     *  Distance is shown in the user's units (mi/km); [distanceMi] is always stored in miles. */
+    fun metricsLabel(unit: UnitSystem = UnitSystem.IMPERIAL): String = buildList {
+        if (reps > 0) add("$reps reps")
+        if (distanceMi > 0.0) add(Units.distanceLabel(distanceMi, unit))
+    }.joinToString(" · ")
+}
+
+/** Activity choices for a distance-based one-off. Each carries a *gross* kcal-per-kg-per-mile
+ *  rate so a logged distance can be turned into a calorie estimate (override-able). Cycling
+ *  burn is strongly pace-dependent, so [BIKE] is a moderate-effort baseline. */
+enum class DistanceActivity(val label: String, val kcalPerKgPerMile: Double) {
+    WALK("Walk", Calories.WALK_KCAL_PER_KG_PER_MILE),
+    RUN("Run", Calories.RUN_KCAL_PER_KG_PER_MILE),
+    BIKE("Bike", Calories.BIKE_KCAL_PER_KG_PER_MILE)
+}
 
 /** Plain, Android-free representation of one day's logged work (mirrors the spreadsheet row). */
 data class DayData(

@@ -36,6 +36,7 @@ import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import com.mhurston.ascendant.domain.Rank
 import com.mhurston.ascendant.ui.theme.AuraCyan
+import com.mhurston.ascendant.ui.theme.DangerRed
 import com.mhurston.ascendant.ui.theme.ManaPurple
 import com.mhurston.ascendant.ui.theme.TextDim
 import com.mhurston.ascendant.ui.theme.XpGold
@@ -43,6 +44,50 @@ import kotlin.math.max
 
 // Mood scale 1..5, lowest → highest. Index 0 unused (0 means "unset").
 val MOOD_EMOJI = listOf("😫", "😕", "😐", "🙂", "🔥")
+
+/** The single inline "add" affordance used across the app (one-offs, exercises). Keeping it in
+ *  one place guarantees the "＋ X" links look and behave identically everywhere. */
+@Composable
+fun AddLink(label: String, modifier: Modifier = Modifier, onClick: () -> Unit) {
+    Text(
+        "＋ $label",
+        color = ManaPurple,
+        style = MaterialTheme.typography.labelMedium,
+        fontWeight = FontWeight.Bold,
+        modifier = modifier
+            .clip(RoundedCornerShape(8.dp))
+            .clickable(onClick = onClick)
+            .padding(horizontal = 10.dp, vertical = 6.dp)
+    )
+}
+
+/** Shared pencil "edit" row action. Padded to a comfortable tap target. */
+@Composable
+fun EditIcon(onClick: () -> Unit) {
+    Text(
+        "✎",
+        color = ManaPurple,
+        style = MaterialTheme.typography.titleLarge,
+        modifier = Modifier
+            .clip(RoundedCornerShape(8.dp))
+            .clickable(onClick = onClick)
+            .padding(horizontal = 8.dp, vertical = 4.dp)
+    )
+}
+
+/** Shared "✕" remove row action. Padded to a comfortable tap target. */
+@Composable
+fun RemoveIcon(onClick: () -> Unit) {
+    Text(
+        "✕",
+        color = DangerRed,
+        style = MaterialTheme.typography.titleLarge,
+        modifier = Modifier
+            .clip(RoundedCornerShape(8.dp))
+            .clickable(onClick = onClick)
+            .padding(horizontal = 8.dp, vertical = 4.dp)
+    )
+}
 val MOOD_LABEL = listOf("Drained", "Rough", "Okay", "Good", "Unstoppable")
 
 /**

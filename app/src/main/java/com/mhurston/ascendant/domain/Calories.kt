@@ -58,6 +58,17 @@ object Calories {
      *  ≈115 kcal/mile — squarely in the commonly cited 105–120 kcal/mile for that body. */
     const val WALK_KCAL_PER_KG_PER_MILE = 1.2
 
+    /** Gross running energy, per kg, per mile (~1.6 kcal/kg/mile). Running burns roughly 1.3×
+     *  walking per mile, and like walking is nearly pace-independent per mile of distance. For a
+     *  96 kg runner that's ≈154 kcal/mile. Used to estimate distance-based running one-offs. */
+    const val RUN_KCAL_PER_KG_PER_MILE = 1.6
+
+    /** Gross cycling energy, per kg, per mile at a moderate ~12–14 mph pace (~0.45 kcal/kg/mile).
+     *  Cycling burn is strongly pace-dependent (unlike walking/running it does NOT cancel out over
+     *  distance), so this is only a moderate-effort baseline — the one-off dialog lets you override
+     *  the calorie number for hard or easy rides. For a 96 kg rider that's ≈43 kcal/mile. */
+    const val BIKE_KCAL_PER_KG_PER_MILE = 0.45
+
     /** Gross strength/calisthenics energy, per kg, per rep. General moderate effort (~3.8 MET)
      *  at ~3 s per rep: 3.8 × 3.5 × kg / 200 × (3/60) ≈ 0.0033 kcal/kg/rep — ≈32 kcal per 100
      *  reps for a 96 kg lifter. Covers the core lifts and pinned custom exercises alike. */
@@ -71,6 +82,11 @@ object Calories {
      *  truth shared by the burn engine and the UI's per-exercise rep-XP preview. */
     fun strengthKcal(weightKg: Double, reps: Int): Double =
         STRENGTH_KCAL_PER_KG_PER_REP * weightKg.coerceAtLeast(0.0) * reps.coerceAtLeast(0)
+
+    /** Gross calories for [miles] of a distance activity at [weightKg], using the activity's
+     *  per-kg-per-mile rate (walk/run/bike). Powers the one-off dialog's distance estimate. */
+    fun distanceKcal(weightKg: Double, miles: Double, kcalPerKgPerMile: Double): Double =
+        kcalPerKgPerMile * weightKg.coerceAtLeast(0.0) * miles.coerceAtLeast(0.0)
 
     /** Display-only daily step goal for the passive "Steps today" ring. Not part of the
      *  workout completion formula or any RPG goal — purely a movement target for the ring. */

@@ -66,8 +66,10 @@ fun DashboardScreen(
     onAddPushVariant: (String, Int) -> Unit = { _, _ -> },
     onAddCoreVariant: (String, Int) -> Unit = { _, _ -> },
     onAddCardioMinutes: (String, Int) -> Unit = { _, _ -> },
-    onAddOneOff: (String, Int) -> Unit = { _, _ -> },
+    onAddOneOff: (com.mhurston.ascendant.domain.OneOff) -> Unit = {},
+    onUpdateOneOff: (Int, com.mhurston.ascendant.domain.OneOff) -> Unit = { _, _ -> },
     onRemoveOneOff: (Int) -> Unit = {},
+    unitSystem: com.mhurston.ascendant.domain.UnitSystem = com.mhurston.ascendant.domain.UnitSystem.IMPERIAL,
     modifier: Modifier = Modifier
 ) {
     val c = state.character
@@ -109,8 +111,8 @@ fun DashboardScreen(
         Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween,
             verticalAlignment = Alignment.CenterVertically) {
             Column {
-                Text("TRAINING", style = MaterialTheme.typography.headlineMedium, color = ManaPurple)
-                Text(c.title, style = MaterialTheme.typography.labelMedium, color = TextDim)
+                ScreenTitle("Training")
+                ScreenSubtitle(c.title)
             }
             RankBadge(c.rank, c.level)
         }
@@ -134,7 +136,7 @@ fun DashboardScreen(
         QuestSection(state)
 
         Spacer(Modifier.height(20.dp))
-        Text("Today's Training", style = MaterialTheme.typography.titleLarge, color = AuraCyan)
+        SectionHeader("Today's Training")
         Text("100 is the goal — every rep and mile burns calories, and calories are XP. " +
             "Tap a group to log it.",
             style = MaterialTheme.typography.labelMedium, color = TextDim)
@@ -192,15 +194,17 @@ fun DashboardScreen(
             todayReps = com.mhurston.ascendant.data.WorkoutDayEntity.decodeCustomReps(today.customReps),
             oneOffs = com.mhurston.ascendant.data.WorkoutDayEntity.decodeOneOffs(today.oneOffs),
             weightKg = state.profile.weightKg,
+            unitSystem = unitSystem,
             onAddReps = onAddCustomReps,
             onAddExercise = onAddCustomExercise,
             onRemoveExercise = onRemoveCustomExercise,
             onAddOneOff = onAddOneOff,
+            onUpdateOneOff = onUpdateOneOff,
             onRemoveOneOff = onRemoveOneOff
         )
 
         Spacer(Modifier.height(20.dp))
-        Text("Today's Journal", style = MaterialTheme.typography.titleLarge, color = AuraCyan)
+        SectionHeader("Today's Journal")
         Spacer(Modifier.height(8.dp))
         Card(
             Modifier.fillMaxWidth(),
@@ -305,8 +309,7 @@ private fun StreakChip(label: String, value: Int, modifier: Modifier = Modifier)
             Modifier.fillMaxWidth().padding(vertical = 12.dp),
             horizontalAlignment = Alignment.CenterHorizontally
         ) {
-            Text("$value", style = MaterialTheme.typography.titleLarge, color = XpGold,
-                fontWeight = FontWeight.Bold)
+            StatValue("$value")
             Text(label, style = MaterialTheme.typography.labelMedium, color = TextDim)
         }
     }
@@ -388,8 +391,7 @@ private fun VariantGoalSection(
                 Spacer(Modifier.height(12.dp))
                 Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween,
                     verticalAlignment = Alignment.CenterVertically) {
-                    Text(label, style = MaterialTheme.typography.bodyMedium,
-                        color = if (reps > 0) MaterialTheme.colorScheme.onSurface else TextDim)
+                    BodyText(label, color = if (reps > 0) MaterialTheme.colorScheme.onSurface else TextDim)
                     Text("$reps", color = if (reps > 0) AuraCyan else TextDim,
                         fontWeight = FontWeight.Bold)
                 }
@@ -497,7 +499,7 @@ private fun WalkingRow(
                 Spacer(Modifier.height(12.dp))
                 Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween,
                     verticalAlignment = Alignment.CenterVertically) {
-                    Text("Tracked (steps)", style = MaterialTheme.typography.bodyMedium)
+                    BodyText("Tracked (steps)")
                     Text("${"%.1f".format(trackedMiles)} mi  ·  ${"%,d".format(steps)} steps",
                         color = AuraCyan, fontWeight = FontWeight.Bold)
                 }
@@ -508,7 +510,7 @@ private fun WalkingRow(
             Spacer(Modifier.height(12.dp))
             Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween,
                 verticalAlignment = Alignment.CenterVertically) {
-                Text("Treadmill / manual", style = MaterialTheme.typography.bodyMedium,
+                BodyText("Treadmill / manual",
                     color = if (treadmillMiles > 0) MaterialTheme.colorScheme.onSurface else TextDim)
                 Text("${"%.1f".format(treadmillMiles)} mi",
                     color = if (treadmillMiles > 0) AuraCyan else TextDim, fontWeight = FontWeight.Bold)
@@ -537,8 +539,7 @@ private fun CollapsibleSection(
         ) {
             Text(if (expanded) "▾" else "▸", color = AuraCyan, fontWeight = FontWeight.Bold)
             Spacer(Modifier.width(10.dp))
-            Text(title, style = MaterialTheme.typography.titleLarge, color = AuraCyan,
-                modifier = Modifier.weight(1f))
+            SectionHeader(title, modifier = Modifier.weight(1f))
             if (summary.isNotEmpty()) Text(summary, style = MaterialTheme.typography.labelMedium,
                 color = TextDim, fontWeight = FontWeight.Bold)
             action?.let { Spacer(Modifier.width(12.dp)); it() }
@@ -570,23 +571,41 @@ private fun ExtrasSection(
     todayReps: Map<String, Int>,
     oneOffs: List<com.mhurston.ascendant.domain.OneOff>,
     weightKg: Double,
+    unitSystem: com.mhurston.ascendant.domain.UnitSystem,
     onAddReps: (String, Int) -> Unit,
     onAddExercise: (String) -> Unit,
     onRemoveExercise: (String) -> Unit,
-    onAddOneOff: (String, Int) -> Unit,
+    onAddOneOff: (com.mhurston.ascendant.domain.OneOff) -> Unit,
+    onUpdateOneOff: (Int, com.mhurston.ascendant.domain.OneOff) -> Unit,
     onRemoveOneOff: (Int) -> Unit
 ) {
     var showOneOff by remember { mutableStateOf(false) }
+    var editingOneOff by remember { mutableStateOf<Pair<Int, com.mhurston.ascendant.domain.OneOff>?>(null) }
     var removing by remember { mutableStateOf<com.mhurston.ascendant.domain.CustomExercise?>(null) }
 
     if (showOneOff) {
         OneOffDialog(
-            onAdd = { name, kcal, pin ->
-                onAddOneOff(name, kcal)
-                if (pin) onAddExercise(name)
+            weightKg = weightKg,
+            unitSystem = unitSystem,
+            onAdd = { oneOff, pin ->
+                onAddOneOff(oneOff)
+                if (pin) onAddExercise(oneOff.name)
                 showOneOff = false
             },
             onDismiss = { showOneOff = false }
+        )
+    }
+
+    editingOneOff?.let { (index, existing) ->
+        OneOffDialog(
+            weightKg = weightKg,
+            unitSystem = unitSystem,
+            initial = existing,
+            onAdd = { updated, _ ->
+                onUpdateOneOff(index, updated)
+                editingOneOff = null
+            },
+            onDismiss = { editingOneOff = null }
         )
     }
 
@@ -608,10 +627,7 @@ private fun ExtrasSection(
     CollapsibleSection(
         title = "Extra Work",
         summary = "${oneOffs.size + customExercises.size}",
-        action = {
-            Text("＋ One-off", color = ManaPurple, style = MaterialTheme.typography.labelMedium,
-                fontWeight = FontWeight.Bold, modifier = Modifier.clickable { showOneOff = true })
-        }
+        action = { AddLink("One-off") { showOneOff = true } }
     ) {
     Text("One-offs (a run, a class) are logged to today only. Pin one to make it a daily option.",
         style = MaterialTheme.typography.labelMedium, color = TextDim)
@@ -626,11 +642,17 @@ private fun ExtrasSection(
             Row(Modifier.fillMaxWidth().padding(12.dp),
                 horizontalArrangement = Arrangement.SpaceBetween,
                 verticalAlignment = Alignment.CenterVertically) {
-                Text(o.name, style = MaterialTheme.typography.bodyLarge, modifier = Modifier.weight(1f))
+                Column(Modifier.weight(1f).clickable { editingOneOff = i to o }) {
+                    Text(o.name, style = MaterialTheme.typography.bodyLarge)
+                    val label = o.metricsLabel(unitSystem)
+                    if (label.isNotEmpty()) {
+                        Text(label, style = MaterialTheme.typography.labelMedium, color = TextDim)
+                    }
+                }
                 Text("+${o.kcal} XP", color = XpGold, style = MaterialTheme.typography.labelMedium,
                     fontWeight = FontWeight.Bold)
-                Text("  ✕", color = DangerRed, style = MaterialTheme.typography.labelMedium,
-                    modifier = Modifier.clickable { onRemoveOneOff(i) })
+                EditIcon { editingOneOff = i to o }
+                RemoveIcon { onRemoveOneOff(i) }
             }
         }
     }
@@ -671,20 +693,65 @@ private fun ExtrasSection(
     }
 }
 
-/** Name + calorie entry for a one-off activity, with an optional "pin as daily option". */
+/** Free-form one-off entry: name + any of reps / distance / calories. Reps and distance drive a
+ *  live calorie estimate (same strength & walk/run/bike models the rest of the app uses); leave
+ *  Calories blank to bank that estimate, or type a number to override it (e.g. a hard bike ride
+ *  the moderate-pace estimate underrates). Calories are the XP source (1 kcal = 1 XP).
+ *
+ *  Pass [initial] to edit an existing entry: the fields are pre-filled (Calories shows the value
+ *  it already banked), the title/button switch to "Edit"/"Save", and the pin option is hidden
+ *  (pinning only applies to brand-new one-offs). */
 @Composable
-internal fun OneOffDialog(onAdd: (String, Int, Boolean) -> Unit, onDismiss: () -> Unit) {
-    var name by remember { mutableStateOf("") }
-    var kcal by remember { mutableStateOf("") }
+internal fun OneOffDialog(
+    weightKg: Double,
+    unitSystem: com.mhurston.ascendant.domain.UnitSystem = com.mhurston.ascendant.domain.UnitSystem.IMPERIAL,
+    initial: com.mhurston.ascendant.domain.OneOff? = null,
+    onAdd: (com.mhurston.ascendant.domain.OneOff, Boolean) -> Unit,
+    onDismiss: () -> Unit
+) {
+    val editing = initial != null
+    val metric = unitSystem == com.mhurston.ascendant.domain.UnitSystem.METRIC
+    var name by remember { mutableStateOf(initial?.name ?: "") }
+    var repsText by remember {
+        mutableStateOf(initial?.reps?.takeIf { it > 0 }?.toString() ?: "")
+    }
+    // distText is in the user's units (mi or km); we convert to stored miles below.
+    var distText by remember {
+        mutableStateOf(
+            initial?.distanceMi?.takeIf { it > 0.0 }?.let {
+                val shown = if (metric) com.mhurston.ascendant.domain.Units.milesToKm(it) else it
+                if (shown == Math.floor(shown)) shown.toInt().toString()
+                else String.format(java.util.Locale.US, "%.2f", shown).trimEnd('0').trimEnd('.')
+            } ?: ""
+        )
+    }
+    // For an existing entry the stored kcal is the value it banked; surface it as the (editable)
+    // override so the user sees and can change exactly what it earns.
+    var kcalText by remember {
+        mutableStateOf(initial?.kcal?.takeIf { it > 0 }?.toString() ?: "")
+    }
+    var activity by remember { mutableStateOf(com.mhurston.ascendant.domain.DistanceActivity.WALK) }
     var pin by remember { mutableStateOf(false) }
     var nameError by remember { mutableStateOf(false) }
+
+    val reps = repsText.toIntOrNull() ?: 0
+    val enteredDist = distText.toDoubleOrNull() ?: 0.0
+    val miles = if (metric) com.mhurston.ascendant.domain.Units.kmToMiles(enteredDist) else enteredDist
+    val estimate = Math.round(
+        com.mhurston.ascendant.domain.Calories.strengthKcal(weightKg, reps) +
+            com.mhurston.ascendant.domain.Calories.distanceKcal(weightKg, miles, activity.kcalPerKgPerMile)
+    ).toInt()
+    val manualKcal = kcalText.toIntOrNull()
+    val finalKcal = manualKcal ?: estimate
+    val hasMetrics = reps > 0 || miles > 0.0
+
     AlertDialog(
         onDismissRequest = onDismiss,
-        title = { Text("Log a one-off") },
+        title = { Text(if (editing) "Edit one-off" else "Log a one-off") },
         text = {
-            Column {
-                Text("A single activity for today — e.g. \"Marathon\" or \"Spin class\". " +
-                    "Your calorie estimate becomes XP (1 kcal = 1 XP).",
+            Column(Modifier.verticalScroll(rememberScrollState())) {
+                Text("A single activity for today — a bike ride, a lifting set, a class. " +
+                    "Fill any fields; calories become XP (1 kcal = 1 XP).",
                     style = MaterialTheme.typography.labelMedium, color = TextDim)
                 Spacer(Modifier.height(8.dp))
                 androidx.compose.material3.OutlinedTextField(
@@ -700,21 +767,80 @@ internal fun OneOffDialog(onAdd: (String, Int, Boolean) -> Unit, onDismiss: () -
                 )
                 Spacer(Modifier.height(8.dp))
                 androidx.compose.material3.OutlinedTextField(
-                    value = kcal,
-                    onValueChange = { v -> kcal = v.filter { it.isDigit() }.take(5) },
+                    value = repsText,
+                    onValueChange = { v -> repsText = v.filter { it.isDigit() }.take(5) },
                     singleLine = true,
                     keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
-                    label = { Text("Calories burned (estimate)") },
+                    label = { Text("Reps (optional)") },
                     modifier = Modifier.fillMaxWidth()
                 )
                 Spacer(Modifier.height(8.dp))
-                Row(verticalAlignment = Alignment.CenterVertically,
-                    modifier = Modifier.clickable { pin = !pin }) {
-                    Text(if (pin) "☑" else "☐", color = ManaPurple,
-                        style = MaterialTheme.typography.titleLarge)
-                    Spacer(Modifier.width(8.dp))
-                    Text("Also pin as a daily option (recurring)",
-                        style = MaterialTheme.typography.bodyMedium)
+                androidx.compose.material3.OutlinedTextField(
+                    value = distText,
+                    onValueChange = { v ->
+                        // digits + a single decimal point
+                        val cleaned = v.filter { it.isDigit() || it == '.' }
+                        if (cleaned.count { it == '.' } <= 1) distText = cleaned.take(6)
+                    },
+                    singleLine = true,
+                    keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Decimal),
+                    label = { Text("Distance in ${if (metric) "kilometers" else "miles"} (optional)") },
+                    modifier = Modifier.fillMaxWidth()
+                )
+                if (miles > 0.0) {
+                    Spacer(Modifier.height(6.dp))
+                    Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                        com.mhurston.ascendant.domain.DistanceActivity.entries.forEach { a ->
+                            val selected = a == activity
+                            Text(
+                                a.label,
+                                style = MaterialTheme.typography.labelMedium,
+                                fontWeight = if (selected) FontWeight.Bold else FontWeight.Normal,
+                                color = if (selected) ManaPurple else TextDim,
+                                modifier = Modifier
+                                    .clip(RoundedCornerShape(8.dp))
+                                    .clickable { activity = a }
+                                    .padding(horizontal = 12.dp, vertical = 6.dp)
+                            )
+                        }
+                    }
+                }
+                Spacer(Modifier.height(8.dp))
+                androidx.compose.material3.OutlinedTextField(
+                    value = kcalText,
+                    onValueChange = { v -> kcalText = v.filter { it.isDigit() }.take(5) },
+                    singleLine = true,
+                    keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
+                    label = { Text("Calories — blank = use estimate") },
+                    modifier = Modifier.fillMaxWidth()
+                )
+                Spacer(Modifier.height(8.dp))
+                if (finalKcal <= 0 && manualKcal == null) {
+                    Text("Enter reps, distance, or calories to earn XP",
+                        color = TextDim, style = MaterialTheme.typography.labelMedium,
+                        fontWeight = FontWeight.Bold)
+                } else {
+                    Text("Will bank +$finalKcal XP" + if (manualKcal != null) "  ·  manual" else "",
+                        color = XpGold, style = MaterialTheme.typography.labelMedium,
+                        fontWeight = FontWeight.Bold)
+                    // Live estimate from the current reps/distance — updates as you edit. When a
+                    // manual calorie value is overriding it, offer a one-tap way to adopt it.
+                    if (manualKcal != null && hasMetrics && estimate > 0 && estimate != manualKcal) {
+                        Spacer(Modifier.height(4.dp))
+                        Text("↻ Use estimate from reps/distance: +$estimate XP",
+                            color = ManaPurple, style = MaterialTheme.typography.labelMedium,
+                            modifier = Modifier.clickable { kcalText = "" })
+                    }
+                }
+                if (!editing) {
+                    Spacer(Modifier.height(8.dp))
+                    Row(verticalAlignment = Alignment.CenterVertically,
+                        modifier = Modifier.clickable { pin = !pin }) {
+                        Text(if (pin) "☑" else "☐", color = ManaPurple,
+                            style = MaterialTheme.typography.titleLarge)
+                        Spacer(Modifier.width(8.dp))
+                        BodyText("Also pin as a daily option (recurring)")
+                    }
                 }
             }
         },
@@ -722,9 +848,12 @@ internal fun OneOffDialog(onAdd: (String, Int, Boolean) -> Unit, onDismiss: () -
             TextButton(
                 onClick = {
                     if (name.isBlank()) nameError = true
-                    else onAdd(name.trim(), kcal.toIntOrNull() ?: 0, pin)
+                    else onAdd(
+                        com.mhurston.ascendant.domain.OneOff(name.trim(), finalKcal, miles, reps),
+                        pin
+                    )
                 }
-            ) { Text("Add", fontWeight = FontWeight.Bold) }
+            ) { Text(if (editing) "Save" else "Add", fontWeight = FontWeight.Bold) }
         },
         dismissButton = { TextButton(onClick = onDismiss) { Text("Cancel") } }
     )
@@ -834,5 +963,5 @@ private fun AddBtn(
         modifier = modifier,
         contentPadding = PaddingValues(horizontal = 4.dp, vertical = 8.dp),
         colors = ButtonDefaults.outlinedButtonColors(contentColor = contentColor)
-    ) { Text(label, maxLines = 1, style = MaterialTheme.typography.labelLarge) }
+    ) { Text(label, maxLines = 1, style = MaterialTheme.typography.labelMedium) }
 }

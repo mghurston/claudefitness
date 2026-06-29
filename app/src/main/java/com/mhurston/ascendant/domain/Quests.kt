@@ -2,7 +2,6 @@ package com.mhurston.ascendant.domain
 
 import java.time.DayOfWeek
 import java.time.LocalDate
-import java.time.temporal.WeekFields
 
 enum class Cadence { DAILY, WEEKLY }
 
@@ -76,11 +75,13 @@ object Quests {
         )
     }
 
-    private fun isSameWeek(a: LocalDate, b: LocalDate): Boolean {
-        val wf = WeekFields.ISO
-        return a.get(wf.weekOfWeekBasedYear()) == b.get(wf.weekOfWeekBasedYear()) &&
-            a.get(wf.weekBasedYear()) == b.get(wf.weekBasedYear())
-    }
+    /** Sunday that begins [date]'s week. Sunday-first to match the Log calendar's grid
+     *  (CalendarScreen uses the same `dayOfWeek.value % 7` offset), so a quest "week" and the
+     *  visual week always cover the same Sun–Sat span. */
+    internal fun weekStart(date: LocalDate): LocalDate =
+        date.minusDays((date.dayOfWeek.value % 7).toLong()) // ISO Mon=1..Sun=7 → Sun=0, Sat=6
+
+    private fun isSameWeek(a: LocalDate, b: LocalDate): Boolean = weekStart(a) == weekStart(b)
 
     private fun currentStreakWithinWeek(week: List<DayData>, today: LocalDate): Int {
         // Longest run of consecutive strength days within this week.

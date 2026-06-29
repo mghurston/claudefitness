@@ -114,20 +114,25 @@ data class WorkoutDayEntity(
         private const val ONEOFF_UNIT = ''   // between a one-off's name and its kcal
         private const val ONEOFF_RECORD = '' // between one-off entries
 
+        // Record layout: name <US> kcal <US> distanceMi <US> reps. Older rows wrote only
+        // name<US>kcal — decode tolerates the missing fields so existing logs still resolve.
         fun decodeOneOffs(encoded: String): List<OneOff> =
             if (encoded.isBlank()) emptyList() else encoded.split(ONEOFF_RECORD).mapNotNull { rec ->
                 if (rec.isBlank()) return@mapNotNull null
-                val i = rec.lastIndexOf(ONEOFF_UNIT)
-                val name = (if (i >= 0) rec.substring(0, i) else rec).trim()
-                val kcal = (if (i >= 0) rec.substring(i + 1).toIntOrNull() else null) ?: 0
-                if (name.isEmpty()) null else OneOff(name, kcal)
+                val parts = rec.split(ONEOFF_UNIT)
+                val name = parts.getOrNull(0)?.trim().orEmpty()
+                if (name.isEmpty()) return@mapNotNull null
+                val kcal = parts.getOrNull(1)?.toIntOrNull() ?: 0
+                val distanceMi = parts.getOrNull(2)?.toDoubleOrNull() ?: 0.0
+                val reps = parts.getOrNull(3)?.toIntOrNull() ?: 0
+                OneOff(name, kcal, distanceMi, reps)
             }
 
         fun encodeOneOffs(list: List<OneOff>): String =
             list.filter { it.name.isNotBlank() }.joinToString(ONEOFF_RECORD.toString()) { o ->
                 // Strip delimiter chars from the name so the encoding stays unambiguous.
                 val safe = o.name.replace(ONEOFF_UNIT, ' ').replace(ONEOFF_RECORD, ' ').trim()
-                "$safe$ONEOFF_UNIT${o.kcal}"
+                "$safe$ONEOFF_UNIT${o.kcal}$ONEOFF_UNIT${o.distanceMi}$ONEOFF_UNIT${o.reps}"
             }
     }
 }

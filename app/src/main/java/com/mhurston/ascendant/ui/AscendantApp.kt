@@ -83,7 +83,9 @@ fun AscendantApp(vm: AppViewModel) {
                 onAddCoreVariant = vm::addCoreVariantToday,
                 onAddCardioMinutes = vm::addCardioMinutesToday,
                 onAddOneOff = vm::addOneOffToday,
+                onUpdateOneOff = vm::updateOneOffToday,
                 onRemoveOneOff = vm::removeOneOffToday,
+                unitSystem = unitSystem,
                 modifier = content
             )
             Tab.CHARACTER -> CharacterScreen(
@@ -107,7 +109,9 @@ fun AscendantApp(vm: AppViewModel) {
                 onAddCoreVariant = vm::addCoreVariantForDate,
                 onAddCardioMinutes = vm::addCardioMinutesForDate,
                 onAddOneOff = vm::addOneOffForDate,
+                onUpdateOneOff = vm::updateOneOffForDate,
                 onRemoveOneOff = vm::removeOneOffForDate,
+                unitSystem = unitSystem,
                 modifier = content
             )
             Tab.ENERGY -> EnergyScreen(
