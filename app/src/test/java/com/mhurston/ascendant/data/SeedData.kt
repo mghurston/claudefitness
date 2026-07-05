@@ -1,8 +1,9 @@
 package com.mhurston.ascendant.data
 
 /**
- * The real 30-day history (docs/assets/seed_history.csv), imported on first launch so
- * the character starts around Level 11 / Rank C with momentum — never at zero.
+ * The real 30-day history (docs/assets/seed_history.csv) — TEST FIXTURE ONLY. First-launch
+ * seeding was removed from the app (fresh installs start empty at Level 1); this dataset
+ * lives on in test sources as the reference log the progression engine is tuned against.
  * Columns: date, pushups, squats, legLifts, calfRaises, curls, miles
  */
 object SeedData {

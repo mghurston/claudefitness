@@ -28,7 +28,6 @@ class ProfileStore(private val context: Context) {
         val WEIGHT = doublePreferencesKey("weight_kg")
         val GOAL_WEIGHT = doublePreferencesKey("goal_weight_kg")
         val START_WEIGHT = doublePreferencesKey("start_weight_kg")
-        val SEEDED = booleanPreferencesKey("seeded")
         val DECAY_ANCHOR = stringPreferencesKey("decay_anchor") // ISO date of first app use
         val FAV_VIDEOS = stringSetPreferencesKey("fav_videos")  // favorited URLs
         val USER_VIDEOS = stringSetPreferencesKey("user_videos") // "key<|>title<|>url"
@@ -70,6 +69,19 @@ class ProfileStore(private val context: Context) {
         context.dataStore.edit { prefs ->
             val cur = prefs[Keys.CUSTOM_EXERCISES] ?: emptySet()
             prefs[Keys.CUSTOM_EXERCISES] = cur.filterNot { it.substringBefore(VIDEO_SEP) == id }.toSet()
+        }
+    }
+
+    /** Merge restored custom-exercise definitions (backup import). Entries whose id already
+     *  exists on-device are kept as-is; unknown ids are added, so past logs resolve again. */
+    suspend fun mergeCustomExercises(imported: List<com.mhurston.ascendant.domain.CustomExercise>) {
+        context.dataStore.edit { prefs ->
+            val cur = prefs[Keys.CUSTOM_EXERCISES] ?: emptySet()
+            val existingIds = cur.map { it.substringBefore(VIDEO_SEP) }.toSet()
+            val added = imported
+                .filter { it.id.isNotBlank() && it.name.isNotBlank() && it.id !in existingIds }
+                .map { "${it.id}$VIDEO_SEP${it.name.take(40)}$VIDEO_SEP${if (it.archived) "1" else "0"}" }
+            prefs[Keys.CUSTOM_EXERCISES] = cur + added
         }
     }
 
@@ -138,8 +150,6 @@ class ProfileStore(private val context: Context) {
         )
     }
 
-    val seeded: Flow<Boolean> = context.dataStore.data.map { it[Keys.SEEDED] ?: false }
-
     /** The date inactivity decay starts counting from (first app use). */
     val decayAnchor: Flow<String?> = context.dataStore.data.map { it[Keys.DECAY_ANCHOR] }
 
@@ -170,10 +180,6 @@ class ProfileStore(private val context: Context) {
         context.dataStore.edit { it[Keys.START_WEIGHT] = toWeight }
     }
 
-    suspend fun markSeeded() {
-        context.dataStore.edit { it[Keys.SEEDED] = true }
-    }
-
     // --- Videos: favorites + user-added ---------------------------------------
     val favoriteVideoUrls: Flow<Set<String>> =
         context.dataStore.data.map { it[Keys.FAV_VIDEOS] ?: emptySet() }
@@ -196,6 +202,23 @@ class ProfileStore(private val context: Context) {
         context.dataStore.edit { prefs ->
             val cur = prefs[Keys.USER_VIDEOS] ?: emptySet()
             prefs[Keys.USER_VIDEOS] = cur + "${v.exerciseKey}$VIDEO_SEP${v.title}$VIDEO_SEP${v.url}"
+        }
+    }
+
+    /** Merge restored favorite URLs into the on-device set (backup import). */
+    suspend fun mergeFavorites(urls: Set<String>) {
+        context.dataStore.edit { prefs ->
+            prefs[Keys.FAV_VIDEOS] = (prefs[Keys.FAV_VIDEOS] ?: emptySet()) + urls
+        }
+    }
+
+    /** Merge restored user-added videos (backup import); the string-set union dedupes. */
+    suspend fun mergeUserVideos(videos: List<VideoLink>) {
+        context.dataStore.edit { prefs ->
+            val cur = prefs[Keys.USER_VIDEOS] ?: emptySet()
+            prefs[Keys.USER_VIDEOS] = cur + videos
+                .filter { it.exerciseKey.isNotBlank() && it.url.isNotBlank() }
+                .map { "${it.exerciseKey}$VIDEO_SEP${it.title}$VIDEO_SEP${it.url}" }
         }
     }
 }

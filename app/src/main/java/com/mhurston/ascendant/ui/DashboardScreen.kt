@@ -92,6 +92,7 @@ fun DashboardScreen(
             onDismissRequest = { confirmReset = false },
             title = { Text("Reset today?") },
             text = { Text("This clears everything you logged today back to zero. " +
+                "Steps synced from Health Connect are kept. " +
                 "Your level, history, and other days are unaffected.") },
             confirmButton = {
                 TextButton(onClick = { onResetToday(); confirmReset = false }) {
@@ -120,9 +121,16 @@ fun DashboardScreen(
         Spacer(Modifier.height(16.dp))
         XpBar(into = c.xpIntoLevel, forNext = c.xpForNextLevel, level = c.level)
 
-        if (c.idlePenaltyXp > 0) {
+        // Only nudge about the live, still-growing trailing gap — past (interior) decay is already
+        // locked in and unstoppable, so showing "log today to stop it" for that would be misleading.
+        if (c.trailingPenaltyXp > 0) {
             Spacer(Modifier.height(12.dp))
-            DecayBanner(idleDays = c.idleDays, penalty = c.idlePenaltyXp)
+            // Rate is derived from the actual charge, so per-day × days always equals the total.
+            DecayBanner(
+                idleDays = c.trailingChargedDays,
+                penalty = c.trailingPenaltyXp,
+                perDay = c.trailingPenaltyXp / c.trailingChargedDays.coerceAtLeast(1)
+            )
         }
 
         Spacer(Modifier.height(20.dp))
@@ -137,9 +145,8 @@ fun DashboardScreen(
 
         Spacer(Modifier.height(20.dp))
         SectionHeader("Today's Training")
-        Text("100 is the goal — every rep and mile burns calories, and calories are XP. " +
-            "Tap a group to log it.",
-            style = MaterialTheme.typography.labelMedium, color = TextDim)
+        Caption("100 is the goal — every rep and mile burns calories, and calories are XP. " +
+            "Tap a group to log it.")
         Spacer(Modifier.height(4.dp))
 
         val upperReps = today.pushTotal() + today.curls
@@ -169,7 +176,7 @@ fun DashboardScreen(
             ExerciseRow("Squats", today.squats, { videoFor = "squats" }) { onAddReps(ExerciseKind.SQUATS, it) }
             ExerciseRow("Calf Raises", today.calfRaises, { videoFor = "calfraises" }) { onAddReps(ExerciseKind.CALF_RAISES, it) }
         }
-        CollapsibleSection("Cardio", "%.1f / 5.0 mi".format(today.walkMiles)) {
+        CollapsibleSection("Cardio", "%.1f / 5.0 mi".format(java.util.Locale.US, today.walkMiles)) {
             WalkingRow(
                 treadmillMiles = today.miles,
                 trackedMiles = today.trackedMiles,
@@ -246,11 +253,12 @@ private fun QuestSection(state: UiState) {
 
     CollapsibleSection(
         title = "Daily Quests",
-        summary = if (allDailyClear) "ALL CLEAR ✓ +100 XP" else "$dailyDone / ${daily.size}",
+        summary = if (allDailyClear)
+            "ALL CLEAR ✓ +${com.mhurston.ascendant.domain.Quests.ALL_CLEAR_BONUS_XP} XP"
+        else "$dailyDone / ${daily.size}",
         defaultExpanded = false
     ) {
-        Text("Bonus goals layered on today's training — hit them for extra XP.",
-            style = MaterialTheme.typography.labelMedium, color = TextDim)
+        Caption("Bonus goals layered on today's training — hit them for extra XP.")
         Spacer(Modifier.height(6.dp))
         daily.forEach { QuestRow(it) }
     }
@@ -277,24 +285,26 @@ private fun QuestRow(q: com.mhurston.ascendant.domain.Quest) {
                 Text("+${q.xpReward}", style = MaterialTheme.typography.labelMedium,
                     color = if (q.done) XpGold else TextDim, fontWeight = FontWeight.Bold)
             }
-            Text(q.desc, style = MaterialTheme.typography.labelMedium, color = TextDim)
+            Caption(q.desc)
             Spacer(Modifier.height(6.dp))
             ProgressTrack(fraction = q.progress, color = if (q.done) XpGold else AuraCyan)
-            Text("${q.current} / ${q.target}", style = MaterialTheme.typography.labelMedium, color = TextDim)
+            Caption("${q.current} / ${q.target}")
         }
     }
 }
 
 @Composable
-private fun DecayBanner(idleDays: Int, penalty: Long) {
+private fun DecayBanner(idleDays: Int, penalty: Long, perDay: Long) {
     Card(
         Modifier.fillMaxWidth(),
         colors = CardDefaults.cardColors(containerColor = DangerRed.copy(alpha = 0.14f))
     ) {
         Column(Modifier.padding(14.dp)) {
-            Text("⚠ Inactivity decay active", color = DangerRed, fontWeight = FontWeight.Bold)
-            Text("$idleDays idle day(s) → −$penalty XP. Log anything today to stop the bleed.",
-                style = MaterialTheme.typography.labelMedium, color = TextDim)
+            Text("⚠ You lose XP every day you don't train", color = DangerRed,
+                fontWeight = FontWeight.Bold)
+            Caption("A skipped day costs what a full day earns (−$perDay XP); a partial day " +
+                "costs its unfinished share. $idleDays skipped day(s) → −$penalty XP, gone for " +
+                "good. Today isn't counted until midnight — log anything to stop the loss.")
         }
     }
 }
@@ -310,7 +320,7 @@ private fun StreakChip(label: String, value: Int, modifier: Modifier = Modifier)
             horizontalAlignment = Alignment.CenterHorizontally
         ) {
             StatValue("$value")
-            Text(label, style = MaterialTheme.typography.labelMedium, color = TextDim)
+            Caption(label)
         }
     }
 }
@@ -326,7 +336,7 @@ private fun ExerciseRow(name: String, current: Int, onVideos: () -> Unit, onAdd:
         Column(Modifier.padding(12.dp)) {
             Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
                 Row(verticalAlignment = Alignment.CenterVertically) {
-                    Text(name, style = MaterialTheme.typography.bodyLarge)
+                    BodyText(name)
                     Spacer(Modifier.width(8.dp))
                     FormVideoChip(onVideos)
                 }
@@ -368,7 +378,7 @@ private fun VariantGoalSection(
         Column(Modifier.padding(12.dp)) {
             Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
                 Row(verticalAlignment = Alignment.CenterVertically) {
-                    Text(name, style = MaterialTheme.typography.bodyLarge)
+                    BodyText(name)
                     Spacer(Modifier.width(8.dp))
                     FormVideoChip(onVideos)
                 }
@@ -379,8 +389,7 @@ private fun VariantGoalSection(
                         fontWeight = FontWeight.Bold)
                 }
             }
-            Text("Log any of these — they all count toward the goal.",
-                style = MaterialTheme.typography.labelMedium, color = TextDim)
+            Caption("Log any of these — they all count toward the goal.")
             Spacer(Modifier.height(6.dp))
             ProgressTrack(
                 fraction = (total.toFloat() / target).coerceIn(0f, 1f),
@@ -414,7 +423,7 @@ private fun CardioMinutesRow(label: String, minutes: Int, kcalPerMin: Double, on
         Column(Modifier.padding(12.dp)) {
             Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween,
                 verticalAlignment = Alignment.CenterVertically) {
-                Text(label, style = MaterialTheme.typography.bodyLarge)
+                BodyText(label)
                 Row(verticalAlignment = Alignment.CenterVertically) {
                     if (minutes > 0) Text("≈$kcal XP  ", color = XpGold,
                         style = MaterialTheme.typography.labelMedium, fontWeight = FontWeight.Bold)
@@ -476,14 +485,15 @@ private fun WalkingRow(
         Column(Modifier.padding(12.dp)) {
             Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
                 Row(verticalAlignment = Alignment.CenterVertically) {
-                    Text("Walking", style = MaterialTheme.typography.bodyLarge)
+                    BodyText("Walking")
                     Spacer(Modifier.width(8.dp))
                     FormVideoChip(onVideos)
                 }
                 Row {
-                    if (over > 0) Text("OVERDRIVE +${"%.1f".format(over)}mi  ", color = XpGold,
+                    if (over > 0) Text("OVERDRIVE +${"%.1f".format(java.util.Locale.US, over)}mi  ",
+                        color = XpGold,
                         style = MaterialTheme.typography.labelMedium, fontWeight = FontWeight.Bold)
-                    Text("${"%.1f".format(total)} / 5.0 mi",
+                    Text("${"%.1f".format(java.util.Locale.US, total)} / 5.0 mi",
                         color = if (total >= Progression.MILE_TARGET) AuraCyan else TextDim,
                         fontWeight = FontWeight.Bold)
                 }
@@ -500,11 +510,11 @@ private fun WalkingRow(
                 Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween,
                     verticalAlignment = Alignment.CenterVertically) {
                     BodyText("Tracked (steps)")
-                    Text("${"%.1f".format(trackedMiles)} mi  ·  ${"%,d".format(steps)} steps",
+                    Text("${"%.1f".format(java.util.Locale.US, trackedMiles)} mi  ·  " +
+                        "${"%,d".format(java.util.Locale.US, steps)} steps",
                         color = AuraCyan, fontWeight = FontWeight.Bold)
                 }
-                Text("Auto from Health Connect — no phone needed for the treadmill, add that below.",
-                    style = MaterialTheme.typography.labelMedium, color = TextDim)
+                Caption("Auto from Health Connect.")
             }
 
             Spacer(Modifier.height(12.dp))
@@ -512,7 +522,7 @@ private fun WalkingRow(
                 verticalAlignment = Alignment.CenterVertically) {
                 BodyText("Treadmill / manual",
                     color = if (treadmillMiles > 0) MaterialTheme.colorScheme.onSurface else TextDim)
-                Text("${"%.1f".format(treadmillMiles)} mi",
+                Text("${"%.1f".format(java.util.Locale.US, treadmillMiles)} mi",
                     color = if (treadmillMiles > 0) AuraCyan else TextDim, fontWeight = FontWeight.Bold)
             }
             Spacer(Modifier.height(8.dp))
@@ -629,8 +639,7 @@ private fun ExtrasSection(
         summary = "${oneOffs.size + customExercises.size}",
         action = { AddLink("One-off") { showOneOff = true } }
     ) {
-    Text("One-offs (a run, a class) are logged to today only. Pin one to make it a daily option.",
-        style = MaterialTheme.typography.labelMedium, color = TextDim)
+    Caption("One-offs (a run, a class) are logged to today only. Pin one to make it a daily option.")
     Spacer(Modifier.height(8.dp))
 
     // Today's one-off activities — each lives only on this day.
@@ -643,10 +652,10 @@ private fun ExtrasSection(
                 horizontalArrangement = Arrangement.SpaceBetween,
                 verticalAlignment = Alignment.CenterVertically) {
                 Column(Modifier.weight(1f).clickable { editingOneOff = i to o }) {
-                    Text(o.name, style = MaterialTheme.typography.bodyLarge)
+                    BodyText(o.name)
                     val label = o.metricsLabel(unitSystem)
                     if (label.isNotEmpty()) {
-                        Text(label, style = MaterialTheme.typography.labelMedium, color = TextDim)
+                        Caption(label)
                     }
                 }
                 Text("+${o.kcal} XP", color = XpGold, style = MaterialTheme.typography.labelMedium,
@@ -668,7 +677,7 @@ private fun ExtrasSection(
             Column(Modifier.padding(12.dp)) {
                 Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
                     Row(verticalAlignment = Alignment.CenterVertically) {
-                        Text(ex.name, style = MaterialTheme.typography.bodyLarge)
+                        BodyText(ex.name)
                         Text("  📌", style = MaterialTheme.typography.labelMedium)
                     }
                     Row(verticalAlignment = Alignment.CenterVertically) {
@@ -687,8 +696,7 @@ private fun ExtrasSection(
     }
 
     if (oneOffs.isEmpty() && customExercises.isEmpty()) {
-        Text("Nothing extra yet. Tap ＋ One-off to log something like a marathon or a yoga class.",
-            style = MaterialTheme.typography.bodyLarge, color = TextDim)
+        BodyText("Nothing extra yet. Tap ＋ One-off to log something like a marathon or a yoga class.", color = TextDim)
     }
     }
 }
@@ -730,7 +738,11 @@ internal fun OneOffDialog(
     var kcalText by remember {
         mutableStateOf(initial?.kcal?.takeIf { it > 0 }?.toString() ?: "")
     }
-    var activity by remember { mutableStateOf(com.mhurston.ascendant.domain.DistanceActivity.WALK) }
+    // Re-open with the activity the entry was logged as, so "use estimate" after an edit
+    // recomputes with the right model (a run edited later must not re-estimate as a walk).
+    var activity by remember {
+        mutableStateOf(com.mhurston.ascendant.domain.DistanceActivity.forId(initial?.activityId ?: ""))
+    }
     var pin by remember { mutableStateOf(false) }
     var nameError by remember { mutableStateOf(false) }
 
@@ -750,9 +762,8 @@ internal fun OneOffDialog(
         title = { Text(if (editing) "Edit one-off" else "Log a one-off") },
         text = {
             Column(Modifier.verticalScroll(rememberScrollState())) {
-                Text("A single activity for today — a bike ride, a lifting set, a class. " +
-                    "Fill any fields; calories become XP (1 kcal = 1 XP).",
-                    style = MaterialTheme.typography.labelMedium, color = TextDim)
+                Caption("A single activity for today — a bike ride, a lifting set, a class. " +
+                    "Fill any fields; calories become XP (1 kcal = 1 XP).")
                 Spacer(Modifier.height(8.dp))
                 androidx.compose.material3.OutlinedTextField(
                     value = name,
@@ -849,7 +860,10 @@ internal fun OneOffDialog(
                 onClick = {
                     if (name.isBlank()) nameError = true
                     else onAdd(
-                        com.mhurston.ascendant.domain.OneOff(name.trim(), finalKcal, miles, reps),
+                        com.mhurston.ascendant.domain.OneOff(
+                            name.trim(), finalKcal, miles, reps,
+                            activityId = if (miles > 0.0) activity.name else ""
+                        ),
                         pin
                     )
                 }

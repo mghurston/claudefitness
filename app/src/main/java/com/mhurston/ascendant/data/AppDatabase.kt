@@ -7,7 +7,7 @@ import androidx.room.RoomDatabase
 import androidx.room.migration.Migration
 import androidx.sqlite.db.SupportSQLiteDatabase
 
-@Database(entities = [WorkoutDayEntity::class], version = 8, exportSchema = false)
+@Database(entities = [WorkoutDayEntity::class], version = 10, exportSchema = false)
 abstract class AppDatabase : RoomDatabase() {
     abstract fun workoutDao(): WorkoutDao
 
@@ -64,6 +64,22 @@ abstract class AppDatabase : RoomDatabase() {
             }
         }
 
+        // v8 → v9: add the per-day "weightKg" column (0 = no weigh-in; last weight carried forward).
+        private val MIGRATION_8_9 = object : Migration(8, 9) {
+            override fun migrate(db: SupportSQLiteDatabase) {
+                db.execSQL("ALTER TABLE workout_day ADD COLUMN weightKg REAL NOT NULL DEFAULT 0.0")
+            }
+        }
+
+        // v9 → v10: caloriesConsumed sentinel change so fasting is representable. Old semantics:
+        // 0 = "not logged". New: -1 = "not logged", 0 = a deliberate zero-intake (fast) day.
+        // Every existing 0 meant "not logged", so rewriting them to -1 preserves meaning exactly.
+        private val MIGRATION_9_10 = object : Migration(9, 10) {
+            override fun migrate(db: SupportSQLiteDatabase) {
+                db.execSQL("UPDATE workout_day SET caloriesConsumed = -1 WHERE caloriesConsumed = 0")
+            }
+        }
+
         fun get(context: Context): AppDatabase =
             INSTANCE ?: synchronized(this) {
                 INSTANCE ?: Room.databaseBuilder(
@@ -72,7 +88,7 @@ abstract class AppDatabase : RoomDatabase() {
                     "ascendant.db"
                 ).addMigrations(
                     MIGRATION_1_2, MIGRATION_2_3, MIGRATION_3_4, MIGRATION_4_5, MIGRATION_5_6,
-                    MIGRATION_6_7, MIGRATION_7_8
+                    MIGRATION_6_7, MIGRATION_7_8, MIGRATION_8_9, MIGRATION_9_10
                 ).build().also { INSTANCE = it }
             }
     }

@@ -13,7 +13,10 @@ data class OneOff(
     val name: String,
     val kcal: Int,
     val distanceMi: Double = 0.0,
-    val reps: Int = 0
+    val reps: Int = 0,
+    /** DistanceActivity name ("WALK"/"RUN"/"BIKE") the distance was logged as, or "" for older
+     *  rows / rep-only entries. Remembered so editing re-opens with the right estimate model. */
+    val activityId: String = ""
 ) {
     /** Short "60 reps · 5.0 mi" subtitle for display; empty when no metrics were recorded.
      *  Distance is shown in the user's units (mi/km); [distanceMi] is always stored in miles. */
@@ -29,7 +32,12 @@ data class OneOff(
 enum class DistanceActivity(val label: String, val kcalPerKgPerMile: Double) {
     WALK("Walk", Calories.WALK_KCAL_PER_KG_PER_MILE),
     RUN("Run", Calories.RUN_KCAL_PER_KG_PER_MILE),
-    BIKE("Bike", Calories.BIKE_KCAL_PER_KG_PER_MILE)
+    BIKE("Bike", Calories.BIKE_KCAL_PER_KG_PER_MILE);
+
+    companion object {
+        /** Resolve a stored OneOff.activityId back to its activity; WALK for ""/unknown. */
+        fun forId(id: String): DistanceActivity = entries.firstOrNull { it.name == id } ?: WALK
+    }
 }
 
 /** Plain, Android-free representation of one day's logged work (mirrors the spreadsheet row). */
@@ -41,7 +49,14 @@ data class DayData(
     val calfRaises: Int = 0,
     val curls: Int = 0,
     val miles: Double = 0.0,
-    val caloriesConsumed: Int = 0,
+    /** Calories eaten this day. -1 = not logged (carryForward substitutes the last logged
+     *  value); 0 = a deliberate zero-intake (fasting) day that earns the full deficit bonus. */
+    val caloriesConsumed: Int = -1,
+    /** Body weight (kg) in effect for this day. 0 = no weigh-in; callers carry the last known
+     *  weight forward (Progression.carryForward) and fall back to the profile weight. Drives this
+     *  day's BMR and body-weight-scaled activity burn so history stays anchored to what you
+     *  actually weighed, not your current weight. */
+    val weightKg: Double = 0.0,
     val isRestDay: Boolean = false,
     val notes: String = "",
     val mood: Int = 0, // 0 = unset, 1..5 (see WorkoutDayEntity.mood)
@@ -79,7 +94,7 @@ data class DayData(
     val hasPassiveMovement: Boolean get() = passiveSteps >= PASSIVE_ACTIVITY_THRESHOLD
     val hasActivity: Boolean
         get() = hasStrength || miles > 0.0 || customRepsTotal > 0 || oneOffKcal > 0 ||
-            hasPassiveMovement
+            cardioMinutes.values.any { it > 0 } || hasPassiveMovement
 
     companion object {
         /** Passive steps at/above this count make a day "active" — it sustains the activity
@@ -149,14 +164,18 @@ data class Stats(
 )
 
 enum class Rank(val label: String) {
-    E("E"), D("D"), C("C"), B("B"), A("A"), S("S"), SS("SS"), NATIONAL("National-Level Hunter")
+    E("E"), D("D"), C("C"), B("B"), A("A"), S("S"), SS("SS"), NATIONAL("National-Class")
 }
 
 /** Fully derived character — a pure function of the immutable day log + today's date. */
 data class CharacterState(
-    val totalXp: Long,        // effective XP after idle decay (drives level/rank)
-    val earnedXp: Long,       // gross XP earned from the log, before decay
-    val idlePenaltyXp: Long,  // XP currently shaved off by inactivity
+    val totalXp: Long,        // effective XP after idle decay + bonuses (drives level/rank)
+    val earnedXp: Long,       // gross activity XP earned from the log, before decay/bonuses
+    val questBonusXp: Long = 0L,       // XP from completed daily/weekly quests (replayed)
+    val achievementBonusXp: Long = 0L, // XP from unlocked achievements (rarity payouts)
+    val idlePenaltyXp: Long,  // total permanent decay from fully-unlogged days (interior + trailing)
+    val trailingPenaltyXp: Long, // just the still-growing trailing gap (the "log today" nudge)
+    val trailingChargedDays: Int = 0, // unlogged days actually charged in the trailing gap
     val idleDays: Int,        // consecutive idle days counted toward decay
     val level: Int,
     val rank: Rank,

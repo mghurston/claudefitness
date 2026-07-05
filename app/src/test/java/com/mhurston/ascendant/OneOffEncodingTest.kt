@@ -65,6 +65,21 @@ class OneOffEncodingTest {
     }
 
     @Test
+    fun roundTrip_preservesActivityId_andOldRowsDecodeAsBlank() {
+        // The 5th field remembers which activity a distance was logged as (walk/run/bike).
+        val run = OneOff("Tempo run", kcal = 300, distanceMi = 3.0, activityId = "RUN")
+        val decoded = WorkoutDayEntity.decodeOneOffs(WorkoutDayEntity.encodeOneOffs(listOf(run)))
+        assertEquals("RUN", decoded[0].activityId)
+        // Rows written before the field existed decode with a blank id (resolves to WALK).
+        val legacy = "Ride${us}200${us}5.0${us}0"
+        assertEquals("", WorkoutDayEntity.decodeOneOffs(legacy)[0].activityId)
+        assertEquals(
+            com.mhurston.ascendant.domain.DistanceActivity.WALK,
+            com.mhurston.ascendant.domain.DistanceActivity.forId("")
+        )
+    }
+
+    @Test
     fun roundTrip_preservesFractionalDistance() {
         val decoded = WorkoutDayEntity.decodeOneOffs(
             WorkoutDayEntity.encodeOneOffs(listOf(OneOff("Trail run", kcal = 250, distanceMi = 3.7)))

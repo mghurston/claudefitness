@@ -13,6 +13,7 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
@@ -52,6 +53,8 @@ fun CalendarScreen(
     onResetDay: (String) -> Unit,
     onSetMood: (String, Int) -> Unit = { _, _ -> },
     onSetNotes: (String, String) -> Unit = { _, _ -> },
+    onSetConsumed: (String, Int) -> Unit = { _, _ -> },
+    onSetWeight: (String, Double) -> Unit = { _, _ -> },
     onAddCustomReps: (String, String, Int) -> Unit = { _, _, _ -> },
     onAddCustomExercise: (String) -> Unit = {},
     onAddPushVariant: (String, String, Int) -> Unit = { _, _, _ -> },
@@ -72,16 +75,40 @@ fun CalendarScreen(
     }
 
     selected?.let { date ->
+        // Effective (carried-forward) energy values for this day: the most recent weigh-in / intake
+        // logged on or before it. Weight falls back to the profile weight before any weigh-in.
+        // These show on every day after an entry until the next one — "carry forward unless changed".
+        val dateStr = date.toString()
+        val sortedDays = state.days.sortedBy { it.date }
+        val carriedWeightKg = sortedDays.lastOrNull { it.date <= dateStr && it.weightKg > 0.0 }
+            ?.weightKg ?: state.profile.weightKg
+        // >= 0 because an explicit 0 is a logged fasting day; -1 is the "not logged" sentinel.
+        val carriedConsumed = sortedDays.lastOrNull { it.date <= dateStr && it.caloriesConsumed >= 0 }
+            ?.caloriesConsumed ?: -1
+        val ent = byDate[dateStr]
+        // Day's gross activity burn, computed with the carried-forward weight so the number
+        // matches the day's XP/energy math (weightFor uses day.weightKg when > 0).
+        val dayForBurn = (ent ?: WorkoutDayEntity(date = dateStr)).toDayData()
+            .copy(weightKg = carriedWeightKg)
+        val caloriesBurned =
+            com.mhurston.ascendant.domain.Calories.activityBurn(state.profile, dayForBurn).roundToInt()
         DayEditorDialog(
             date = date,
-            entity = byDate[date.toString()],
+            entity = ent,
             completion = state.derivedByDate[date]?.completion ?: 0.0,
             xp = state.derivedByDate[date]?.xp ?: 0L,
+            caloriesBurned = caloriesBurned,
+            carriedWeightKg = carriedWeightKg,
+            weightLoggedToday = (ent?.weightKg ?: 0.0) > 0.0,
+            carriedConsumed = carriedConsumed,
+            consumedLoggedToday = (ent?.caloriesConsumed ?: -1) >= 0,
             onAddReps = { kind, delta -> onAddReps(date.toString(), kind, delta) },
             onAddMiles = { delta -> onAddMiles(date.toString(), delta) },
             onReset = { onResetDay(date.toString()) },
             onSetMood = { m -> onSetMood(date.toString(), m) },
             onSetNotes = { n -> onSetNotes(date.toString(), n) },
+            onSetConsumed = { v -> onSetConsumed(date.toString(), v) },
+            onSetWeight = { kg -> onSetWeight(date.toString(), kg) },
             customExercises = state.allCustomExercises,
             onAddCustomReps = { id, delta -> onAddCustomReps(date.toString(), id, delta) },
             onAddCustomExercise = onAddCustomExercise,
@@ -115,7 +142,7 @@ fun CalendarScreen(
         Row(Modifier.fillMaxWidth()) {
             listOf("S", "M", "T", "W", "T", "F", "S").forEach {
                 Box(Modifier.weight(1f), contentAlignment = Alignment.Center) {
-                    Text(it, style = MaterialTheme.typography.labelMedium, color = TextDim)
+                    Caption(it)
                 }
             }
         }
@@ -213,7 +240,7 @@ private fun completionColor(c: Double): Color = when {
     c >= 1.0 -> AuraCyan
     c >= 0.6 -> XpGold
     c > 0.0 -> ManaPurple.copy(alpha = 0.55f)
-    else -> Color(0xFF22223A)
+    else -> com.mhurston.ascendant.ui.theme.TrackDark
 }
 
 @Composable
@@ -230,7 +257,7 @@ private fun LegendRow() {
 private fun LegendDot(color: Color, label: String) {
     Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(4.dp)) {
         Box(Modifier.height(14.dp).aspectRatio(1f).clip(RoundedCornerShape(4.dp)).background(color))
-        Text(label, style = MaterialTheme.typography.labelMedium, color = TextDim)
+        Caption(label)
     }
 }
 
@@ -248,11 +275,18 @@ private fun DayEditorDialog(
     entity: WorkoutDayEntity?,
     completion: Double,
     xp: Long,
+    caloriesBurned: Int = 0,
     onAddReps: (ExerciseKind, Int) -> Unit,
     onAddMiles: (Double) -> Unit,
     onReset: () -> Unit,
     onSetMood: (Int) -> Unit,
     onSetNotes: (String) -> Unit,
+    onSetConsumed: (Int) -> Unit = {},
+    onSetWeight: (Double) -> Unit = {},
+    carriedWeightKg: Double = 0.0,
+    weightLoggedToday: Boolean = false,
+    carriedConsumed: Int = 0,
+    consumedLoggedToday: Boolean = false,
     customExercises: List<com.mhurston.ascendant.domain.CustomExercise> = emptyList(),
     onAddCustomReps: (String, Int) -> Unit = { _, _ -> },
     onAddCustomExercise: (String) -> Unit = {},
@@ -277,7 +311,8 @@ private fun DayEditorDialog(
         AlertDialog(
             onDismissRequest = { confirmReset = false },
             title = { Text("Reset ${date}?") },
-            text = { Text("Clears everything logged on this day back to zero.") },
+            text = { Text("Clears everything logged on this day back to zero. " +
+                "Steps synced from Health Connect are kept.") },
             confirmButton = {
                 TextButton(onClick = { onReset(); confirmReset = false }) {
                     Text("Reset", color = com.mhurston.ascendant.ui.theme.DangerRed,
@@ -326,21 +361,22 @@ private fun DayEditorDialog(
         title = {
             Column {
                 Text(date.toString(), fontWeight = FontWeight.Bold)
-                Text("$pct% · +$xp XP", style = MaterialTheme.typography.labelMedium, color = TextDim)
+                // XP can be negative (a calorie surplus docks it), so sign it explicitly
+                // rather than always prefixing "+".
+                val xpLabel = if (xp < 0) "$xp" else "+$xp"
+                Caption("$pct% · $xpLabel XP")
             }
         },
         text = {
             Column(Modifier.verticalScroll(rememberScrollState())) {
                 val pushBreak = e.pushBreakdown()
-                Text("Push-ups — ${e.pushTotal()} / 100  (any of these count)",
-                    style = MaterialTheme.typography.labelMedium, color = TextDim)
+                Caption("Push-ups — ${e.pushTotal()} / 100  (any of these count)")
                 com.mhurston.ascendant.domain.PushExercise.entries.forEach { v ->
                     EditRow(v.label, pushBreak[v.id] ?: 0) { onAddPushVariant(v.id, it) }
                 }
                 Spacer(Modifier.height(8.dp))
                 val coreBreak = e.coreBreakdown()
-                Text("Core — ${e.coreTotal()} / 100  (any of these count)",
-                    style = MaterialTheme.typography.labelMedium, color = TextDim)
+                Caption("Core — ${e.coreTotal()} / 100  (any of these count)")
                 com.mhurston.ascendant.domain.CoreExercise.entries.forEach { v ->
                     EditRow(v.label, coreBreak[v.id] ?: 0) { onAddCoreVariant(v.id, it) }
                 }
@@ -348,17 +384,60 @@ private fun DayEditorDialog(
                 EditRow("Squats", e.squats) { onAddReps(ExerciseKind.SQUATS, it) }
                 EditRow("Calf Raises", e.calfRaises) { onAddReps(ExerciseKind.CALF_RAISES, it) }
                 EditRow("Curls", e.curls) { onAddReps(ExerciseKind.CURLS, it) }
+                // Walking: tracked steps from Health Connect are read-only history; the
+                // treadmill/manual miles below are the hand-editable part. Combined total
+                // matches the dashboard's walking card.
+                if (e.passiveSteps > 0) {
+                    TrackedWalkRow(steps = e.passiveSteps, trackedMiles = e.trackedMiles)
+                }
                 MilesEditRow(e.miles, onAddMiles)
+                if (e.passiveSteps > 0) {
+                    ReadOnlyRow("Total walking", "${"%.1f".format(Locale.US, e.walkMiles)} mi")
+                }
                 val cardioMin = WorkoutDayEntity.decodeCustomReps(e.cardioMinutes)
                 com.mhurston.ascendant.domain.CardioActivity.entries.forEach { act ->
                     EditRow("${act.label} (min)", cardioMin[act.id] ?: 0) { onAddCardioMinutes(act.id, it) }
                 }
 
                 Spacer(Modifier.height(8.dp))
+                // Energy: fix a past day's intake, or record/correct a weigh-in. Each value carries
+                // forward to later days until the next entry, so days after an entry SHOW it (marked
+                // "carried") rather than reading blank — editing here re-anchors from this day on.
+                Caption("Energy")
+                // Calories burned by activity this day (gross) — read-only, computed from the
+                // logged work + tracked steps, so history shows the full picture.
+                ReadOnlyRow("Calories burned", "$caloriesBurned kcal")
+                val metric = unitSystem == com.mhurston.ascendant.domain.UnitSystem.METRIC
+                val wUnit = if (metric) "kg" else "lb"
+                val shownWeight = if (carriedWeightKg > 0.0) {
+                    val w = if (metric) carriedWeightKg
+                        else com.mhurston.ascendant.domain.Units.kgToLbs(carriedWeightKg)
+                    if (w == Math.floor(w)) w.toInt().toString()
+                    else String.format(java.util.Locale.US, "%.1f", w)
+                } else ""
+                SetValueRow(
+                    "Weigh-in ($wUnit)", shownWeight,
+                    inherited = !weightLoggedToday, decimal = true
+                ) { entered ->
+                    val v = entered.toDoubleOrNull() ?: 0.0
+                    val kg = when {
+                        v <= 0.0 -> 0.0
+                        metric -> v
+                        else -> com.mhurston.ascendant.domain.Units.lbsToKg(v)
+                    }
+                    onSetWeight(kg)
+                }
+                SetValueRow(
+                    "Calories eaten (0 = fasted)",
+                    if (carriedConsumed >= 0) carriedConsumed.toString() else "",
+                    inherited = !consumedLoggedToday, decimal = false
+                ) { entered -> onSetConsumed(entered.toIntOrNull() ?: -1) }
+
+                Spacer(Modifier.height(8.dp))
                 // One-off activities — logged to THIS day only, kept in history forever.
                 Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween,
                     verticalAlignment = Alignment.CenterVertically) {
-                    Text("One-offs (this day only)", style = MaterialTheme.typography.labelMedium, color = TextDim)
+                    Caption("One-offs (this day only)")
                     AddLink("One-off") { showOneOff = true }
                 }
                 WorkoutDayEntity.decodeOneOffs(e.oneOffs).forEachIndexed { i, o ->
@@ -366,10 +445,10 @@ private fun DayEditorDialog(
                         horizontalArrangement = Arrangement.SpaceBetween,
                         verticalAlignment = Alignment.CenterVertically) {
                         Column(Modifier.weight(1f).clickable { editingOneOff = i to o }) {
-                            Text(o.name, style = MaterialTheme.typography.bodyLarge)
+                            BodyText(o.name)
                             val label = o.metricsLabel(unitSystem)
                             if (label.isNotEmpty()) {
-                                Text(label, style = MaterialTheme.typography.labelMedium, color = TextDim)
+                                Caption(label)
                             }
                         }
                         Text("+${o.kcal} XP", color = XpGold, style = MaterialTheme.typography.labelMedium,
@@ -383,7 +462,7 @@ private fun DayEditorDialog(
                 // Pinned recurring custom exercises — rep-based, available every day.
                 Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween,
                     verticalAlignment = Alignment.CenterVertically) {
-                    Text("Pinned 📌", style = MaterialTheme.typography.labelMedium, color = TextDim)
+                    Caption("Pinned 📌")
                     AddLink("Exercise") { showAddCustom = true }
                 }
                 val customReps = WorkoutDayEntity.decodeCustomReps(e.customReps)
@@ -425,8 +504,7 @@ private fun AddCustomExerciseDialog(onAdd: (String) -> Unit, onDismiss: () -> Un
         title = { Text("Add custom exercise") },
         text = {
             Column {
-                Text("These earn bonus XP but don't change your completion % or stats.",
-                    style = MaterialTheme.typography.labelMedium, color = TextDim)
+                Caption("These earn bonus XP but don't change your completion % or stats.")
                 Spacer(Modifier.height(8.dp))
                 androidx.compose.material3.OutlinedTextField(
                     value = name,
@@ -454,8 +532,8 @@ private fun EditRow(name: String, value: Int, onAdd: (Int) -> Unit) {
         // Flexible so long names (e.g. "Standing Dumbbell Chest Fly") wrap instead of
         // pushing the rep buttons off-screen.
         Column(Modifier.weight(1f)) {
-            Text(name, style = MaterialTheme.typography.bodyLarge)
-            Text("$value", style = MaterialTheme.typography.labelMedium, color = AuraCyan)
+            BodyText(name)
+            Caption("$value", color = AuraCyan)
         }
         Row(horizontalArrangement = Arrangement.spacedBy(4.dp)) {
             SmallBtn("−10") { onAdd(-10) }
@@ -465,14 +543,85 @@ private fun EditRow(name: String, value: Int, onAdd: (Int) -> Unit) {
     }
 }
 
+/** A set-to-a-value row (vs. the +/− delta rows): a labelled numeric field + Set button, for
+ *  values you correct outright rather than nudge — a weigh-in or a day's calories. [current] is the
+ *  effective value (explicit on this day, or carried forward from an earlier one); [inherited]
+ *  marks it as carried so the user knows it isn't anchored here yet. Setting it anchors it to this
+ *  day; an empty entry clears it back to its "not logged" sentinel (0 for weight, -1 for calories
+ *  — a typed 0 for calories is a real fasting entry), so the carried-forward value applies again. */
+@Composable
+private fun SetValueRow(
+    label: String,
+    current: String,
+    inherited: Boolean,
+    decimal: Boolean,
+    onSet: (String) -> Unit
+) {
+    var text by remember(current) { mutableStateOf(current) }
+    Row(Modifier.fillMaxWidth().padding(vertical = 4.dp),
+        horizontalArrangement = Arrangement.spacedBy(8.dp),
+        verticalAlignment = Alignment.CenterVertically) {
+        Column(Modifier.weight(1f)) {
+            BodyText(label)
+            val sub = when {
+                current.isBlank() -> "not logged"
+                inherited -> "$current · carried forward"
+                else -> "$current · logged"
+            }
+            Caption(sub, color = AuraCyan)
+        }
+        androidx.compose.material3.OutlinedTextField(
+            value = text,
+            onValueChange = { v ->
+                text = v.filter { it.isDigit() || (decimal && it == '.') }.take(6)
+            },
+            singleLine = true,
+            keyboardOptions = androidx.compose.foundation.text.KeyboardOptions(
+                keyboardType = if (decimal) androidx.compose.ui.text.input.KeyboardType.Decimal
+                    else androidx.compose.ui.text.input.KeyboardType.Number
+            ),
+            modifier = Modifier.width(96.dp)
+        )
+        SmallBtn("Set") { onSet(text) }
+    }
+}
+
+/** Read-only tracked walking from Health Connect steps — mirrors the dashboard's
+ *  "Tracked (steps)" line so history shows steps and step-estimated miles, not just manual. */
+@Composable
+private fun TrackedWalkRow(steps: Int, trackedMiles: Double) {
+    Row(Modifier.fillMaxWidth().padding(vertical = 4.dp),
+        horizontalArrangement = Arrangement.SpaceBetween,
+        verticalAlignment = Alignment.CenterVertically) {
+        Column {
+            BodyText("Tracked (steps)")
+            Caption("auto from Health Connect")
+        }
+        Text("${"%.1f".format(Locale.US, trackedMiles)} mi  ·  ${"%,d".format(Locale.US, steps)} steps",
+            style = MaterialTheme.typography.labelMedium, color = AuraCyan, fontWeight = FontWeight.Bold)
+    }
+}
+
+/** A labelled read-only value row (no controls) — for derived history that isn't hand-editable,
+ *  e.g. tracked total or a day's calories burned. */
+@Composable
+private fun ReadOnlyRow(label: String, value: String) {
+    Row(Modifier.fillMaxWidth().padding(vertical = 4.dp),
+        horizontalArrangement = Arrangement.SpaceBetween,
+        verticalAlignment = Alignment.CenterVertically) {
+        BodyText(label)
+        Text(value, style = MaterialTheme.typography.labelMedium, color = AuraCyan, fontWeight = FontWeight.Bold)
+    }
+}
+
 @Composable
 private fun MilesEditRow(miles: Double, onAdd: (Double) -> Unit) {
     Row(Modifier.fillMaxWidth().padding(vertical = 4.dp),
         horizontalArrangement = Arrangement.SpaceBetween,
         verticalAlignment = Alignment.CenterVertically) {
         Column {
-            Text("Walking", style = MaterialTheme.typography.bodyLarge)
-            Text("${"%.1f".format(miles)} mi", style = MaterialTheme.typography.labelMedium, color = AuraCyan)
+            BodyText("Treadmill / manual")
+            Caption("${"%.1f".format(Locale.US, miles)} mi", color = AuraCyan)
         }
         Row(horizontalArrangement = Arrangement.spacedBy(4.dp)) {
             SmallBtn("−0.5") { onAdd(-0.5) }

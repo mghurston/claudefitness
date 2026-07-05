@@ -91,6 +91,7 @@ fun AscendantApp(vm: AppViewModel) {
             Tab.CHARACTER -> CharacterScreen(
                 state = state,
                 onImportJson = vm::importBackupJson,
+                onExportJson = vm::buildBackupJson,
                 avatar = avatar,
                 onSetAvatar = vm::setAvatar,
                 modifier = content
@@ -103,6 +104,8 @@ fun AscendantApp(vm: AppViewModel) {
                 onResetDay = vm::resetDay,
                 onSetMood = vm::setMoodForDate,
                 onSetNotes = vm::setNotesForDate,
+                onSetConsumed = vm::setConsumedForDate,
+                onSetWeight = vm::setWeightForDate,
                 onAddCustomReps = vm::addCustomRepsForDate,
                 onAddCustomExercise = vm::addCustomExercise,
                 onAddPushVariant = vm::addPushVariantForDate,
@@ -118,6 +121,7 @@ fun AscendantApp(vm: AppViewModel) {
                 state = state,
                 onSaveProfile = vm::saveProfile,
                 onSetConsumed = vm::setConsumed,
+                onSetWeightToday = vm::setWeightToday,
                 onResetGoalStart = vm::resetGoalStart,
                 unitSystem = unitSystem,
                 onSetUnit = vm::setUnitSystem,

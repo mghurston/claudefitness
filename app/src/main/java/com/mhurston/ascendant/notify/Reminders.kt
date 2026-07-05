@@ -11,10 +11,10 @@ import android.os.Build
 import androidx.core.app.NotificationCompat
 import androidx.core.app.NotificationManagerCompat
 import androidx.core.content.ContextCompat
+import androidx.work.CoroutineWorker
 import androidx.work.ExistingPeriodicWorkPolicy
 import androidx.work.PeriodicWorkRequestBuilder
 import androidx.work.WorkManager
-import androidx.work.Worker
 import androidx.work.WorkerParameters
 import com.mhurston.ascendant.R
 import java.time.DayOfWeek
@@ -95,9 +95,16 @@ object Reminders {
     }
 }
 
-class ReminderWorker(context: Context, params: WorkerParameters) : Worker(context, params) {
-    override fun doWork(): Result {
-        Reminders.postReminder(applicationContext)
+class ReminderWorker(context: Context, params: WorkerParameters) :
+    CoroutineWorker(context, params) {
+    override suspend fun doWork(): Result {
+        // Skip the nudge when today's training is already logged — nagging someone who
+        // already showed up teaches them to ignore the notification.
+        val alreadyActive = runCatching {
+            com.mhurston.ascendant.data.Repository.get(applicationContext)
+                .getDay(LocalDate.now().toString())?.toDayData()?.hasActivity == true
+        }.getOrDefault(false)
+        if (!alreadyActive) Reminders.postReminder(applicationContext)
         return Result.success()
     }
 }

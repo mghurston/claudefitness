@@ -32,17 +32,20 @@ import androidx.compose.ui.unit.dp
 import com.mhurston.ascendant.domain.AchStatus
 import com.mhurston.ascendant.domain.Rarity
 import com.mhurston.ascendant.ui.theme.AuraCyan
+import com.mhurston.ascendant.ui.theme.CrimsonRed
 import com.mhurston.ascendant.ui.theme.ManaPurple
+import com.mhurston.ascendant.ui.theme.SuccessGreen
 import com.mhurston.ascendant.ui.theme.TextDim
+import com.mhurston.ascendant.ui.theme.TrackDark
 import com.mhurston.ascendant.ui.theme.XpGold
 
 fun rarityColor(r: Rarity): Color = when (r) {
     Rarity.COMMON -> Color(0xFF9AA0A6)
-    Rarity.UNCOMMON -> Color(0xFF3DDC84)
+    Rarity.UNCOMMON -> SuccessGreen
     Rarity.RARE -> AuraCyan
     Rarity.EPIC -> ManaPurple
     Rarity.LEGENDARY -> XpGold
-    Rarity.MYTHIC -> Color(0xFFFF2D55)
+    Rarity.MYTHIC -> CrimsonRed
 }
 
 @Composable
@@ -118,8 +121,6 @@ private fun CategoryHeader(
     }
 }
 
-private val EarnedGreen = Color(0xFF3DDC84)
-
 @Composable
 private fun AchievementRow(st: AchStatus) {
     val color = rarityColor(st.def.rarity)
@@ -137,7 +138,7 @@ private fun AchievementRow(st: AchStatus) {
             // Rarity medallion — earned medallions get a filled tint + colored ring.
             Box(
                 Modifier.size(44.dp).clip(RoundedCornerShape(10.dp))
-                    .background(if (locked) Color(0xFF22223A) else color.copy(alpha = 0.30f))
+                    .background(if (locked) TrackDark else color.copy(alpha = 0.30f))
                     .then(
                         if (locked) Modifier
                         else Modifier.border(1.5.dp, color, RoundedCornerShape(10.dp))
@@ -157,26 +158,22 @@ private fun AchievementRow(st: AchStatus) {
                     fontWeight = FontWeight.Bold,
                     color = if (locked) TextDim else MaterialTheme.colorScheme.onSurface
                 )
-                Text(
-                    if (hiddenLocked) "Hidden — keep training to discover it." else st.def.desc,
-                    style = MaterialTheme.typography.labelMedium, color = TextDim
-                )
+                Caption(if (hiddenLocked) "Hidden — keep training to discover it." else st.def.desc)
                 if (!st.unlocked && !st.def.hidden && st.target > 1) {
                     Spacer(Modifier.height(6.dp))
                     ProgressTrack(fraction = st.current.toFloat() / st.target, color = color)
-                    Text("${st.current} / ${st.target}", style = MaterialTheme.typography.labelMedium,
-                        color = TextDim)
+                    Caption("${st.current} / ${st.target}")
                 }
             }
             Spacer(Modifier.size(8.dp))
             Column(horizontalAlignment = Alignment.End) {
                 if (st.unlocked) {
                     Text("✓ EARNED", style = MaterialTheme.typography.labelMedium,
-                        color = EarnedGreen, fontWeight = FontWeight.Bold)
+                        color = SuccessGreen, fontWeight = FontWeight.Bold)
                 }
                 Text(st.def.rarity.name, style = MaterialTheme.typography.labelMedium, color = color,
                     fontWeight = FontWeight.Bold)
-                Text("+${st.def.rarity.xp}", style = MaterialTheme.typography.labelMedium, color = TextDim)
+                Caption("+${st.def.rarity.xp}")
             }
         }
     }

@@ -19,7 +19,12 @@ data class WorkoutDayEntity(
     val calfRaises: Int = 0,
     val curls: Int = 0,
     val miles: Double = 0.0,
-    val caloriesConsumed: Int = 0,
+    /** Calories eaten this day. -1 = not logged (the last logged value is carried forward at
+     *  read time); 0 = a deliberate zero-intake (fasting) day. See Progression.carryForward. */
+    val caloriesConsumed: Int = -1,
+    /** Body weight (kg) recorded on this day. 0 = no weigh-in (the last known weight is carried
+     *  forward at read time). Weigh-ins are occasional — not required daily. */
+    val weightKg: Double = 0.0,
     val isRestDay: Boolean = false,
     val notes: String = "",
     /** 0 = unset, 1 (drained) .. 5 (unstoppable). Journaling only — never affects XP. */
@@ -54,6 +59,7 @@ data class WorkoutDayEntity(
         curls = curls,
         miles = miles,
         caloriesConsumed = caloriesConsumed,
+        weightKg = weightKg,
         isRestDay = isRestDay,
         notes = notes,
         mood = mood,
@@ -114,8 +120,8 @@ data class WorkoutDayEntity(
         private const val ONEOFF_UNIT = ''   // between a one-off's name and its kcal
         private const val ONEOFF_RECORD = '' // between one-off entries
 
-        // Record layout: name <US> kcal <US> distanceMi <US> reps. Older rows wrote only
-        // name<US>kcal — decode tolerates the missing fields so existing logs still resolve.
+        // Record layout: name <US> kcal <US> distanceMi <US> reps <US> activityId. Older rows
+        // wrote fewer fields — decode tolerates the missing ones so existing logs still resolve.
         fun decodeOneOffs(encoded: String): List<OneOff> =
             if (encoded.isBlank()) emptyList() else encoded.split(ONEOFF_RECORD).mapNotNull { rec ->
                 if (rec.isBlank()) return@mapNotNull null
@@ -125,14 +131,16 @@ data class WorkoutDayEntity(
                 val kcal = parts.getOrNull(1)?.toIntOrNull() ?: 0
                 val distanceMi = parts.getOrNull(2)?.toDoubleOrNull() ?: 0.0
                 val reps = parts.getOrNull(3)?.toIntOrNull() ?: 0
-                OneOff(name, kcal, distanceMi, reps)
+                val activityId = parts.getOrNull(4)?.trim().orEmpty()
+                OneOff(name, kcal, distanceMi, reps, activityId)
             }
 
         fun encodeOneOffs(list: List<OneOff>): String =
             list.filter { it.name.isNotBlank() }.joinToString(ONEOFF_RECORD.toString()) { o ->
                 // Strip delimiter chars from the name so the encoding stays unambiguous.
                 val safe = o.name.replace(ONEOFF_UNIT, ' ').replace(ONEOFF_RECORD, ' ').trim()
-                "$safe$ONEOFF_UNIT${o.kcal}$ONEOFF_UNIT${o.distanceMi}$ONEOFF_UNIT${o.reps}"
+                "$safe$ONEOFF_UNIT${o.kcal}$ONEOFF_UNIT${o.distanceMi}$ONEOFF_UNIT${o.reps}" +
+                    "$ONEOFF_UNIT${o.activityId}"
             }
     }
 }

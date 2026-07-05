@@ -241,6 +241,21 @@ Output: `app/build/outputs/bundle/release/app-release.aab`.
   `versionCode` — same rule as sideloads, see §6).
 - Always sign updates with the **same upload key** from step B.
 
+### G. Health Connect requirements (this app specifically)
+Because the app requests `READ_STEPS` + `READ_ACTIVE_CALORIES_BURNED`, Play treats it as a
+**health app** — these are hard gates on review, so do them early:
+1. **Privacy policy URL** (required even though the app is offline). A ready-to-host policy
+   lives at `docs/privacy-policy.html` — put it on your site (e.g.
+   `https://www.michaelghurston.com/ascendant/privacy.html`) and paste the URL in Play
+   Console → **App content → Privacy policy**.
+2. **Health apps declaration**: Play Console → **App content → Health apps** — declare
+   Health Connect usage (read-only steps + active calories, used for in-app fitness
+   progress, no sharing). This is a separate form from data safety and needs approval.
+3. **Data safety form**: declare *no data collected, no data shared* (all storage is
+   on-device; Health Connect data never leaves the device) — matching the privacy policy.
+4. The manifest already carries the required permission-rationale intent filters
+   (`SHOW_PERMISSIONS_RATIONALE` + `VIEW_PERMISSION_USAGE`) — don't remove them.
+
 > Reality check: for a single user this is overkill — the $25 account, store listing,
 > content rating, and review wait buy you nothing over sideloading. Recommended only if you
 > genuinely want public distribution.

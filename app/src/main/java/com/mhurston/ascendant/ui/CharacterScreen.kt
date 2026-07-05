@@ -58,6 +58,8 @@ import kotlin.math.roundToInt
 fun CharacterScreen(
     state: UiState,
     onImportJson: (String, (Boolean, String) -> Unit) -> Unit = { _, _ -> },
+    /** Builds the full backup JSON (days + profile + settings) — see AppViewModel.buildBackupJson. */
+    onExportJson: () -> String = { "" },
     avatar: com.mhurston.ascendant.domain.Avatar = com.mhurston.ascendant.domain.Avatar.MALE,
     onSetAvatar: (com.mhurston.ascendant.domain.Avatar) -> Unit = {},
     modifier: Modifier = Modifier
@@ -94,7 +96,7 @@ fun CharacterScreen(
             StatusRings(state, modifier = Modifier.weight(1.05f))
         }
         Spacer(Modifier.height(12.dp))
-        Text("Choose your character", style = MaterialTheme.typography.labelMedium, color = TextDim)
+        Caption("Choose your character")
         Spacer(Modifier.height(6.dp))
         Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(6.dp)) {
             com.mhurston.ascendant.domain.Avatar.entries.forEach { a ->
@@ -122,9 +124,12 @@ fun CharacterScreen(
                         // Tap to see the full rank/title ladder — not documented anywhere else.
                         Text("ⓘ", style = MaterialTheme.typography.titleLarge, color = ManaPurple)
                     }
-                    Text("${c.totalXp} XP" +
-                        if (c.idlePenaltyXp > 0) "  (−${c.idlePenaltyXp} idle)" else "",
-                        style = MaterialTheme.typography.labelMedium, color = TextDim)
+                    Caption("${c.totalXp} XP" +
+                        if (c.idlePenaltyXp > 0) "  (−${c.idlePenaltyXp} idle)" else "")
+                    // Bonus XP is real: quests + trophies pay into the total above.
+                    if (c.questBonusXp > 0 || c.achievementBonusXp > 0) {
+                        Caption("incl. +${c.questBonusXp} quests · +${c.achievementBonusXp} trophies", color = XpGold)
+                    }
                 }
                 RankBadge(c.rank, c.level)
             }
@@ -132,11 +137,14 @@ fun CharacterScreen(
 
         Spacer(Modifier.height(20.dp))
         SectionHeader("Attributes")
-        LabeledBar("STRENGTH", s.strength, statBarMax(s.strength), ManaPurple)
-        LabeledBar("ENDURANCE", s.endurance, statBarMax(s.endurance), AuraCyan)
-        LabeledBar("AGILITY", s.agility, statBarMax(s.agility), XpGold)
+        // One distinct color per stat (Style Guide §2.2) so bars are tellable at a glance.
+        LabeledBar("STRENGTH", s.strength, statBarMax(s.strength),
+            com.mhurston.ascendant.ui.theme.CrimsonRed)
+        LabeledBar("ENDURANCE", s.endurance, statBarMax(s.endurance),
+            com.mhurston.ascendant.ui.theme.SuccessGreen)
+        LabeledBar("AGILITY", s.agility, statBarMax(s.agility), AuraCyan)
         LabeledBar("DISCIPLINE", s.discipline, statBarMax(s.discipline), ManaPurple)
-        LabeledBar("CONSISTENCY", s.consistency, statBarMax(s.consistency), AuraCyan)
+        LabeledBar("CONSISTENCY", s.consistency, statBarMax(s.consistency), XpGold)
 
         Spacer(Modifier.height(20.dp))
         SectionHeader("Records")
@@ -152,7 +160,7 @@ fun CharacterScreen(
         AboutSection()
 
         Spacer(Modifier.height(20.dp))
-        ExportSection(state, onImportJson)
+        ExportSection(state, onImportJson, onExportJson)
         Spacer(Modifier.height(24.dp))
     }
 }
@@ -169,8 +177,7 @@ private fun RankTiersDialog(currentLevel: Int, onDismiss: () -> Unit) {
         title = { Text("Rank & title tiers") },
         text = {
             Column(Modifier.verticalScroll(rememberScrollState())) {
-                Text("Level up by earning XP (1 calorie = 1 XP). Each tier unlocks a new rank and title:",
-                    style = MaterialTheme.typography.labelMedium, color = TextDim)
+                Caption("Level up by earning XP (1 calorie = 1 XP). Each tier unlocks a new rank and title:")
                 Spacer(Modifier.height(12.dp))
                 tierLevels.forEach { lvl ->
                     val rank = Progression.rankForLevel(lvl)
@@ -217,7 +224,8 @@ private fun StatusRings(state: UiState, modifier: Modifier = Modifier) {
             completion = state.todayDerived.completion,
             label = "✓ Goals",
             centerLabel = "$completionPct%",
-            centerSub = "+${state.todayDerived.xp} XP",
+            centerSub = (if (state.todayDerived.xp < 0) "${state.todayDerived.xp}"
+                else "+${state.todayDerived.xp}") + " XP",
             color = AuraCyan
         )
         RingStat(
@@ -232,8 +240,9 @@ private fun StatusRings(state: UiState, modifier: Modifier = Modifier) {
             RingStat(
                 completion = if (goal > 0) steps.toDouble() / goal else 0.0,
                 label = "👟 Steps",
-                centerLabel = if (steps >= 1000) "%.1fk".format(steps / 1000.0) else "$steps",
-                centerSub = "≈%.1f mi".format(state.today.trackedMiles),
+                centerLabel = if (steps >= 1000)
+                    "%.1fk".format(java.util.Locale.US, steps / 1000.0) else "$steps",
+                centerSub = "≈%.1f mi".format(java.util.Locale.US, state.today.trackedMiles),
                 color = AuraCyan
             )
         }
@@ -286,9 +295,8 @@ private fun AboutSection() {
     }
 
     SectionHeader("About")
-    Text("ASCENDANT turns your daily workouts into an anime RPG — every rep and mile " +
-        "becomes XP, levels, and ranks built from your real training.",
-        style = MaterialTheme.typography.labelMedium, color = TextDim)
+    Caption("ASCENDANT turns your daily workouts into an anime RPG — every rep and mile " +
+        "becomes XP, levels, and ranks built from your real training.")
     Spacer(Modifier.height(10.dp))
     Button(
         onClick = { open("https://www.michaelghurston.com") },
@@ -304,7 +312,11 @@ private fun AboutSection() {
 }
 
 @Composable
-private fun ExportSection(state: UiState, onImportJson: (String, (Boolean, String) -> Unit) -> Unit) {
+private fun ExportSection(
+    state: UiState,
+    onImportJson: (String, (Boolean, String) -> Unit) -> Unit,
+    onExportJson: () -> String
+) {
     val context = LocalContext.current
     val importLauncher = rememberLauncherForActivityResult(
         ActivityResultContracts.OpenDocument()
@@ -336,15 +348,13 @@ private fun ExportSection(state: UiState, onImportJson: (String, (Boolean, Strin
     ) { uri ->
         uri?.let {
             context.contentResolver.openOutputStream(it)?.use { os ->
-                val now = java.time.LocalDateTime.now().toString()
-                os.write(Exporter.toJson(state.days, state.profile, now).toByteArray())
+                os.write(onExportJson().toByteArray())
             }
         }
     }
 
     SectionHeader("Backup & Export")
-    Text("Your data is yours — export anytime. CSV matches the original spreadsheet columns.",
-        style = MaterialTheme.typography.labelMedium, color = TextDim)
+    Caption("Your data is yours — export anytime. CSV matches the original spreadsheet columns.")
     Spacer(Modifier.height(8.dp))
     Button(
         onClick = { csvLauncher.launch("ascendant_export.csv") },
@@ -418,7 +428,7 @@ private fun RankPortrait(portrait: Int, rank: com.mhurston.ascendant.domain.Rank
                 .align(Alignment.TopStart)
                 .padding(12.dp)
                 .clip(RoundedCornerShape(10.dp))
-                .background(androidx.compose.ui.graphics.Color(0xCC0E0E16))
+                .background(com.mhurston.ascendant.ui.theme.ScrimDark)
                 .border(1.dp, aura, RoundedCornerShape(10.dp))
                 .padding(horizontal = 12.dp, vertical = 4.dp)
         ) {
@@ -435,7 +445,7 @@ private fun RankPortrait(portrait: Int, rank: com.mhurston.ascendant.domain.Rank
                 .align(Alignment.BottomCenter)
                 .padding(bottom = 12.dp)
                 .clip(RoundedCornerShape(8.dp))
-                .background(androidx.compose.ui.graphics.Color(0xCC0E0E16))
+                .background(com.mhurston.ascendant.ui.theme.ScrimDark)
                 .padding(horizontal = 12.dp, vertical = 4.dp)
         ) {
             Text(
@@ -463,7 +473,7 @@ private fun InfoRow(label: String, value: String) {
         Modifier.fillMaxWidth().padding(vertical = 4.dp),
         horizontalArrangement = Arrangement.SpaceBetween
     ) {
-        Text(label, style = MaterialTheme.typography.bodyLarge, color = TextDim)
+        BodyText(label, color = TextDim)
         Text(value, style = MaterialTheme.typography.bodyLarge, fontWeight = FontWeight.Bold)
     }
 }

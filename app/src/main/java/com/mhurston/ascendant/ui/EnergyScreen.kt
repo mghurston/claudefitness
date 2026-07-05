@@ -49,6 +49,7 @@ fun EnergyScreen(
     state: UiState,
     onSaveProfile: (Profile) -> Unit,
     onSetConsumed: (Int) -> Unit,
+    onSetWeightToday: (Double) -> Unit = {},
     onResetGoalStart: (Double) -> Unit,
     unitSystem: UnitSystem = UnitSystem.IMPERIAL,
     onSetUnit: (UnitSystem) -> Unit = {},
@@ -78,7 +79,12 @@ fun EnergyScreen(
     val (ft0, in0) = Units.cmToFeetInches(p.heightCm)
     var feetStr by remember(p, unitSystem) { mutableStateOf(ft0.toString()) }
     var inchStr by remember(p, unitSystem) { mutableStateOf(in0.toString()) }
-    var consumed by remember(state.today.date) { mutableStateOf(state.today.caloriesConsumed.toString()) }
+    // Pre-fill with today's carried-forward intake (inherited from the last logged day) so a new
+    // day starts from yesterday's number instead of blank — edit it unless it's already right.
+    // -1 = nothing logged anywhere yet → blank. An explicit 0 is a fasting day and shows as "0".
+    var consumed by remember(state.today.date) {
+        mutableStateOf(if (state.todayConsumed >= 0) state.todayConsumed.toString() else "")
+    }
 
     // Convert the display fields back to canonical metric for storage + calorie math.
     val weightKg = if (imperial) Units.lbsToKg(weightStr.toDoubleOrNull() ?: 0.0) else (weightStr.toDoubleOrNull() ?: 0.0)
@@ -96,7 +102,11 @@ fun EnergyScreen(
         goalWeightKg = goalKg,
         startWeightKg = p.startWeightKg
     )
-    val est = Calories.estimate(liveProfile, state.today.toDayData(), consumed.toIntOrNull() ?: 0)
+    // Preview uses the weight currently typed in the form (liveProfile), so clear today's stamped
+    // per-day weight — otherwise the estimate would ignore edits until Save re-stamps it.
+    val est = Calories.estimate(
+        liveProfile, state.today.toDayData().copy(weightKg = 0.0), consumed.toIntOrNull() ?: 0
+    )
 
     Column(
         modifier.fillMaxSize().verticalScroll(rememberScrollState()).padding(20.dp)
@@ -131,13 +141,17 @@ fun EnergyScreen(
             NumField("Weight (kg)", weightStr) { weightStr = it }
             NumField("Goal weight (kg)", goalStr) { goalStr = it }
         }
-        NumField("Calories consumed today", consumed) { consumed = it }
+        NumField("Calories consumed today (0 = fasted)", consumed) { consumed = it }
 
         Spacer(Modifier.height(12.dp))
         Button(
             onClick = {
                 onSaveProfile(liveProfile)
-                onSetConsumed(consumed.toIntOrNull() ?: 0)
+                // Blank = not logged (-1 sentinel, carries forward); a typed 0 = fasted.
+                onSetConsumed(consumed.toIntOrNull() ?: -1)
+                // Stamp today's weigh-in too, so this weight is anchored to today and later
+                // weight changes don't retroactively rewrite past days' energy math.
+                if (weightKg > 0.0) onSetWeightToday(weightKg)
             },
             modifier = Modifier.fillMaxWidth(),
             colors = ButtonDefaults.buttonColors(containerColor = ManaPurple)
@@ -169,11 +183,8 @@ fun EnergyScreen(
             }
         }
         Spacer(Modifier.height(12.dp))
-        Text(
-            "Estimates only. BMR via Mifflin–St Jeor; walking burn scales with your " +
-                "body weight and miles. Activity is pulled from what you logged today.",
-            style = MaterialTheme.typography.labelMedium, color = TextDim
-        )
+        Caption("Estimates only. BMR via Mifflin–St Jeor; walking burn scales with your " +
+                "body weight and miles. Activity is pulled from what you logged today.")
 
         Spacer(Modifier.height(20.dp))
         HealthConnectCard(
@@ -217,15 +228,12 @@ private fun HealthConnectCard(
                 verticalAlignment = Alignment.CenterVertically) {
                 Column(Modifier.weight(1f)) {
                     SectionHeader("Sync steps & activity")
-                    Text(
-                        if (available)
+                    Caption(if (available)
                             "Reads steps & active calories your phone (and any watch) already " +
                                 "track via Health Connect, and earns full XP — no manual logging."
                         else
                             "Health Connect isn't available on this device, so passive tracking " +
-                                "is off. Logged workouts still work normally.",
-                        style = MaterialTheme.typography.labelMedium, color = TextDim
-                    )
+                                "is off. Logged workouts still work normally.")
                 }
                 Switch(
                     enabled = available,
@@ -284,9 +292,8 @@ private fun ReminderCard(enabled: Boolean, onSet: (Boolean) -> Unit) {
                 verticalAlignment = Alignment.CenterVertically) {
                 Column(Modifier.weight(1f)) {
                     SectionHeader("Daily reminder")
-                    Text("Fires at UTC midnight (≈5 PM Pacific) — stronger on Wed/Fri/Sat. " +
-                        "Local only, no internet.",
-                        style = MaterialTheme.typography.labelMedium, color = TextDim)
+                    Caption("Fires at UTC midnight (≈5 PM Pacific) — stronger on Wed/Fri/Sat. " +
+                        "Local only, no internet.")
                 }
                 Switch(
                     checked = enabled,
@@ -324,10 +331,10 @@ private fun WeightGoalCard(p: Profile, imperial: Boolean, onResetGoalStart: (Dou
             ProgressTrack(fraction = p.goalProgress, color = XpGold, height = 14.dp)
             Spacer(Modifier.height(10.dp))
             Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
-                Text("start ${disp(p.startWeightKg)}", style = MaterialTheme.typography.labelMedium, color = TextDim)
+                Caption("start ${disp(p.startWeightKg)}")
                 Text("now ${disp(p.weightKg)} $unit", style = MaterialTheme.typography.labelMedium,
                     color = AuraCyan, fontWeight = FontWeight.Bold)
-                Text("goal ${disp(p.goalWeightKg)}", style = MaterialTheme.typography.labelMedium, color = TextDim)
+                Caption("goal ${disp(p.goalWeightKg)}")
             }
             Spacer(Modifier.height(10.dp))
             val msg = when {
@@ -375,7 +382,7 @@ private fun Stat(label: String, value: String, color: Color) {
         horizontalArrangement = Arrangement.SpaceBetween,
         verticalAlignment = Alignment.CenterVertically
     ) {
-        Text(label, style = MaterialTheme.typography.bodyLarge)
+        BodyText(label)
         Text(value, color = color, fontWeight = FontWeight.Bold, style = MaterialTheme.typography.bodyLarge)
     }
 }

@@ -87,8 +87,7 @@ fun VideoDialog(
         },
         text = {
             Column {
-                Text("Opens on YouTube. Tap ★ to favorite, or add your own link below.",
-                    style = MaterialTheme.typography.labelMedium, color = TextDim)
+                Caption("Opens on YouTube. Tap ★ to favorite, or add your own link below.")
                 Spacer(Modifier.height(8.dp))
                 OutlinedButton(
                     onClick = { videos.randomOrNull()?.let { open(it.url) } },
@@ -111,8 +110,7 @@ fun VideoDialog(
                             Column(Modifier.weight(1f).clickable { open(v.url) }) {
                                 Text("▶ " + v.title, color = AuraCyan,
                                     style = MaterialTheme.typography.bodyLarge)
-                                if (v.userAdded) Text("your link",
-                                    style = MaterialTheme.typography.labelMedium, color = TextDim)
+                                if (v.userAdded) Caption("your link")
                             }
                         }
                     }

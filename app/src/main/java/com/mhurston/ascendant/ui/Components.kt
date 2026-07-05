@@ -38,7 +38,9 @@ import com.mhurston.ascendant.domain.Rank
 import com.mhurston.ascendant.ui.theme.AuraCyan
 import com.mhurston.ascendant.ui.theme.DangerRed
 import com.mhurston.ascendant.ui.theme.ManaPurple
+import com.mhurston.ascendant.ui.theme.PanelAlt
 import com.mhurston.ascendant.ui.theme.TextDim
+import com.mhurston.ascendant.ui.theme.TrackDark
 import com.mhurston.ascendant.ui.theme.XpGold
 import kotlin.math.max
 
@@ -105,7 +107,7 @@ fun JournalSection(
     modifier: Modifier = Modifier
 ) {
     Column(modifier.fillMaxWidth()) {
-        Text("How did it feel?", style = MaterialTheme.typography.labelMedium, color = TextDim)
+        Caption("How did it feel?")
         Spacer(Modifier.height(6.dp))
         Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
             for (i in 1..5) {
@@ -114,7 +116,7 @@ fun JournalSection(
                     Modifier
                         .weight(1f)
                         .clip(RoundedCornerShape(10.dp))
-                        .background(if (selected) AuraCyan.copy(alpha = 0.20f) else Color(0xFF1B1B2A))
+                        .background(if (selected) AuraCyan.copy(alpha = 0.20f) else PanelAlt)
                         .border(
                             1.dp,
                             if (selected) AuraCyan else Color.Transparent,
@@ -130,7 +132,7 @@ fun JournalSection(
         }
         if (mood in 1..5) {
             Spacer(Modifier.height(4.dp))
-            Text(MOOD_LABEL[mood - 1], style = MaterialTheme.typography.labelMedium, color = AuraCyan)
+            Caption(MOOD_LABEL[mood - 1], color = AuraCyan)
         }
         Spacer(Modifier.height(10.dp))
         var text by remember(dateKey) { mutableStateOf(notes) }
@@ -174,7 +176,7 @@ fun ProgressTrack(fraction: Float, color: Color, height: Dp = 10.dp) {
             .fillMaxWidth()
             .height(height)
             .clip(RoundedCornerShape(50))
-            .background(Color(0xFF22223A))
+            .background(TrackDark)
     ) {
         Box(
             Modifier
@@ -193,7 +195,7 @@ fun XpBar(into: Long, forNext: Long, level: Int) {
         Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
             Text("LV $level", style = MaterialTheme.typography.labelMedium, color = XpGold,
                 fontWeight = FontWeight.Bold)
-            Text("$into / $forNext XP", style = MaterialTheme.typography.labelMedium, color = TextDim)
+            Caption("$into / $forNext XP")
         }
         ProgressTrack(fraction = frac, color = XpGold, height = 12.dp)
     }
@@ -217,7 +219,7 @@ fun CompletionRing(
             val topLeft = Offset(inset, inset)
             // Track
             drawArc(
-                color = Color(0xFF22223A),
+                color = TrackDark,
                 startAngle = -90f,
                 sweepAngle = 360f,
                 useCenter = false,
@@ -238,7 +240,7 @@ fun CompletionRing(
         }
         Column(horizontalAlignment = Alignment.CenterHorizontally) {
             Text(centerLabel, style = MaterialTheme.typography.headlineMedium, color = centerColor)
-            Text(centerSub, style = MaterialTheme.typography.labelMedium, color = TextDim)
+            Caption(centerSub)
         }
     }
 }
@@ -262,7 +264,7 @@ fun RankBadge(rank: Rank, level: Int) {
             .padding(horizontal = 14.dp, vertical = 8.dp)
     ) {
         Column(horizontalAlignment = Alignment.CenterHorizontally) {
-            Text("RANK", style = MaterialTheme.typography.labelMedium, color = TextDim)
+            Caption("RANK")
             Text(rank.label, color = color, fontWeight = FontWeight.Black,
                 fontFamily = com.mhurston.ascendant.ui.theme.Orbitron,
                 style = MaterialTheme.typography.titleLarge)

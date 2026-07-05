@@ -25,10 +25,33 @@ object Quests {
     // toward (reps, miles, pinned customs, one-offs, and bike/swim cardio all burn calories).
     // Targets are personalized from the profile (see Calories.dailyBurnTarget).
 
+    /** Extra XP for clearing every daily quest in one day (the "ALL CLEAR" banner). */
+    const val ALL_CLEAR_BONUS_XP = 100
+
     fun generate(today: LocalDate, todayDay: DayData, allDays: List<DayData>, profile: Profile): List<Quest> {
         val daily = dailyQuests(today, todayDay, profile)
         val weekly = weeklyQuests(today, allDays, profile)
         return daily + weekly
+    }
+
+    /**
+     * Total quest XP the log has earned, replayed with the exact same quest definitions the
+     * UI shows (so a quest marked done on screen is always paid). Daily quests are evaluated
+     * per day (boss-day pay included) plus the all-clear bonus; weekly quests once per
+     * distinct Sun–Sat week. Pure function — recomputed on every rebuild, never stored.
+     */
+    fun earnedXp(allDays: List<DayData>, profile: Profile): Long {
+        var xp = 0L
+        for (d in allDays) {
+            val quests = dailyQuests(d.date, d, profile)
+            xp += quests.filter { it.done }.sumOf { it.xpReward.toLong() }
+            if (quests.isNotEmpty() && quests.all { it.done }) xp += ALL_CLEAR_BONUS_XP
+        }
+        for (start in allDays.map { weekStart(it.date) }.distinct()) {
+            xp += weeklyQuests(start, allDays, profile)
+                .filter { it.done }.sumOf { it.xpReward.toLong() }
+        }
+        return xp
     }
 
     private fun dailyQuests(today: LocalDate, d: DayData, profile: Profile): List<Quest> {
@@ -48,7 +71,7 @@ object Quests {
             Quest("d_burn", "Burn $burnTarget active calories",
                 "Everything counts — reps, miles, cardio, extras.", burn, burnTarget, 120, Cadence.DAILY),
             Quest("d_pushups", "Complete 100 push-ups",
-                "The lift you skip most.", d.pushups, 100, 100, Cadence.DAILY),
+                "The cornerstone lift — chest to floor.", d.pushups, 100, 100, Cadence.DAILY),
             Quest("d_safety", "Do 20 reps of anything",
                 "Bare minimum keeps the streak alive.", anyReps, 20, 50, Cadence.DAILY),
             Quest("d_walk", "Walk 4 miles", "Bonus cardio — tracked steps + treadmill.",
@@ -65,13 +88,13 @@ object Quests {
         val bestStreakThisWeek = currentStreakWithinWeek(week, today)
         return listOf(
             Quest("w_strength5", "Train strength 5 of 7 days",
-                "Beat your average active rate.", strengthDays, 5, 400, Cadence.WEEKLY),
+                "Show up for strength five days this week.", strengthDays, 5, 400, Cadence.WEEKLY),
             Quest("w_burn", "Burn $weekTarget calories this week",
                 "Every active minute adds up.", weekBurn, weekTarget, 450, Cadence.WEEKLY),
             Quest("w_miles25", "Walk 25 miles this week",
-                "You average ~27.", weekMiles, 25, 400, Cadence.WEEKLY),
+                "About three and a half a day.", weekMiles, 25, 400, Cadence.WEEKLY),
             Quest("w_streak5", "Hold a 5-day strength streak",
-                "Tie then break your record.", bestStreakThisWeek, 5, 500, Cadence.WEEKLY)
+                "Five consecutive strength days.", bestStreakThisWeek, 5, 500, Cadence.WEEKLY)
         )
     }
 

@@ -17,6 +17,22 @@ Living status doc (created 2026-06-14). Tracks what's verified, what still needs
 - **Train — exercise controls** — simplified to `+10` / `−10` (walking `+0.5` / `−0.5`) plus a **free-text entry** ("Enter reps"/"Miles") + **Add** + **Reset** per exercise (core, walking, custom). Removed the `+25`/`+100`/`+50`/`+1.0` quick buttons as redundant with custom entry; also fixed the earlier overflow that rendered the 4th button as a blank/stacked "−10". Confirmed: typing `12` adds 12; number-only keyboard; field clears after Add; Reset zeroes that one exercise.
 - **Trophies — achievements** — logic was already correct (e.g. "First Blood" unlocks at `activeDays ≥ 1`); the gray COMMON star just didn't read as earned. Earned rows now show a green **✓ EARNED** badge + rarity-tinted card/ring; locked rows keep the 🔒 + progress bar.
 
+## ✅ Verified on emulator (2026-07-04, v0.1.18 hardening pass)
+
+- Full review-fix pass: quest + achievement XP now actually granted (`rebuildFull`), day-write
+  mutex (user edits vs passive sync can no longer clobber each other), fasting sentinel
+  (DB v10: −1 = unlogged, 0 = logged fast — verified live: a saved 0 sticks and shows the
+  full-BMR deficit), locale-pinned CSV/UI number formatting, backup schema 2 (custom
+  exercises, favorites, videos, unit, avatar restore), midnight day-rollover ticker,
+  reset-day preserves Health Connect steps, one-off remembers walk/run/bike, reminder skips
+  already-logged days, distinct per-stat bar colors, AppText adoption sweep.
+- Borrowed flavor terms renamed for distribution (Aura Wielder, Breath Adept,
+  National-Class, Hundred-Day Legend, Well-Rounded Warrior); quest copy made generic.
+- v9→v10 DB migration exercised in-place on the emulator (install over old data, no loss).
+- Unit suite green (Progression/Achievements/Quests/OneOff encoding + new fasting, quest-XP
+  replay, and achievement-fixpoint tests). Play prep: `docs/privacy-policy.html` +
+  RUNBOOK §7G (Health Connect declarations).
+
 ## ☐ Needs testing on the phone (not exercised on emulator)
 
 These are expected to work but were never run end-to-end on real hardware:

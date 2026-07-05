@@ -92,11 +92,19 @@ object Calories {
      *  workout completion formula or any RPG goal — purely a movement target for the ring. */
     const val PASSIVE_STEP_GOAL = 10_000
 
+    /** Body weight to use for a day's energy math: the day's own weigh-in when recorded
+     *  (already carried forward by Progression.carryForward), otherwise the profile weight. */
+    fun weightFor(p: Profile, day: DayData): Double =
+        if (day.weightKg > 0.0) day.weightKg else p.weightKg
+
     fun bmr(p: Profile): Double {
         if (p.weightKg <= 0 || p.heightCm <= 0 || p.age <= 0) return 0.0
         val base = 10 * p.weightKg + 6.25 * p.heightCm - 5 * p.age
         return if (p.sex == Sex.MALE) base + 5 else base - 161
     }
+
+    /** BMR for a specific day, using that day's body weight (see [weightFor]). */
+    fun bmrFor(p: Profile, day: DayData): Double = bmr(p.copy(weightKg = weightFor(p, day)))
 
     /** Total gross activity calories for the day, all scaled by the entered body weight:
      *  walking (treadmill/manual miles) + strength (core lifts + pinned customs) + time cardio
@@ -104,12 +112,13 @@ object Calories {
      *  number drives both the Energy screen's "activity" line and the burn-based XP engine, so
      *  they always agree. */
     fun activityBurn(p: Profile, day: DayData): Double {
-        if (p.weightKg <= 0) return 0.0
-        val walk = walkKcal(p.weightKg, day.miles)
-        val strength = strengthKcal(p.weightKg, day.strengthReps + day.customRepsTotal)
+        val wt = weightFor(p, day)
+        if (wt <= 0) return 0.0
+        val walk = walkKcal(wt, day.miles)
+        val strength = strengthKcal(wt, day.strengthReps + day.customRepsTotal)
         // MET-based time cardio (bike/swim): kcal/min = MET × 3.5 × kg / 200.
         val cardio = day.cardioMinutes.entries.sumOf { (id, min) ->
-            com.mhurston.ascendant.domain.CardioActivity.metFor(id) * 3.5 * p.weightKg / 200.0 *
+            com.mhurston.ascendant.domain.CardioActivity.metFor(id) * 3.5 * wt / 200.0 *
                 min.coerceAtLeast(0)
         }
         // Passive activity from Health Connect. Phone pedometers report a conservative net
@@ -117,13 +126,13 @@ object Calories {
         // step-based walking estimate — that way measured workout data is never discarded, but
         // plain walking can never read below the honest moderate-pace estimate. (max, not sum:
         // both describe the same steps, so adding would double count.)
-        val stepEstimate = walkKcal(p.weightKg, day.passiveSteps.coerceAtLeast(0) / STEPS_PER_MILE)
+        val stepEstimate = walkKcal(wt, day.passiveSteps.coerceAtLeast(0) / STEPS_PER_MILE)
         val passive = maxOf(day.passiveKcal.toDouble(), stepEstimate)
         return walk + strength + cardio + day.oneOffKcal + passive
     }
 
     fun estimate(p: Profile, day: DayData, consumed: Int): EnergyEstimate {
-        val b = bmr(p)
+        val b = bmrFor(p, day)
         val a = activityBurn(p, day)
         val total = b + a
         return EnergyEstimate(
@@ -148,10 +157,11 @@ object Calories {
     fun weeklyBurnTarget(p: Profile): Int = dailyBurnTarget(p) * 6
 
     /** Calorie deficit for a day (total burn − consumed), positive when in a deficit.
-     *  Zero when no food was logged (consumed == 0) — we can't claim a deficit we can't see. */
+     *  Zero when no food was logged (consumed == -1) — we can't claim a deficit we can't see.
+     *  An explicit 0 is a logged fasting day and earns the full deficit. */
     fun deficit(p: Profile, day: DayData): Double {
-        if (day.caloriesConsumed <= 0) return 0.0
-        val total = bmr(p) + activityBurn(p, day)
+        if (day.caloriesConsumed < 0) return 0.0
+        val total = bmrFor(p, day) + activityBurn(p, day)
         return total - day.caloriesConsumed
     }
 }

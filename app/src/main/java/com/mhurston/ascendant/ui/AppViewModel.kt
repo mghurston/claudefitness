@@ -6,7 +6,6 @@ import androidx.lifecycle.viewModelScope
 import com.mhurston.ascendant.data.Repository
 import com.mhurston.ascendant.data.WorkoutDayEntity
 import com.mhurston.ascendant.domain.AchStatus
-import com.mhurston.ascendant.domain.Achievements
 import com.mhurston.ascendant.domain.CharacterState
 import com.mhurston.ascendant.domain.CustomExercise
 import com.mhurston.ascendant.domain.DayData
@@ -16,13 +15,18 @@ import com.mhurston.ascendant.domain.Progression
 import com.mhurston.ascendant.domain.Quest
 import com.mhurston.ascendant.domain.Quests
 import com.mhurston.ascendant.domain.VideoLink
+import kotlinx.coroutines.delay
+import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.first
+import kotlinx.coroutines.flow.flow
 import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.launch
+import java.time.Duration
 import java.time.LocalDate
+import java.time.LocalDateTime
 
 enum class ExerciseKind { PUSHUPS, SQUATS, LEG_LIFTS, CALF_RAISES, CURLS }
 
@@ -31,6 +35,10 @@ data class UiState(
     val character: CharacterState,
     val today: WorkoutDayEntity,
     val todayDerived: DayDerived,
+    /** Today's calories-consumed after carry-forward — the value the Energy tab pre-fills,
+     *  inherited from the last logged day so a new day isn't blank. -1 = nothing logged yet
+     *  anywhere in the log; 0 = a fasting day. */
+    val todayConsumed: Int = -1,
     val days: List<WorkoutDayEntity> = emptyList(),
     val derivedByDate: Map<LocalDate, DayDerived> = emptyMap(),
     val profile: Profile = Profile(),
@@ -55,34 +63,52 @@ class AppViewModel(app: Application) : AndroidViewModel(app) {
         }
     }
 
+    /** Emits today's date now and again at each local midnight, so an app left open overnight
+     *  rolls the dashboard/quests to the new day without needing a DB write to trigger it.
+     *  Cold flow: WhileSubscribed also restarts it (re-reading the date) on each resubscribe. */
+    private val todayTicker: Flow<LocalDate> = flow {
+        while (true) {
+            emit(LocalDate.now())
+            val now = LocalDateTime.now()
+            val nextMidnight = now.toLocalDate().plusDays(1).atStartOfDay()
+            delay(Duration.between(now, nextMidnight).toMillis() + 1_000)
+        }
+    }
+
     val state: StateFlow<UiState> =
         combine(
             repo.days,
             repo.profile,
             repo.decayAnchor,
+            todayTicker,
             combine(repo.favoriteVideoUrls, repo.userVideos, repo.customExercises) {
                 fav, uv, custom -> Triple(fav, uv, custom)
             }
-        ) { days, profile, anchorStr, videoAndCustom ->
+        ) { days, profile, anchorStr, today, videoAndCustom ->
             val (favVideos, userVideos, customExercises) = videoAndCustom
-            val today = LocalDate.now()
             val anchor = anchorStr?.let { runCatching { LocalDate.parse(it) }.getOrNull() } ?: today
             val todayStr = today.toString()
             val todayEntity = days.firstOrNull { it.date == todayStr }
                 ?: WorkoutDayEntity(date = todayStr)
-            val dayData: List<DayData> = days.map { it.toDayData() } +
+            val rawDays: List<DayData> = days.map { it.toDayData() } +
                 if (days.any { it.date == todayStr }) emptyList() else listOf(todayEntity.toDayData())
-            val (character, derived) = Progression.rebuild(dayData, today, anchor, profile)
+            // Carry weight + intake forward so unlogged days inherit the last known values
+            // (and each day's energy math uses the body weight in effect then, not just current).
+            val dayData = Progression.carryForward(rawDays, profile.weightKg)
+            val todayData = dayData.firstOrNull { it.date == today } ?: todayEntity.toDayData()
+            // Full build = activity XP + quest XP + achievement XP (the rewards the UI shows).
+            val full = Progression.rebuildFull(dayData, today, anchor, profile)
             UiState(
                 loading = false,
-                character = character,
+                character = full.state,
                 today = todayEntity,
-                todayDerived = derived[today] ?: DayDerived(0.0, 0L),
+                todayDerived = full.derived[today] ?: DayDerived(0.0, 0L),
+                todayConsumed = todayData.caloriesConsumed,
                 days = days,
-                derivedByDate = derived,
+                derivedByDate = full.derived,
                 profile = profile,
-                achievements = Achievements.evaluate(dayData, character),
-                quests = Quests.generate(today, todayEntity.toDayData(), dayData, profile),
+                achievements = full.achievements,
+                quests = Quests.generate(today, todayData, dayData, profile),
                 favoriteVideoUrls = favVideos,
                 userVideos = userVideos,
                 customExercises = customExercises.filterNot { it.archived },
@@ -103,11 +129,10 @@ class AppViewModel(app: Application) : AndroidViewModel(app) {
         )
 
     // --- generic per-date mutation -------------------------------------------
+    // All read-modify-writes go through Repository.updateDay, which serializes them against
+    // each other AND against the passive-sync worker (see the mutex there).
     private fun mutateDay(date: String, transform: (WorkoutDayEntity) -> WorkoutDayEntity) {
-        viewModelScope.launch {
-            val cur = repo.getDay(date) ?: WorkoutDayEntity(date = date)
-            repo.saveDay(transform(cur))
-        }
+        viewModelScope.launch { repo.updateDay(date, transform) }
     }
 
     private fun applyReps(cur: WorkoutDayEntity, kind: ExerciseKind, delta: Int): WorkoutDayEntity =
@@ -139,9 +164,21 @@ class AppViewModel(app: Application) : AndroidViewModel(app) {
         )
     }
 
-    fun setConsumed(value: Int) = mutateDay(todayStr()) { cur ->
-        cur.copy(caloriesConsumed = value.coerceAtLeast(0))
+    /** Record a day's calorie intake. 0 = a deliberate fast (earns the full deficit bonus);
+     *  -1 clears the entry back to "not logged" (the carried-forward value applies again). */
+    fun setConsumedForDate(date: String, value: Int) = mutateDay(date) { cur ->
+        cur.copy(caloriesConsumed = value.coerceAtLeast(-1))
     }
+
+    fun setConsumed(value: Int) = setConsumedForDate(todayStr(), value)
+
+    /** Record a weigh-in (kg) on a day. 0 clears it (the prior weight then carries forward).
+     *  Weigh-ins are occasional — the Energy tab stamps today; the Log tab edits any past day. */
+    fun setWeightForDate(date: String, weightKg: Double) = mutateDay(date) { cur ->
+        cur.copy(weightKg = weightKg.coerceAtLeast(0.0))
+    }
+
+    fun setWeightToday(weightKg: Double) = setWeightForDate(todayStr(), weightKg)
 
     // --- journal: notes + mood (any date) ------------------------------------
     fun setNotesForDate(date: String, notes: String) =
@@ -352,6 +389,20 @@ class AppViewModel(app: Application) : AndroidViewModel(app) {
             com.mhurston.ascendant.health.PassiveSync.sync(getApplication())
         }
     }
+
+    /** Build the full JSON backup from current state — days + profile + settings (custom
+     *  exercises, video favorites/additions, unit system, avatar), so a restore on a fresh
+     *  device brings everything back, not just the day log. */
+    fun buildBackupJson(): String = com.mhurston.ascendant.data.Exporter.toJson(
+        days = state.value.days,
+        profile = state.value.profile,
+        exportedAt = java.time.LocalDateTime.now().toString(),
+        customExercises = state.value.allCustomExercises,
+        favoriteVideoUrls = state.value.favoriteVideoUrls,
+        userVideos = state.value.userVideos,
+        unitSystem = unitSystem.value,
+        avatar = avatar.value
+    )
 
     fun importBackupJson(json: String, onResult: (Boolean, String) -> Unit) {
         viewModelScope.launch {

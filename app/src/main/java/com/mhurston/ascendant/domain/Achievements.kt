@@ -72,7 +72,7 @@ object Achievements {
         AchDef("first_blood", "First Blood", "Log your very first workout.", Rarity.COMMON, 1) { it.flag(it.activeDays >= 1) },
         AchDef("awakening", "The Awakening", "Complete your first full 100% day.", Rarity.COMMON, 1) { it.flag(it.full100Days >= 1) },
         AchDef("hello_world", "Hello, World", "Log all six exercises in a single day.", Rarity.COMMON, 1) { it.flag(it.anyAllSix) },
-        AchDef("import_complete", "Import Complete", "Migrate your 30 days of history.", Rarity.UNCOMMON, 30) { it.loggedDays },
+        AchDef("import_complete", "Thirty Days on Record", "Log 30 total days of training.", Rarity.UNCOMMON, 30) { it.loggedDays },
 
         )) +
         cat("Push-ups", listOf(
@@ -127,7 +127,7 @@ object Achievements {
         AchDef("three_weeks", "Three Weeks Strong", "21-day strength streak.", Rarity.EPIC, 21) { it.state.longestStrengthStreak },
         AchDef("unbroken", "The Unbroken", "30-day strength streak.", Rarity.LEGENDARY, 30) { it.state.longestStrengthStreak },
         AchDef("fifty_resolve", "Fifty Resolve", "50-day strength streak.", Rarity.LEGENDARY, 50) { it.state.longestStrengthStreak },
-        AchDef("hundred_hunter", "Hundred-Day Hunter", "100-day strength streak.", Rarity.MYTHIC, 100) { it.state.longestStrengthStreak },
+        AchDef("hundred_hunter", "Hundred-Day Legend", "100-day strength streak.", Rarity.MYTHIC, 100) { it.state.longestStrengthStreak },
         AchDef("perfect_week", "Perfect Week", "100% completion 7 days in a row.", Rarity.EPIC, 7) { it.state.perfectStreak },
         AchDef("no_zero_days", "No Zero Days", "30 days with some activity.", Rarity.RARE, 30) { it.activeDays },
 
@@ -143,7 +143,7 @@ object Achievements {
         )) +
         cat("Levels & Ranks", listOf(
         AchDef("apprentice", "Apprentice", "Reach Level 5.", Rarity.COMMON, 5) { it.state.level },
-        AchDef("stand_user", "Stand User", "Reach Level 10.", Rarity.UNCOMMON, 10) { it.state.level },
+        AchDef("stand_user", "Aura Wielder", "Reach Level 10.", Rarity.UNCOMMON, 10) { it.state.level },
         AchDef("rank_c", "Rank Up: C", "Reach Rank C.", Rarity.UNCOMMON, 1) { it.flag(rankAtLeast(it.state, Rank.C)) },
         AchDef("rank_b", "Rank Up: B", "Reach Rank B (Lv 20).", Rarity.RARE, 1) { it.flag(rankAtLeast(it.state, Rank.B)) },
         AchDef("rank_a", "Rank Up: A", "Reach Rank A (Lv 35).", Rarity.EPIC, 1) { it.flag(rankAtLeast(it.state, Rank.A)) },
@@ -170,7 +170,7 @@ object Achievements {
             val s = it.state.stats
             it.flag(minOf(s.strength, s.endurance, s.agility, s.discipline, s.consistency) >= 15)
         },
-        AchDef("well_rounded", "Well-Rounded Hunter", "All five stats ≥ 25.", Rarity.LEGENDARY, 1) {
+        AchDef("well_rounded", "Well-Rounded Warrior", "All five stats ≥ 25.", Rarity.LEGENDARY, 1) {
             val s = it.state.stats
             it.flag(minOf(s.strength, s.endurance, s.agility, s.discipline, s.consistency) >= 25)
         },
