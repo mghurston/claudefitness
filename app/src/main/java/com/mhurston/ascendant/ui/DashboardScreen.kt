@@ -343,14 +343,14 @@ private fun ExerciseRow(name: String, current: Int, onVideos: () -> Unit, onAdd:
                 Row {
                     if (over > 0) Text("OVERDRIVE +$over  ", color = XpGold,
                         style = MaterialTheme.typography.labelMedium, fontWeight = FontWeight.Bold)
-                    Text("$current / $target", color = if (current >= target) AuraCyan else TextDim,
+                    Text("$current / $target", color = if (current >= target) XpGold else TextDim,
                         fontWeight = FontWeight.Bold)
                 }
             }
             Spacer(Modifier.height(6.dp))
             ProgressTrack(
                 fraction = (current.toFloat() / target).coerceIn(0f, 1f),
-                color = if (over > 0) XpGold else ManaPurple
+                color = if (current >= target) XpGold else ManaPurple
             )
             Spacer(Modifier.height(8.dp))
             RepControls(current = current, onAdd = onAdd)
@@ -385,7 +385,7 @@ private fun VariantGoalSection(
                 Row {
                     if (over > 0) Text("OVERDRIVE +$over  ", color = XpGold,
                         style = MaterialTheme.typography.labelMedium, fontWeight = FontWeight.Bold)
-                    Text("$total / $target", color = if (total >= target) AuraCyan else TextDim,
+                    Text("$total / $target", color = if (total >= target) XpGold else TextDim,
                         fontWeight = FontWeight.Bold)
                 }
             }
@@ -393,7 +393,7 @@ private fun VariantGoalSection(
             Spacer(Modifier.height(6.dp))
             ProgressTrack(
                 fraction = (total.toFloat() / target).coerceIn(0f, 1f),
-                color = if (over > 0) XpGold else ManaPurple
+                color = if (total >= target) XpGold else ManaPurple
             )
             variants.forEach { (id, label) ->
                 val reps = breakdown[id] ?: 0
@@ -494,14 +494,14 @@ private fun WalkingRow(
                         color = XpGold,
                         style = MaterialTheme.typography.labelMedium, fontWeight = FontWeight.Bold)
                     Text("${"%.1f".format(java.util.Locale.US, total)} / 5.0 mi",
-                        color = if (total >= Progression.MILE_TARGET) AuraCyan else TextDim,
+                        color = if (total >= Progression.MILE_TARGET) XpGold else TextDim,
                         fontWeight = FontWeight.Bold)
                 }
             }
             Spacer(Modifier.height(6.dp))
             ProgressTrack(
                 fraction = (total / Progression.MILE_TARGET).coerceIn(0.0, 1.0).toFloat(),
-                color = if (over > 0) XpGold else AuraCyan
+                color = if (total >= Progression.MILE_TARGET) XpGold else AuraCyan
             )
 
             // Breakdown: tracked (steps) appears once anything has synced.

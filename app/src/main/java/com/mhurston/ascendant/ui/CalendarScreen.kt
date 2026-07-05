@@ -236,9 +236,10 @@ private fun DayCell(
     }
 }
 
+// Gold is the top tier (100% = the reward color); cyan marks a strong 60%+ day.
 private fun completionColor(c: Double): Color = when {
-    c >= 1.0 -> AuraCyan
-    c >= 0.6 -> XpGold
+    c >= 1.0 -> XpGold
+    c >= 0.6 -> AuraCyan
     c > 0.0 -> ManaPurple.copy(alpha = 0.55f)
     else -> com.mhurston.ascendant.ui.theme.TrackDark
 }
