@@ -3,8 +3,10 @@ package com.mhurston.ascendant.domain
 import java.time.DayOfWeek
 import java.time.temporal.ChronoUnit
 
-enum class Rarity(val xp: Int) {
-    COMMON(100), UNCOMMON(250), RARE(500), EPIC(1000), LEGENDARY(2500), MYTHIC(5000)
+/** Display-only prestige tier (badge color/glow). Achievements pay NO XP
+ *  (docs/XP Simplification Spec.md) — XP comes from calories alone. */
+enum class Rarity {
+    COMMON, UNCOMMON, RARE, EPIC, LEGENDARY, MYTHIC
 }
 
 /**
@@ -282,7 +284,4 @@ object Achievements {
             else st
         }
     }
-
-    fun unlockedXp(statuses: List<AchStatus>): Long =
-        statuses.filter { it.unlocked }.sumOf { it.def.rarity.xp.toLong() }
 }

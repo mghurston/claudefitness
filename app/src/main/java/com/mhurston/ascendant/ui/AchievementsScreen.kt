@@ -52,7 +52,6 @@ fun rarityColor(r: Rarity): Color = when (r) {
 fun AchievementsScreen(state: UiState, modifier: Modifier = Modifier) {
     val achievements = state.achievements
     val unlocked = achievements.count { it.unlocked }
-    val bonusXp = com.mhurston.ascendant.domain.Achievements.unlockedXp(achievements)
 
     // Group by category, ordered by the domain's display order (unknowns appended).
     val byCat = achievements.groupBy { it.def.category }
@@ -66,7 +65,7 @@ fun AchievementsScreen(state: UiState, modifier: Modifier = Modifier) {
     Column(modifier.fillMaxSize().padding(horizontal = 20.dp)) {
         Spacer(Modifier.height(20.dp))
         ScreenTitle("Achievements")
-        ScreenSubtitle("$unlocked / ${achievements.size} unlocked · +$bonusXp bonus XP earned")
+        ScreenSubtitle("$unlocked / ${achievements.size} unlocked")
         Spacer(Modifier.height(12.dp))
         LazyColumn {
             cats.forEach { cat ->
@@ -173,7 +172,6 @@ private fun AchievementRow(st: AchStatus) {
                 }
                 Text(st.def.rarity.name, style = MaterialTheme.typography.labelMedium, color = color,
                     fontWeight = FontWeight.Bold)
-                Caption("+${st.def.rarity.xp}")
             }
         }
     }

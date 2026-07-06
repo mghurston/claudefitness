@@ -253,12 +253,10 @@ private fun QuestSection(state: UiState) {
 
     CollapsibleSection(
         title = "Daily Quests",
-        summary = if (allDailyClear)
-            "ALL CLEAR ✓ +${com.mhurston.ascendant.domain.Quests.ALL_CLEAR_BONUS_XP} XP"
-        else "$dailyDone / ${daily.size}",
+        summary = if (allDailyClear) "ALL CLEAR ✓" else "$dailyDone / ${daily.size}",
         defaultExpanded = false
     ) {
-        Caption("Bonus goals layered on today's training — hit them for extra XP.")
+        Caption("Goals layered on today's training. XP comes from calories — these are badges.")
         Spacer(Modifier.height(6.dp))
         daily.forEach { QuestRow(it) }
     }
@@ -282,8 +280,8 @@ private fun QuestRow(q: com.mhurston.ascendant.domain.Quest) {
                 Text((if (q.done) "✓ " else "") + q.title,
                     style = MaterialTheme.typography.bodyLarge,
                     color = if (q.done) XpGold else MaterialTheme.colorScheme.onSurface)
-                Text("+${q.xpReward}", style = MaterialTheme.typography.labelMedium,
-                    color = if (q.done) XpGold else TextDim, fontWeight = FontWeight.Bold)
+                if (q.done) Text("DONE", style = MaterialTheme.typography.labelMedium,
+                    color = XpGold, fontWeight = FontWeight.Bold)
             }
             Caption(q.desc)
             Spacer(Modifier.height(6.dp))
@@ -302,8 +300,8 @@ private fun DecayBanner(idleDays: Int, penalty: Long, perDay: Long) {
         Column(Modifier.padding(14.dp)) {
             Text("⚠ You lose XP every day you don't train", color = DangerRed,
                 fontWeight = FontWeight.Bold)
-            Caption("A skipped day costs what a full day earns (−$perDay XP); a partial day " +
-                "costs its unfinished share. $idleDays skipped day(s) → −$penalty XP, gone for " +
+            Caption("A skipped day costs your daily burn target (−$perDay XP); a partial day " +
+                "costs whatever's left of it. $idleDays skipped day(s) → −$penalty XP, gone for " +
                 "good. Today isn't counted until midnight — log anything to stop the loss.")
         }
     }

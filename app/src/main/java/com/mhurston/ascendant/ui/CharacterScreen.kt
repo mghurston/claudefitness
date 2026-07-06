@@ -126,10 +126,6 @@ fun CharacterScreen(
                     }
                     Caption("${c.totalXp} XP" +
                         if (c.idlePenaltyXp > 0) "  (−${c.idlePenaltyXp} idle)" else "")
-                    // Bonus XP is real: quests + trophies pay into the total above.
-                    if (c.questBonusXp > 0 || c.achievementBonusXp > 0) {
-                        Caption("incl. +${c.questBonusXp} quests · +${c.achievementBonusXp} trophies", color = XpGold)
-                    }
                 }
                 RankBadge(c.rank, c.level)
             }
@@ -215,8 +211,9 @@ private fun RankTiersDialog(currentLevel: Int, onDismiss: () -> Unit) {
 @Composable
 private fun StatusRings(state: UiState, modifier: Modifier = Modifier) {
     val completionPct = (state.todayDerived.completion * 100).roundToInt()
+    // Read the carried-forward day the XP engine scored, so burn kcal == burn XP exactly.
     val burn = com.mhurston.ascendant.domain.Calories
-        .activityBurn(state.profile, state.today.toDayData()).roundToInt()
+        .activityBurn(state.profile, state.todayData).roundToInt()
     val burnTarget = com.mhurston.ascendant.domain.Calories.dailyBurnTarget(state.profile)
     val steps = state.today.passiveSteps
     Column(modifier, verticalArrangement = Arrangement.spacedBy(12.dp)) {

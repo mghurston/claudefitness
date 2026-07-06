@@ -34,10 +34,13 @@ data class UiState(
     val loading: Boolean = true,
     val character: CharacterState,
     val today: WorkoutDayEntity,
+    /** Today after carry-forward — the exact DayData the XP engine scored. UI that shows
+     *  today's burn must read THIS (not today.toDayData()) so the kcal number and the XP
+     *  number come from the same body weight and stay 1:1. */
+    val todayData: DayData = DayData(LocalDate.now()),
     val todayDerived: DayDerived,
-    /** Today's calories-consumed after carry-forward — the value the Energy tab pre-fills,
-     *  inherited from the last logged day so a new day isn't blank. -1 = nothing logged yet
-     *  anywhere in the log; 0 = a fasting day. */
+    /** Today's own logged intake (never inherited — an unlogged day has no diet XP term).
+     *  -1 = not logged today; 0 = a fasting day. */
     val todayConsumed: Int = -1,
     val days: List<WorkoutDayEntity> = emptyList(),
     val derivedByDate: Map<LocalDate, DayDerived> = emptyMap(),
@@ -92,16 +95,18 @@ class AppViewModel(app: Application) : AndroidViewModel(app) {
                 ?: WorkoutDayEntity(date = todayStr)
             val rawDays: List<DayData> = days.map { it.toDayData() } +
                 if (days.any { it.date == todayStr }) emptyList() else listOf(todayEntity.toDayData())
-            // Carry weight + intake forward so unlogged days inherit the last known values
-            // (and each day's energy math uses the body weight in effect then, not just current).
+            // Carry weight forward so each day's energy math uses the body weight in effect
+            // then, not just the current one. (Intake is NOT carried — unlogged food is just
+            // a missing diet term, see Progression.carryForward.)
             val dayData = Progression.carryForward(rawDays, profile.weightKg)
             val todayData = dayData.firstOrNull { it.date == today } ?: todayEntity.toDayData()
-            // Full build = activity XP + quest XP + achievement XP (the rewards the UI shows).
+            // XP = calories only (burn − shortfall + diet); quests/achievements are badges.
             val full = Progression.rebuildFull(dayData, today, anchor, profile)
             UiState(
                 loading = false,
                 character = full.state,
                 today = todayEntity,
+                todayData = todayData,
                 todayDerived = full.derived[today] ?: DayDerived(0.0, 0L),
                 todayConsumed = todayData.caloriesConsumed,
                 days = days,
@@ -164,8 +169,8 @@ class AppViewModel(app: Application) : AndroidViewModel(app) {
         )
     }
 
-    /** Record a day's calorie intake. 0 = a deliberate fast (earns the full deficit bonus);
-     *  -1 clears the entry back to "not logged" (the carried-forward value applies again). */
+    /** Record a day's calorie intake. 0 = a deliberate fast (its full deficit counts as XP);
+     *  -1 clears the entry back to "not logged" (the day then has no diet XP term). */
     fun setConsumedForDate(date: String, value: Int) = mutateDay(date) { cur ->
         cur.copy(caloriesConsumed = value.coerceAtLeast(-1))
     }

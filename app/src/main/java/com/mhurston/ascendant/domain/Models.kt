@@ -49,8 +49,8 @@ data class DayData(
     val calfRaises: Int = 0,
     val curls: Int = 0,
     val miles: Double = 0.0,
-    /** Calories eaten this day. -1 = not logged (carryForward substitutes the last logged
-     *  value); 0 = a deliberate zero-intake (fasting) day that earns the full deficit bonus. */
+    /** Calories eaten this day. -1 = not logged (the day simply has no diet XP term);
+     *  0 = a deliberate zero-intake (fasting) day that counts its full deficit as XP. */
     val caloriesConsumed: Int = -1,
     /** Body weight (kg) in effect for this day. 0 = no weigh-in; callers carry the last known
      *  weight forward (Progression.carryForward) and fall back to the profile weight. Drives this
@@ -169,10 +169,8 @@ enum class Rank(val label: String) {
 
 /** Fully derived character — a pure function of the immutable day log + today's date. */
 data class CharacterState(
-    val totalXp: Long,        // effective XP after idle decay + bonuses (drives level/rank)
-    val earnedXp: Long,       // gross activity XP earned from the log, before decay/bonuses
-    val questBonusXp: Long = 0L,       // XP from completed daily/weekly quests (replayed)
-    val achievementBonusXp: Long = 0L, // XP from unlocked achievements (rarity payouts)
+    val totalXp: Long,        // effective XP after idle decay (drives level/rank)
+    val earnedXp: Long,       // XP earned from logged days (burn + diet − shortfall)
     val idlePenaltyXp: Long,  // total permanent decay from fully-unlogged days (interior + trailing)
     val trailingPenaltyXp: Long, // just the still-growing trailing gap (the "log today" nudge)
     val trailingChargedDays: Int = 0, // unlogged days actually charged in the trailing gap

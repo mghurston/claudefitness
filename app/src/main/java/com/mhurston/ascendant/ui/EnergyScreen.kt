@@ -79,9 +79,9 @@ fun EnergyScreen(
     val (ft0, in0) = Units.cmToFeetInches(p.heightCm)
     var feetStr by remember(p, unitSystem) { mutableStateOf(ft0.toString()) }
     var inchStr by remember(p, unitSystem) { mutableStateOf(in0.toString()) }
-    // Pre-fill with today's carried-forward intake (inherited from the last logged day) so a new
-    // day starts from yesterday's number instead of blank — edit it unless it's already right.
-    // -1 = nothing logged anywhere yet → blank. An explicit 0 is a fasting day and shows as "0".
+    // Pre-fill with today's OWN logged intake. Intake is never inherited — an unlogged day has
+    // no diet XP term — so a new day starts blank until food is logged.
+    // -1 = not logged today → blank. An explicit 0 is a fasting day and shows as "0".
     var consumed by remember(state.today.date) {
         mutableStateOf(if (state.todayConsumed >= 0) state.todayConsumed.toString() else "")
     }

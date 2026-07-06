@@ -3,7 +3,6 @@ package com.mhurston.ascendant.domain
 import java.time.LocalDate
 import java.time.temporal.ChronoUnit
 import kotlin.math.floor
-import kotlin.math.min
 import kotlin.math.sqrt
 
 /**
@@ -17,36 +16,19 @@ object Progression {
     const val REP_TARGET = 100
     const val MILE_TARGET = 5.0
 
-    // --- Burn-based XP (the core "less arbitrary" model) ----------------------
-    // 1 calorie burned through activity = 1 XP. Activity burn (walking + strength +
-    // pinned customs + one-offs) comes from Calories.activityBurn, so XP, the Energy
-    // screen, and the day log all read the same number.
+    // --- The whole XP model (docs/XP Simplification Spec.md) ------------------
+    //
+    //   dayXp = burn − shortfall + diet
+    //
+    // burn      = Calories.activityBurn — gross activity kcal, 1 kcal = 1 XP.
+    // shortfall = max(0, dailyBurnTarget − burn) — charged on past days only (today can
+    //             still be logged); a fully unlogged day loses the full target.
+    // diet      = (BMR + burn) − consumed — symmetric 1:1, UNCAPPED, only when food was
+    //             logged (Calories.deficit). Eat under your burn → gain; over → lose.
+    //
+    // There are deliberately NO multipliers, bonuses, or caps. Do not add any without
+    // asking the user first — every prior "small bonus" got ripped out here.
     const val XP_PER_KCAL = 1.0
-
-    // Multipliers (kept deliberately few so XP stays legible):
-    private const val COMPLETION_BONUS = 0.25      // +25% on days you hit 100% of your targets
-    private const val STREAK_BONUS_PER_DAY = 0.05  // +5%/strength-day, capped below
-    private const val STREAK_BONUS_CAP_DAYS = 10   // → max +50%
-    // Deficit bonus: eating under your total burn earns up to +50%, scaling with the gap.
-    private const val DEFICIT_FULL_BONUS_KCAL = 600.0 // a 600+ kcal deficit = the full bonus
-    private const val DEFICIT_BONUS_MAX = 0.50
-    // Surplus penalty: eating OVER your total burn costs XP — the mirror of the deficit bonus.
-    // Unlike the bonus (a multiplier on the day's activity), this is a flat XP hit that applies
-    // even on a no-activity day, so overeating always stings. A 600+ kcal surplus costs the most.
-    private const val SURPLUS_FULL_PENALTY_KCAL = 600.0
-    private const val SURPLUS_PENALTY_MAX_XP = 200.0
-
-    // Inactivity decay — one rule, no arbitrary constant: every past day is scored against the
-    // targets. 100% completion loses nothing; 0% loses a full day's worth; 40% loses 60% of
-    // one. Earn by doing, lose the same scale by not doing. Today is never charged while it's
-    // still in progress, because it can still be logged.
-
-    /** XP a fully skipped day costs = base XP of a 100% target day (500 reps + 5 mi) at
-     *  [weightKg] — the gains formula run in reverse, so the penalty scales with the same
-     *  body weight the earnings do. ~730 XP at 96 kg, ~610 at 80 kg. */
-    fun missedDayPenalty(weightKg: Double): Long = Math.round(
-        Calories.strengthKcal(weightKg, 5 * REP_TARGET) + Calories.walkKcal(weightKg, MILE_TARGET)
-    )
 
     /** Completion ratio 0..n — reproduces the spreadsheet formula exactly (Mapping §3). */
     fun completion(d: DayData): Double {
@@ -54,50 +36,30 @@ object Progression {
             d.calfRaises / 100.0 + d.curls / 100.0 + d.walkMiles / MILE_TARGET) / 6.0
     }
 
-    /** Base XP before multipliers = calories burned through activity (1 kcal = 1 XP). */
+    /** Base XP = calories burned through activity (1 kcal = 1 XP). */
     fun baseXp(p: Profile, d: DayData): Double = Calories.activityBurn(p, d) * XP_PER_KCAL
 
     /**
-     * Carry weight and calories-consumed forward across the log: a day with no weigh-in inherits
-     * the most recent prior weigh-in (falling back to [defaultWeightKg] before the first one), and
-     * a day with no logged intake (-1) inherits the previous day's intake (-1 until the first
-     * logged day). An explicit 0 is a logged fast and sticks — only the -1 sentinel is replaced.
-     * "Carry forward unless changed" — so an unlogged day still uses yesterday's body weight for
-     * its energy math and yesterday's intake for its deficit/surplus. Pure + deterministic;
-     * the engine and UI both run the raw log through this before reading per-day weight/intake.
+     * Carry body weight forward across the log: a day with no weigh-in inherits the most
+     * recent prior weigh-in (falling back to [defaultWeightKg] before the first one), so each
+     * day's energy math uses the weight in effect *then*, not the current one. Intake is NOT
+     * carried — a day where food wasn't logged (-1) simply has no diet term; we don't invent
+     * an intake for it. An explicit 0 is a logged fast. Pure + deterministic; the engine and
+     * UI both run the raw log through this before reading per-day weight.
      */
     fun carryForward(days: List<DayData>, defaultWeightKg: Double): List<DayData> {
         var weight = defaultWeightKg
-        var consumed = -1
         return days.sortedBy { it.date }.map { d ->
             if (d.weightKg > 0.0) weight = d.weightKg
-            if (d.caloriesConsumed >= 0) consumed = d.caloriesConsumed
-            d.copy(weightKg = weight, caloriesConsumed = consumed)
+            d.copy(weightKg = weight)
         }
     }
 
-    /** XP for a day: calories burned, scaled by consistency + deficit multipliers, then docked
-     *  for any calorie surplus. Can be negative on a day you ate over your burn and barely moved. */
-    private fun dayXp(p: Profile, d: DayData, strengthStreak: Int): Long {
-        val base = baseXp(p, d)
-        // Calories.deficit is signed: > 0 under your burn (deficit), < 0 over it (surplus),
-        // 0 when no food was logged.
-        val deficit = Calories.deficit(p, d)
-        var xp = 0.0
-        if (base > 0.0) {
-            val completionMult = if (completion(d) >= 1.0) 1.0 + COMPLETION_BONUS else 1.0
-            val streakMult = 1.0 + STREAK_BONUS_PER_DAY * min(strengthStreak, STREAK_BONUS_CAP_DAYS)
-            val deficitMult = if (deficit > 0)
-                1.0 + DEFICIT_BONUS_MAX * min(deficit / DEFICIT_FULL_BONUS_KCAL, 1.0)
-            else 1.0
-            xp = base * completionMult * streakMult * deficitMult
-        }
-        if (deficit < 0.0) {
-            val surplus = -deficit
-            xp -= SURPLUS_PENALTY_MAX_XP * min(surplus / SURPLUS_FULL_PENALTY_KCAL, 1.0)
-        }
-        return Math.round(xp)
-    }
+    /** XP for a day = burn + diet: calories burned (1:1) plus the signed diet term —
+     *  Calories.deficit is > 0 under your total burn (gain), < 0 over it (lose), 0 when no
+     *  food was logged. Uncapped both ways, so the day can be negative. */
+    private fun dayXp(p: Profile, d: DayData): Long =
+        Math.round(baseXp(p, d) + Calories.deficit(p, d))
 
     /** XP required to advance FROM level n to n+1 (Leveling §4). */
     fun xpToNext(n: Int): Long = Math.round(100.0 * Math.pow(n.toDouble(), 1.5))
@@ -158,6 +120,10 @@ object Progression {
         val sorted = days.sortedBy { it.date }
         val derived = LinkedHashMap<LocalDate, DayDerived>()
 
+        // The one penalty scale: your personal daily burn target (~25% of BMR). Miss it,
+        // lose the gap; skip the day entirely, lose the whole thing.
+        val burnTarget = Calories.dailyBurnTarget(profile).toDouble()
+
         var totalXp = 0L
         var strengthStreak = 0
         var activityStreak = 0
@@ -186,17 +152,14 @@ object Progression {
             longestStrength = maxOf(longestStrength, strengthStreak)
 
             val comp = completion(d)
-            // Proportional shortfall — the "lose XP for what you didn't do" half of the rule.
-            // A day is scored against the targets: 100% loses nothing, 0% loses a full day's
-            // worth, 40% loses 60% of one. Only days at/after the decay anchor (pre-app history
-            // is never punished) and strictly before today (today isn't over) are charged.
+            // Shortfall — the "lose XP for what you didn't do" half of the rule. A past day
+            // that burned less than the daily target loses exactly the gap. Only days at/after
+            // the decay anchor (pre-app history is never punished) and strictly before today
+            // (today isn't over) are charged.
             val shortfall = if (today != null && decayAnchor != null &&
                 !d.date.isBefore(decayAnchor) && d.date.isBefore(today)
-            ) Math.round(
-                (1.0 - comp.coerceAtMost(1.0)).coerceAtLeast(0.0) *
-                    missedDayPenalty(Calories.weightFor(profile, d))
-            ) else 0L
-            val xp = dayXp(profile, d, strengthStreak) - shortfall
+            ) Math.round((burnTarget - baseXp(profile, d)).coerceAtLeast(0.0)) else 0L
+            val xp = dayXp(profile, d) - shortfall
             totalXp += xp
             derived[d.date] = DayDerived(comp, xp)
 
@@ -217,9 +180,9 @@ object Progression {
 
         // --- Inactivity decay (PERMANENT) -------------------------------------
         // The other half of per-day scoring: days with NO log entry at all. (Logged days are
-        // already charged their proportional shortfall in the loop above; this walk covers the
-        // calendar days that never got a row, each costing a full missedDayPenalty at the body
-        // weight carried into that day.) Never refunded: returning to activity doesn't erase a
+        // already charged their burn-target shortfall in the loop above; this walk covers the
+        // calendar days that never got a row, each costing the full daily burn target — the
+        // same rule, with burn = 0.) Never refunded: returning to activity doesn't erase a
         // past gap — you earn it back, you don't get it back. Pre-anchor history (e.g. an
         // imported backlog) is ignored, and today is never charged while it's still in progress.
         var idleDays = 0          // trailing idle days (drives the "log today" nudge)
@@ -229,17 +192,10 @@ object Progression {
         if (today != null && decayAnchor != null) {
             val loggedDates = sorted.mapTo(HashSet()) { it.date }
             val lastActive = sorted.lastOrNull { it.hasActivity && !it.date.isAfter(today) }?.date
-            var weight = profile.weightKg
-            var idx = 0
+            val pen = Math.round(burnTarget)
             var day: LocalDate = decayAnchor
             while (day.isBefore(today)) {
-                // Carry the body weight forward day by day, same as the earnings math.
-                while (idx < sorted.size && !sorted[idx].date.isAfter(day)) {
-                    if (sorted[idx].weightKg > 0.0) weight = sorted[idx].weightKg
-                    idx++
-                }
                 if (day !in loggedDates) {
-                    val pen = missedDayPenalty(weight)
                     if (lastActive == null || day.isAfter(lastActive)) {
                         trailingPenalty += pen
                         trailingCharged++
@@ -279,54 +235,23 @@ object Progression {
         return state to derived
     }
 
-    /** Everything the UI needs from one replay: character (with bonuses), per-day derived
-     *  values, and the achievement list the bonus XP was computed from. */
+    /** Everything the UI needs from one replay: character, per-day derived values, and the
+     *  achievement statuses evaluated against that character. */
     data class FullBuild(
         val state: CharacterState,
         val derived: Map<LocalDate, DayDerived>,
         val achievements: List<AchStatus>
     )
 
-    /** Fold quest + achievement bonus XP into a base state and re-derive level/rank/title. */
-    private fun withBonuses(base: CharacterState, questXp: Long, achXp: Long): CharacterState {
-        val effective = (base.earnedXp + questXp + achXp - base.idlePenaltyXp).coerceAtLeast(0)
-        val li = levelForXp(effective)
-        return base.copy(
-            totalXp = effective,
-            questBonusXp = questXp,
-            achievementBonusXp = achXp,
-            level = li.level,
-            rank = rankForLevel(li.level),
-            title = titleForLevel(li.level),
-            xpIntoLevel = li.into,
-            xpForNextLevel = li.forNext
-        )
-    }
-
-    /**
-     * [rebuild] plus the reward loop: completed quests (replayed over the whole log) and
-     * unlocked achievements pay the XP the UI advertises. Achievement XP can raise the level,
-     * which can unlock level/rank achievements — so we iterate to a fixpoint. Unlocks only ever
-     * add XP and XP only ever unlocks more, so this is monotone and converges in a few passes.
-     */
+    /** [rebuild] plus one achievements pass. Quests and achievements are badges only — they
+     *  pay no XP (docs/XP Simplification Spec.md), so a single evaluation is exact. */
     fun rebuildFull(
         days: List<DayData>,
         today: LocalDate? = null,
         decayAnchor: LocalDate? = null,
         profile: Profile = Profile()
     ): FullBuild {
-        val (base, derived) = rebuild(days, today, decayAnchor, profile)
-        val questXp = Quests.earnedXp(days, profile)
-        var state = withBonuses(base, questXp, 0L)
-        var ach = Achievements.evaluate(days, state)
-        repeat(8) {
-            val next = withBonuses(base, questXp, Achievements.unlockedXp(ach))
-            val nextAch = Achievements.evaluate(days, next)
-            val stable = nextAch.count { it.unlocked } == ach.count { it.unlocked }
-            state = next
-            ach = nextAch
-            if (stable) return FullBuild(state, derived, ach)
-        }
-        return FullBuild(state, derived, ach)
+        val (state, derived) = rebuild(days, today, decayAnchor, profile)
+        return FullBuild(state, derived, Achievements.evaluate(days, state))
     }
 }
