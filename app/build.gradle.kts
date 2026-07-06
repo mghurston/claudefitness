@@ -7,17 +7,17 @@ plugins {
 
 android {
     namespace = "com.mhurston.ascendant"
-    compileSdk = 35
+    compileSdk = 36
 
     defaultConfig {
         applicationId = "com.mhurston.ascendant"
         minSdk = 26
-        targetSdk = 35
+        targetSdk = 36
         // Bump BOTH on every delivered build: versionCode +1 (Android uses this to
         // gate installs — equal/lower is rejected on sideload), versionName as the
         // human label (patch++, rolling 0.1.9 -> 0.2.0).
-        versionCode = 25
-        versionName = "0.2.2"
+        versionCode = 29
+        versionName = "0.3.1"
     }
 
     buildTypes {
@@ -33,8 +33,10 @@ android {
         sourceCompatibility = JavaVersion.VERSION_17
         targetCompatibility = JavaVersion.VERSION_17
     }
-    kotlinOptions {
-        jvmTarget = "17"
+    kotlin {
+        compilerOptions {
+            jvmTarget.set(org.jetbrains.kotlin.gradle.dsl.JvmTarget.JVM_17)
+        }
     }
     buildFeatures {
         compose = true
