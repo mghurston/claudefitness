@@ -38,14 +38,10 @@ import com.mhurston.ascendant.domain.Rank
 import com.mhurston.ascendant.ui.theme.AuraCyan
 import com.mhurston.ascendant.ui.theme.DangerRed
 import com.mhurston.ascendant.ui.theme.ManaPurple
-import com.mhurston.ascendant.ui.theme.PanelAlt
 import com.mhurston.ascendant.ui.theme.TextDim
 import com.mhurston.ascendant.ui.theme.TrackDark
 import com.mhurston.ascendant.ui.theme.XpGold
 import kotlin.math.max
-
-// Mood scale 1..5, lowest → highest. Index 0 unused (0 means "unset").
-val MOOD_EMOJI = listOf("😫", "😕", "😐", "🙂", "🔥")
 
 /** The single inline "add" affordance used across the app (one-offs, exercises). Keeping it in
  *  one place guarantees the "＋ X" links look and behave identically everywhere. */
@@ -90,51 +86,19 @@ fun RemoveIcon(onClick: () -> Unit) {
             .padding(horizontal = 8.dp, vertical = 4.dp)
     )
 }
-val MOOD_LABEL = listOf("Drained", "Rough", "Okay", "Good", "Unstoppable")
-
 /**
- * Journal block: a 1..5 mood selector plus a free-text note. Tapping the already
- * selected mood clears it (sends 0). Notes are kept in local state (keyed by [dateKey])
- * so per-keystroke persistence doesn't clobber the cursor.
+ * Journal block: a free-text note for the day. Notes are kept in local state (keyed by
+ * [dateKey]) so per-keystroke persistence doesn't clobber the cursor. (The 1..5 mood
+ * selector that used to live here was removed — write-only data, user called it worthless.)
  */
 @Composable
 fun JournalSection(
     dateKey: String,
-    mood: Int,
     notes: String,
-    onMood: (Int) -> Unit,
     onNotes: (String) -> Unit,
     modifier: Modifier = Modifier
 ) {
     Column(modifier.fillMaxWidth()) {
-        Caption("How did it feel?")
-        Spacer(Modifier.height(6.dp))
-        Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-            for (i in 1..5) {
-                val selected = mood == i
-                Box(
-                    Modifier
-                        .weight(1f)
-                        .clip(RoundedCornerShape(10.dp))
-                        .background(if (selected) AuraCyan.copy(alpha = 0.20f) else PanelAlt)
-                        .border(
-                            1.dp,
-                            if (selected) AuraCyan else Color.Transparent,
-                            RoundedCornerShape(10.dp)
-                        )
-                        .clickable { onMood(if (selected) 0 else i) }
-                        .padding(vertical = 8.dp),
-                    contentAlignment = Alignment.Center
-                ) {
-                    Text(MOOD_EMOJI[i - 1], style = MaterialTheme.typography.titleLarge)
-                }
-            }
-        }
-        if (mood in 1..5) {
-            Spacer(Modifier.height(4.dp))
-            Caption(MOOD_LABEL[mood - 1], color = AuraCyan)
-        }
-        Spacer(Modifier.height(10.dp))
         var text by remember(dateKey) { mutableStateOf(notes) }
         OutlinedTextField(
             value = text,

@@ -18,5 +18,5 @@ val SuccessGreen = Color(0xFF3DDC84) // END / Uncommon / earned states
 
 // Shared surfaces that used to be hardcoded per-screen — one source of truth.
 val TrackDark = Color(0xFF22223A)  // progress-bar/ring track, empty day cells, locked medallions
-val PanelAlt = Color(0xFF1B1B2A)   // raised/unselected chip background (mood selector)
+val PanelAlt = Color(0xFF1B1B2A)   // raised/unselected chip background
 val ScrimDark = Color(0xCC0E0E16)  // translucent caption scrim over the hero portrait

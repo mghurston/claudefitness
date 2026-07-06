@@ -185,16 +185,11 @@ class AppViewModel(app: Application) : AndroidViewModel(app) {
 
     fun setWeightToday(weightKg: Double) = setWeightForDate(todayStr(), weightKg)
 
-    // --- journal: notes + mood (any date) ------------------------------------
+    // --- journal: notes (any date) --------------------------------------------
     fun setNotesForDate(date: String, notes: String) =
         mutateDay(date) { it.copy(notes = notes.take(500)) }
 
-    /** mood: 0 clears it, otherwise clamp to 1..5. */
-    fun setMoodForDate(date: String, mood: Int) =
-        mutateDay(date) { it.copy(mood = mood.coerceIn(0, 5)) }
-
     fun setNotesToday(notes: String) = setNotesForDate(todayStr(), notes)
-    fun setMoodToday(mood: Int) = setMoodForDate(todayStr(), mood)
 
     // --- custom (supplementary) exercises ------------------------------------
     fun addCustomExercise(name: String) { viewModelScope.launch { repo.addCustomExercise(name) } }

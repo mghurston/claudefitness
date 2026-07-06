@@ -51,7 +51,6 @@ fun CalendarScreen(
     onAddReps: (String, ExerciseKind, Int) -> Unit,
     onAddMiles: (String, Double) -> Unit,
     onResetDay: (String) -> Unit,
-    onSetMood: (String, Int) -> Unit = { _, _ -> },
     onSetNotes: (String, String) -> Unit = { _, _ -> },
     onSetConsumed: (String, Int) -> Unit = { _, _ -> },
     onSetWeight: (String, Double) -> Unit = { _, _ -> },
@@ -106,7 +105,6 @@ fun CalendarScreen(
             onAddReps = { kind, delta -> onAddReps(date.toString(), kind, delta) },
             onAddMiles = { delta -> onAddMiles(date.toString(), delta) },
             onReset = { onResetDay(date.toString()) },
-            onSetMood = { m -> onSetMood(date.toString(), m) },
             onSetNotes = { n -> onSetNotes(date.toString(), n) },
             onSetConsumed = { v -> onSetConsumed(date.toString(), v) },
             onSetWeight = { kg -> onSetWeight(date.toString(), kg) },
@@ -281,7 +279,6 @@ private fun DayEditorDialog(
     onAddReps: (ExerciseKind, Int) -> Unit,
     onAddMiles: (Double) -> Unit,
     onReset: () -> Unit,
-    onSetMood: (Int) -> Unit,
     onSetNotes: (String) -> Unit,
     onSetConsumed: (Int) -> Unit = {},
     onSetWeight: (Double) -> Unit = {},
@@ -478,9 +475,7 @@ private fun DayEditorDialog(
                 Spacer(Modifier.height(12.dp))
                 JournalSection(
                     dateKey = date.toString(),
-                    mood = e.mood,
                     notes = e.notes,
-                    onMood = onSetMood,
                     onNotes = onSetNotes
                 )
                 Spacer(Modifier.height(8.dp))

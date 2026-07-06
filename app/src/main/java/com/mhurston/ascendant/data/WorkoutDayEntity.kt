@@ -27,7 +27,8 @@ data class WorkoutDayEntity(
     val weightKg: Double = 0.0,
     val isRestDay: Boolean = false,
     val notes: String = "",
-    /** 0 = unset, 1 (drained) .. 5 (unstoppable). Journaling only — never affects XP. */
+    /** RETIRED (v0.2.2): the mood picker was removed from the UI as write-only noise. The
+     *  column stays so old rows/backups keep their data, but nothing reads or writes it. */
     val mood: Int = 0,
     /** Pinned recurring custom-exercise reps, encoded "id:reps,id:reps". Counted as
      *  strength-equivalent burn, so they earn XP via calories like the core lifts. */
@@ -62,7 +63,6 @@ data class WorkoutDayEntity(
         weightKg = weightKg,
         isRestDay = isRestDay,
         notes = notes,
-        mood = mood,
         customReps = decodeCustomReps(customReps),
         cardioMinutes = decodeCustomReps(cardioMinutes),
         oneOffs = decodeOneOffs(oneOffs),

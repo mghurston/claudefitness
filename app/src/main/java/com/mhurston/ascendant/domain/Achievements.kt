@@ -47,8 +47,6 @@ data class AchFacts(
     val activeDays: Int,
     val loggedDays: Int,
     val notesDays: Int,      // days with a non-blank note
-    val moodDays: Int,       // days with a logged mood (1..5)
-    val peakMoodDays: Int,   // days logged at mood 5 (Unstoppable)
     val prEvents: Int        // times a metric beat its previous personal best
 ) {
     private fun b(c: Boolean) = if (c) 1 else 0
@@ -192,8 +190,6 @@ object Achievements {
         cat("Journal", listOf(
         AchDef("field_notes", "Field Notes", "Write a note on 5 days.", Rarity.COMMON, 5) { it.notesDays },
         AchDef("dear_diary", "Dear Diary", "Write a note on 25 days.", Rarity.RARE, 25) { it.notesDays },
-        AchDef("self_aware", "Self-Aware", "Log your mood on 10 days.", Rarity.UNCOMMON, 10) { it.moodDays },
-        AchDef("peak_state", "Peak State", "Finish a day feeling Unstoppable.", Rarity.UNCOMMON, 1) { it.flag(it.peakMoodDays >= 1) },
         AchDef("beyond_sheet", "Beyond the Sheet", "1,000 total logged days.", Rarity.MYTHIC, 1000) { it.loggedDays },
         AchDef("the_collector", "The Collector", "Unlock 50 achievements.", Rarity.LEGENDARY, 50, hidden = true) {
             // Counted post-hoc in evaluate(); placeholder value filled there.
@@ -211,7 +207,7 @@ object Achievements {
         var walkStreak = 0; var longestWalk = 0
         var prevDate: java.time.LocalDate? = null
         var prevOver = false
-        var notesDays = 0; var moodDays = 0; var peakMoodDays = 0
+        var notesDays = 0
         var prEvents = 0
         // running personal bests per metric (0 = never logged yet)
         var rbP = 0; var rbS = 0; var rbL = 0; var rbC = 0; var rbCu = 0; var rbM = 0.0
@@ -227,8 +223,6 @@ object Achievements {
             rbP = maxOf(rbP, d.pushups); rbS = maxOf(rbS, d.squats); rbL = maxOf(rbL, d.legLifts)
             rbC = maxOf(rbC, d.calfRaises); rbCu = maxOf(rbCu, d.curls); rbM = maxOf(rbM, d.miles)
             if (d.notes.isNotBlank()) notesDays++
-            if (d.mood in 1..5) moodDays++
-            if (d.mood == 5) peakMoodDays++
 
             p += d.pushups; s += d.squats; l += d.legLifts; cr += d.calfRaises; cu += d.curls; mi += d.miles
             bp = maxOf(bp, d.pushups); bs = maxOf(bs, d.squats); bl = maxOf(bl, d.legLifts)
@@ -265,7 +259,7 @@ object Achievements {
             longestWalkStreak = longestWalk, anyAllSix = anySix,
             overdriveDay = overdrive, doubleOverdrive = doubleOver,
             activeDays = active, loggedDays = sorted.size,
-            notesDays = notesDays, moodDays = moodDays, peakMoodDays = peakMoodDays,
+            notesDays = notesDays,
             prEvents = prEvents
         )
     }

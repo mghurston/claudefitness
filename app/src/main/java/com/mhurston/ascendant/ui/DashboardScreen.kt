@@ -58,7 +58,6 @@ fun DashboardScreen(
     onResetToday: () -> Unit,
     onToggleFavVideo: (String) -> Unit,
     onAddUserVideo: (String, String, String) -> Unit,
-    onSetMood: (Int) -> Unit = {},
     onSetNotes: (String) -> Unit = {},
     onAddCustomReps: (String, Int) -> Unit = { _, _ -> },
     onAddCustomExercise: (String) -> Unit = {},
@@ -219,9 +218,7 @@ fun DashboardScreen(
         ) {
             JournalSection(
                 dateKey = today.date,
-                mood = today.mood,
                 notes = today.notes,
-                onMood = onSetMood,
                 onNotes = onSetNotes,
                 modifier = Modifier.padding(14.dp)
             )

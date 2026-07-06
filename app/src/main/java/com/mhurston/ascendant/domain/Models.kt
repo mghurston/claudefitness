@@ -60,7 +60,6 @@ data class DayData(
     val weightKg: Double = 0.0,
     val isRestDay: Boolean = false,
     val notes: String = "",
-    val mood: Int = 0, // 0 = unset, 1..5 (see WorkoutDayEntity.mood)
     /** Pinned recurring custom exercises: customExerciseId -> reps for the day.
      *  Counted as strength-equivalent burn (so they earn XP via calories like the core). */
     val customReps: Map<String, Int> = emptyMap(),
