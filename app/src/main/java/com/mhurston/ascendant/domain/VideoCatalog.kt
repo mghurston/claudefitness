@@ -17,15 +17,31 @@ data class VideoLink(
 
 object VideoCatalog {
 
-    val EXERCISE_KEYS = listOf("pushups", "squats", "leglifts", "calfraises", "curls", "walking")
+    // Keys match the enum ids in Models.kt (PushExercise/CoreExercise/CardioActivity)
+    // so a variant row can open its own videos with no mapping layer.
+    val EXERCISE_KEYS = listOf(
+        "pushups", "db_chest_fly", "upward_chest_fly", "pull_ups", "chin_ups", "dips",
+        "leglifts", "situps", "high_knees",
+        "squats", "calfraises", "curls",
+        "walking", "bike", "swim"
+    )
 
     fun displayName(key: String): String = when (key) {
         "pushups" -> "Push-ups"
-        "squats" -> "Squats"
+        "db_chest_fly" -> "Standing Dumbbell Chest Fly"
+        "upward_chest_fly" -> "Standing Upward Chest Fly"
+        "pull_ups" -> "Pull Ups"
+        "chin_ups" -> "Chin Ups"
+        "dips" -> "Dips"
         "leglifts" -> "Leg Lifts"
+        "situps" -> "Sit-ups"
+        "high_knees" -> "High Knees"
+        "squats" -> "Squats"
         "calfraises" -> "Calf Raises"
         "curls" -> "Curls"
         "walking" -> "Walking"
+        "bike" -> "Bike Riding"
+        "swim" -> "Swimming"
         else -> key
     }
 
@@ -65,6 +81,53 @@ object VideoCatalog {
             "Indoor Walking Workout" to "indoor walking workout follow along",
             "Brisk Walk for Fitness" to "brisk walking for fitness tips",
             "Walking Pace & Posture" to "walking posture pace tips"
+        ),
+        "db_chest_fly" to listOf(
+            "Standing Chest Fly Form" to "standing dumbbell chest fly proper form",
+            "Standing Fly Mistakes" to "standing chest fly common mistakes",
+            "Chest Fly Follow Along" to "standing dumbbell chest fly workout"
+        ),
+        "upward_chest_fly" to listOf(
+            "Upward Chest Fly Form" to "standing upward dumbbell chest fly form",
+            "Low-to-High Fly Tutorial" to "low to high dumbbell fly standing tutorial",
+            "Upper Chest at Home" to "upper chest dumbbell exercises standing"
+        ),
+        "pull_ups" to listOf(
+            "Perfect Pull-up Form" to "perfect pull up form",
+            "First Pull-up Progression" to "pull up progression beginner cannot do one",
+            "Grip & Scapula Cues" to "pull up scapular engagement cue",
+            "Pull-up Follow Along" to "pull up workout follow along"
+        ),
+        "chin_ups" to listOf(
+            "Chin-up Form" to "chin up proper form",
+            "Chin-up vs Pull-up" to "chin up vs pull up difference",
+            "Chin-up Progression" to "chin up progression beginner"
+        ),
+        "dips" to listOf(
+            "Dip Form Basics" to "dips proper form tutorial",
+            "Chair / Bench Dips" to "chair dips at home tutorial",
+            "Dip Progression" to "dip progression beginner",
+            "Shoulder-Safe Dips" to "dips shoulder pain safe form"
+        ),
+        "situps" to listOf(
+            "Sit-up Form" to "sit up proper form",
+            "Neck-Safe Sit-ups" to "sit ups without neck strain",
+            "Sit-up Follow Along" to "sit up workout follow along"
+        ),
+        "high_knees" to listOf(
+            "High Knees Form" to "high knees proper form",
+            "High Knees Cardio" to "high knees cardio workout follow along",
+            "Low-Impact Alternative" to "low impact high knees alternative"
+        ),
+        "bike" to listOf(
+            "Cycling Posture Basics" to "cycling posture tips beginner",
+            "Indoor Cycling Workout" to "indoor cycling workout follow along",
+            "Bike Fit at Home" to "bike seat height fit basics"
+        ),
+        "swim" to listOf(
+            "Freestyle Technique" to "freestyle swimming technique beginner",
+            "Breathing Basics" to "freestyle breathing technique swimming",
+            "Lap Swim Workout" to "beginner lap swimming workout"
         )
     )
 

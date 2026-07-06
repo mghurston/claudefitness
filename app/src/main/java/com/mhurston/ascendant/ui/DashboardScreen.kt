@@ -151,22 +151,20 @@ fun DashboardScreen(
         val upperReps = today.pushTotal() + today.curls
         CollapsibleSection("Upper Body", "$upperReps / 200") {
             VariantGoalSection(
-                name = "Push-ups",
                 variants = com.mhurston.ascendant.domain.PushExercise.entries.map { it.id to it.label },
                 breakdown = today.pushBreakdown(),
                 total = today.pushTotal(),
-                onVideos = { videoFor = "pushups" },
+                onVideosFor = { videoFor = it },
                 onAddVariant = onAddPushVariant
             )
             ExerciseRow("Curls", today.curls, { videoFor = "curls" }) { onAddReps(ExerciseKind.CURLS, it) }
         }
         CollapsibleSection("Core", "${today.coreTotal()} / 100") {
             VariantGoalSection(
-                name = "Core",
                 variants = com.mhurston.ascendant.domain.CoreExercise.entries.map { it.id to it.label },
                 breakdown = today.coreBreakdown(),
                 total = today.coreTotal(),
-                onVideos = { videoFor = "leglifts" },
+                onVideosFor = { videoFor = it },
                 onAddVariant = onAddCoreVariant
             )
         }
@@ -189,6 +187,7 @@ fun DashboardScreen(
                     label = act.label,
                     minutes = cardioMin[act.id] ?: 0,
                     kcalPerMin = act.met * 3.5 * state.profile.weightKg / 200.0,
+                    onVideos = { videoFor = act.id },
                     onAdd = { onAddCardioMinutes(act.id, it) }
                 )
             }
@@ -353,15 +352,16 @@ private fun ExerciseRow(name: String, current: Int, onVideos: () -> Unit, onAdd:
     }
 }
 
-/** A single rep goal satisfied by any of several equivalent exercises (e.g. Push-ups, or Core).
- *  Each variant has its own controls; all reps sum 1:1 toward the single target in the header. */
+/** A single rep goal satisfied by any of several equivalent exercises (Upper Body, Core).
+ *  The collapsible section header owns the group name — this card deliberately has no title
+ *  of its own. Each variant has its own controls and its own form-video chip (VideoCatalog
+ *  keys match the variant ids); all reps sum 1:1 toward the single target. */
 @Composable
 private fun VariantGoalSection(
-    name: String,
     variants: List<Pair<String, String>>, // id to label
     breakdown: Map<String, Int>,
     total: Int,
-    onVideos: () -> Unit,
+    onVideosFor: (String) -> Unit,
     onAddVariant: (String, Int) -> Unit
 ) {
     val target = Progression.REP_TARGET
@@ -371,12 +371,13 @@ private fun VariantGoalSection(
         colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface)
     ) {
         Column(Modifier.padding(12.dp)) {
-            Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
-                Row(verticalAlignment = Alignment.CenterVertically) {
-                    BodyText(name)
-                    Spacer(Modifier.width(8.dp))
-                    FormVideoChip(onVideos)
-                }
+            Row(
+                Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.SpaceBetween,
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                Caption("Log any of these — they all count toward the goal.",
+                    modifier = Modifier.weight(1f))
                 Row {
                     if (over > 0) Text("OVERDRIVE +$over  ", color = XpGold,
                         style = MaterialTheme.typography.labelMedium, fontWeight = FontWeight.Bold)
@@ -384,7 +385,6 @@ private fun VariantGoalSection(
                         fontWeight = FontWeight.Bold)
                 }
             }
-            Caption("Log any of these — they all count toward the goal.")
             Spacer(Modifier.height(6.dp))
             ProgressTrack(
                 fraction = (total.toFloat() / target).coerceIn(0f, 1f),
@@ -395,7 +395,14 @@ private fun VariantGoalSection(
                 Spacer(Modifier.height(12.dp))
                 Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween,
                     verticalAlignment = Alignment.CenterVertically) {
-                    BodyText(label, color = if (reps > 0) MaterialTheme.colorScheme.onSurface else TextDim)
+                    Row(
+                        Modifier.weight(1f),
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        BodyText(label, color = if (reps > 0) MaterialTheme.colorScheme.onSurface else TextDim)
+                        Spacer(Modifier.width(8.dp))
+                        FormVideoChip { onVideosFor(id) }
+                    }
                     Text("$reps", color = if (reps > 0) AuraCyan else TextDim,
                         fontWeight = FontWeight.Bold)
                 }
@@ -409,7 +416,8 @@ private fun VariantGoalSection(
 /** Time-based cardio (bike/swim): logged in minutes, shown with its calorie/XP estimate.
  *  Does not count toward the walking-miles goal — it's its own calorie earner. */
 @Composable
-private fun CardioMinutesRow(label: String, minutes: Int, kcalPerMin: Double, onAdd: (Int) -> Unit) {
+private fun CardioMinutesRow(label: String, minutes: Int, kcalPerMin: Double,
+                             onVideos: () -> Unit, onAdd: (Int) -> Unit) {
     val kcal = (kcalPerMin * minutes).roundToInt()
     Card(
         Modifier.fillMaxWidth().padding(vertical = 4.dp),
@@ -418,7 +426,11 @@ private fun CardioMinutesRow(label: String, minutes: Int, kcalPerMin: Double, on
         Column(Modifier.padding(12.dp)) {
             Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween,
                 verticalAlignment = Alignment.CenterVertically) {
-                BodyText(label)
+                Row(verticalAlignment = Alignment.CenterVertically) {
+                    BodyText(label)
+                    Spacer(Modifier.width(8.dp))
+                    FormVideoChip(onVideos)
+                }
                 Row(verticalAlignment = Alignment.CenterVertically) {
                     if (minutes > 0) Text("≈$kcal XP  ", color = XpGold,
                         style = MaterialTheme.typography.labelMedium, fontWeight = FontWeight.Bold)
@@ -536,7 +548,7 @@ private fun CollapsibleSection(
     action: (@Composable () -> Unit)? = null,
     content: @Composable () -> Unit
 ) {
-    var expanded by rememberSaveable(key = title) { mutableStateOf(defaultExpanded) }
+    var expanded by rememberSaveable { mutableStateOf(defaultExpanded) }
     Column(Modifier.fillMaxWidth()) {
         Row(
             Modifier.fillMaxWidth().clickable { expanded = !expanded }.padding(vertical = 10.dp),
