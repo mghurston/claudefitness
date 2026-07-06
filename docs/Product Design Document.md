@@ -1,6 +1,13 @@
 # Product Design Document — ASCENDANT
 
-The master spec. Cross-references: `Leveling System.md`, `Achievement System.md`, `Style Guide.md`, `User Flows.md`, `Wireframes.md`, `Technical Architecture.md`, `Video Integration.md`.
+The master spec **as originally designed (June 2026)**. Cross-references: `Leveling System.md`, `Achievement System.md`, `Style Guide.md`, `User Flows.md`, `Wireframes.md`, `Technical Architecture.md`, `Video Integration.md`.
+
+> **⚠ Reward economy superseded (v0.2.0–v0.2.2, 2026-07-05).** The shipped XP model is flat
+> calorie-based with zero multipliers — see `XP Simplification Spec.md` (authoritative).
+> In particular, wherever this doc mentions: XP multipliers / comeback bonuses / "multipliers
+> applied at day-close" (removed), quest XP or the +100 All-Clear (quests are badges only),
+> or **mood / energy / RPE tags** (removed in v0.2.2 — the journal is notes-only).
+> The core loop, quest structure, streaks-as-display, and screen inventory remain accurate.
 
 ---
 

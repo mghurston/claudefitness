@@ -44,7 +44,7 @@ Post-v1 ideas, ranked by value-to-effort for a single personal user. None are re
 | **Adaptive targets** | Auto-suggest target tweaks from trailing performance (e.g. bump squats to 110 after consistent overachievement) |
 | **Coaching insights** | Plain-language weekly tips grounded in *your* data ("You skip strength after rest days — try a 20-rep bridge") |
 | **On-device LLM summaries** | Monthly review written as a flavorful "season recap" narration |
-| **Mood/energy correlation** | Surface what conditions precede your best vs worst days |
+| ~~**Mood/energy correlation**~~ | *Dropped — mood tracking was removed in v0.2.2 (user rejected it as write-only data)* |
 
 ## 5. Visual / Audio Polish
 

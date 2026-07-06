@@ -1,5 +1,22 @@
 # Leveling System
 
+> ## ⚠ XP MODEL SUPERSEDED — see `XP Simplification Spec.md`
+> The shipped XP model (v0.2.0+, 2026-07-05) is **calorie-based with zero multipliers**:
+>
+> `dayXp = burn − max(0, dailyBurnTarget − burn) + diet`
+>
+> - **burn**: gross activity kcal (body-weight-scaled MET), 1 kcal = 1 XP — there are NO
+>   per-rep XP rates and NO walking soft cap (§2 below is design history).
+> - **shortfall**: past days that burn under the personal daily target (~25% of BMR) lose the
+>   gap; fully skipped days lose the whole target (permanent decay).
+> - **diet**: (BMR + burn) − calories eaten, symmetric 1:1, uncapped; the last entered intake
+>   carries forward until changed.
+> - **§3 multipliers are ALL removed.** Quests and achievements pay no XP (badges only).
+>
+> Still accurate below: the level curve (§4, `100 × n^1.5`), attributes (§5), ranks & titles
+> (§6 — as amended in code), and the deterministic-replay principle (§8). Prestige (§7 note)
+> was never built.
+
 Defines how the six tracked metrics convert into XP, levels, attributes, and progression. All numbers are tuned against the **actual 30-day data** so the user starts the app already feeling powerful, and so realistic daily effort produces a satisfying-but-not-trivial climb.
 
 ---

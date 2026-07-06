@@ -33,6 +33,26 @@ Living status doc (created 2026-06-14). Tracks what's verified, what still needs
   replay, and achievement-fixpoint tests). Play prep: `docs/privacy-policy.html` +
   RUNBOOK §7G (Health Connect declarations).
 
+## ✅ Verified on emulator (2026-07-05, v0.2.0–v0.2.2 XP simplification)
+
+- **XP model rebuilt** (v0.2.0, user-approved spec in `XP Simplification Spec.md`):
+  `dayXp = burn − max(0, dailyBurnTarget − burn) + diet`. ALL multipliers removed
+  (completion +25%, streak +50%, deficit +50%, flat surplus penalty), rep/mile shortfall +
+  `missedDayPenalty` replaced by the daily-burn-target rule, quest + achievement XP removed
+  (badges only; `rebuildFull` fixpoint loop deleted — this supersedes the v0.1.18 "quest XP
+  granted" item above). Verified live: burn ring kcal == day XP exactly (658/658); shifting
+  intake by 600 kcal moved XP by exactly 600 (uncapped, symmetric); decay banner reconciles
+  (11 skipped × 450 = 4950).
+- **Burn-ring weight fix**: Hero rings now read the carried-forward day (latest weigh-in),
+  so displayed kcal and XP always agree — previously ring used stale profile weight.
+- **Intake carry-forward restored** (v0.2.1, user decision): the last entered calories stay
+  in effect until changed (fast 0 included); pre-fills Energy tab + Log day editor, feeds
+  each day's diet term. Verified: unlogged day inherited 1800 and paid its diet XP.
+- **Mood tracking removed** (v0.2.2, user verdict "worthless" — write-only data): emoji
+  picker gone from Train + day editor, mood achievements retired → **84 trophies**. DB
+  column + backup round-trip preserved. Notes journaling stays.
+- Unit suite green (25 tests, rewritten for the flat model; seed month → Level 10 / Rank C).
+
 ## ☐ Needs testing on the phone (not exercised on emulator)
 
 These are expected to work but were never run end-to-end on real hardware:
@@ -42,14 +62,14 @@ These are expected to work but were never run end-to-end on real hardware:
 - [ ] **Form videos** — tap "▶ form" on an exercise → opens YouTube in the in-app tab; favorite a video; add your own URL.
 - [ ] **Export** — CSV and JSON export via the file picker (Hero tab) actually save a file; then **restore** from a JSON backup.
 - [ ] **Energy/calories** — set height/weight, switch units (imperial⇄metric), check burned-vs-consumed and weight-goal progress.
-- [ ] Custom exercise add / log / remove; bonus XP displays.
-- [ ] Mood + notes persist and reappear after reopening.
+- [ ] Custom exercise add / log / remove; calorie XP displays.
+- [ ] Notes persist and reappear after reopening (mood was removed in v0.2.2).
 - [ ] Overall UI fits your phone's screen size / aspect (emulator was 1080×2400).
 
 ## ☐ Open / not yet built (optional polish, not blocking)
 
 - [ ] Per-rank portrait **art** variants (currently an aura-frame treatment that intensifies with rank, not separate images).
-- [ ] Custom-exercise-specific achievements (PR/notes/mood achievements for the core 5 are done; customs don't feed achievements yet).
+- [ ] Custom-exercise-specific achievements (PR/notes achievements for the core 5 are done; customs don't feed achievements yet).
 - [ ] Orbitron on section titles (currently only big headers/HUD elements).
 - [ ] True Android-12 `SplashScreen` API via `core-splashscreen` — **blocked**: the library isn't in the offline Gradle cache and the network is restricted here. Current approach = native window-theme splash + an in-app tap-to-enter title screen (works offline on all API levels).
 

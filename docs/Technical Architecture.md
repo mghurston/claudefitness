@@ -100,7 +100,7 @@ Settings (targets mode, theme, units, notification prefs) live in **DataStore**,
 | Function | Input → Output | Notes |
 |---|---|---|
 | `computeCompletion(day)` | entries → 0..n | Generalized weighted formula (Mapping §3); reproduces sheet exactly |
-| `awardXp(day)` | entries+context → XP | Base rates × multipliers (Leveling §2–3) |
+| `awardXp(day)` | entries+context → XP | v0.2.0: flat `burn − target-shortfall + diet`, no multipliers (`XP Simplification Spec.md`; shipped as `Progression.dayXp`) |
 | `levelForXp(totalXp)` | XP → level/rank | Inverse of `xpToNext` cumulative |
 | `computeStats(allEntries)` | → STR/END/AGI/DIS/CON | sqrt-scaled lifetime formulas (Leveling §5) |
 | `evaluateStreaks(days)` | → streak states | grace/freeze/rest logic (PDD §6) |

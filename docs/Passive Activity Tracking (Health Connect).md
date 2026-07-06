@@ -37,9 +37,11 @@ channel** and nothing else conceptual changes.
 
 - `Calories.activityBurn()` (`domain/Calories.kt:51`) currently returns
   `walk + strength + cardio + oneOffKcal`. Add a **`passiveKcal`** term.
-- `Progression.baseXp()` (`domain/Progression.kt:45`) is `activityBurn × 1`, so passive kcal
-  automatically earns full XP and flows through the completion / streak / deficit multipliers
-  exactly like everything else. **No change to Progression needed.**
+- `Progression.baseXp()` is `activityBurn × 1`, so passive kcal automatically earns full XP
+  exactly like everything else. **No change to Progression needed.** *(v0.2.0 note: the
+  completion/streak/deficit multipliers this doc originally mentioned were removed — flat
+  1 kcal = 1 XP now, see `XP Simplification Spec.md`. Passive kcal still counts toward the
+  daily burn target that drives the shortfall penalty.)*
 - The Energy screen's "activity" line reads the same `activityBurn`, so it stays consistent
   for free.
 

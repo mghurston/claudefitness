@@ -1,6 +1,11 @@
 # User Flows
 
-Step-by-step flows for the six required journeys. Notation: `→` next step, `[Screen]`, `(decision)`, `★` animation/feedback moment, `⚠` edge case. Screen layouts are in `Wireframes.md`.
+Step-by-step flows for the six required journeys **as originally designed**. Notation: `→` next step, `[Screen]`, `(decision)`, `★` animation/feedback moment, `⚠` edge case. Screen layouts are in `Wireframes.md`.
+
+> **⚠ Design-time doc.** The shipped app diverges: there are no XP multipliers or
+> "multipliers tally" (flat calorie XP — see `XP Simplification Spec.md`), no mood/energy
+> tags (removed v0.2.2; journal is notes-only), no 3 AM grace window (days roll at local
+> midnight), and quests award badges, not XP.
 
 ---
 

@@ -2,10 +2,15 @@
 
 **120 achievements** across 9 categories, plus tiers, rarity, hidden unlocks, and reward rules. Designed so several are **already earned on import** (from the real 30-day data) and the rest form a long ladder targeted at the user's specific weak spots: strength consistency, streaks, and the Wed/Fri/Sat cliffs.
 
-> **Shipped build: 86 achievements** (the `Achievements.ALL` list in `domain/Achievements.kt`).
-> This 120 figure is the original design ceiling; 86 were implemented for v1. The achievements
-> screen reads the live count from code, so it always matches what's built (e.g. "8 / 86 unlocked").
+> **Shipped build: 84 achievements** (the `Achievements.ALL` list in `domain/Achievements.kt`).
+> The 120 figure is the original design ceiling; 86 were implemented for v1, then the two mood
+> badges (Self-Aware, Peak State) were retired in **v0.2.2** when mood tracking was removed.
+> The achievements screen reads the live count from code, so it always matches what's built.
 > Each is evaluated retroactively as a pure function of the day log + character state.
+>
+> **XP payouts are retired (v0.2.0):** achievements are badges/prestige ONLY — they pay no XP.
+> Rarity drives styling, not rewards; XP comes exclusively from calories.
+> See `XP Simplification Spec.md`. Reward rules below are design history.
 
 ---
 
@@ -15,12 +20,12 @@
 |---|---|
 | **Trigger** | Evaluated at each log + at day-close; pure functions over the entry log |
 | **Rarity** | Common → Uncommon → Rare → Epic → Legendary → **Mythic** (drives badge styling, see Style Guide) |
-| **Reward** | Flat XP bonus + a collectible badge; some grant a title or palette |
+| **Reward** | A collectible badge (XP payouts retired in v0.2.0 — badges only) |
 | **Hidden** | Some are 🔒 secret until unlocked (shown as "???") for discovery delight |
 | **Retroactive** | All milestone/volume achievements evaluate against imported history on first launch |
 | **Progress** | Multi-step achievements show a progress bar (e.g. "740 / 1,000 squats") |
 
-**XP rewards by rarity:** Common 100 · Uncommon 250 · Rare 500 · Epic 1,000 · Legendary 2,500 · Mythic 5,000.
+~~**XP rewards by rarity:** Common 100 · Uncommon 250 · Rare 500 · Epic 1,000 · Legendary 2,500 · Mythic 5,000.~~ *(retired v0.2.0 — rarity is cosmetic)*
 
 ---
 
