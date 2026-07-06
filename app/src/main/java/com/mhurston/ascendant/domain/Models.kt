@@ -49,8 +49,9 @@ data class DayData(
     val calfRaises: Int = 0,
     val curls: Int = 0,
     val miles: Double = 0.0,
-    /** Calories eaten this day. -1 = not logged (the day simply has no diet XP term);
-     *  0 = a deliberate zero-intake (fasting) day that counts its full deficit as XP. */
+    /** Calories eaten this day. -1 = not logged (carryForward substitutes the last entered
+     *  value; no diet XP term before any entry). 0 = a deliberate zero-intake (fasting) day
+     *  that counts its full deficit as XP and carries forward like any entered value. */
     val caloriesConsumed: Int = -1,
     /** Body weight (kg) in effect for this day. 0 = no weigh-in; callers carry the last known
      *  weight forward (Progression.carryForward) and fall back to the profile weight. Drives this

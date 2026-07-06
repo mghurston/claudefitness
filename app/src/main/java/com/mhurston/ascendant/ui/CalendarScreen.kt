@@ -82,10 +82,11 @@ fun CalendarScreen(
         val sortedDays = state.days.sortedBy { it.date }
         val carriedWeightKg = sortedDays.lastOrNull { it.date <= dateStr && it.weightKg > 0.0 }
             ?.weightKg ?: state.profile.weightKg
+        // >= 0 because an explicit 0 is a logged fasting day; -1 is the "not logged" sentinel.
+        // The carried value is what the day's diet XP actually used, so the editor shows it.
+        val carriedConsumed = sortedDays.lastOrNull { it.date <= dateStr && it.caloriesConsumed >= 0 }
+            ?.caloriesConsumed ?: -1
         val ent = byDate[dateStr]
-        // Intake is per-day only (never inherited): an unlogged day has no diet XP term, so
-        // the editor must show it blank rather than pretending yesterday's meals apply.
-        val ownConsumed = ent?.caloriesConsumed ?: -1
         // Day's gross activity burn, computed with the carried-forward weight so the number
         // matches the day's XP/energy math (weightFor uses day.weightKg when > 0).
         val dayForBurn = (ent ?: WorkoutDayEntity(date = dateStr)).toDayData()
@@ -100,7 +101,8 @@ fun CalendarScreen(
             caloriesBurned = caloriesBurned,
             carriedWeightKg = carriedWeightKg,
             weightLoggedToday = (ent?.weightKg ?: 0.0) > 0.0,
-            ownConsumed = ownConsumed,
+            carriedConsumed = carriedConsumed,
+            consumedLoggedToday = (ent?.caloriesConsumed ?: -1) >= 0,
             onAddReps = { kind, delta -> onAddReps(date.toString(), kind, delta) },
             onAddMiles = { delta -> onAddMiles(date.toString(), delta) },
             onReset = { onResetDay(date.toString()) },
@@ -285,8 +287,8 @@ private fun DayEditorDialog(
     onSetWeight: (Double) -> Unit = {},
     carriedWeightKg: Double = 0.0,
     weightLoggedToday: Boolean = false,
-    /** THIS day's logged intake (-1 = not logged). Never inherited from prior days. */
-    ownConsumed: Int = -1,
+    carriedConsumed: Int = -1,
+    consumedLoggedToday: Boolean = false,
     customExercises: List<com.mhurston.ascendant.domain.CustomExercise> = emptyList(),
     onAddCustomReps: (String, Int) -> Unit = { _, _ -> },
     onAddCustomExercise: (String) -> Unit = {},
@@ -429,8 +431,8 @@ private fun DayEditorDialog(
                 }
                 SetValueRow(
                     "Calories eaten (0 = fasted)",
-                    if (ownConsumed >= 0) ownConsumed.toString() else "",
-                    inherited = false, decimal = false
+                    if (carriedConsumed >= 0) carriedConsumed.toString() else "",
+                    inherited = !consumedLoggedToday, decimal = false
                 ) { entered -> onSetConsumed(entered.toIntOrNull() ?: -1) }
 
                 Spacer(Modifier.height(8.dp))

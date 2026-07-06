@@ -71,15 +71,14 @@ In `domain/Progression.kt`:
   +N quests · +N trophies" caption goes away).
 - Level-gated achievements still work: level comes from calorie XP only.
 
-### 4. Intake carry-forward — SIMPLIFY
-- `Progression.carryForward()` keeps carrying **weight** forward. It STOPS
-  carrying `caloriesConsumed` forward. A day where food wasn't logged
-  (`caloriesConsumed == -1`) simply has **no diet term** — we don't invent an
-  intake for it. Explicit `0` = logged fast, still earns its full (large)
-  deficit. The −1/0 sentinel semantics in the DB are unchanged; only the
-  inheritance is removed.
-- Known tradeoff (accepted): skipping food logging = diet term of 0 for that
-  day, no more, no less.
+### 4. Intake carry-forward — KEPT (user decision 2026-07-05, reversing the
+### first draft of this spec)
+- `Progression.carryForward()` carries BOTH weight and `caloriesConsumed`
+  forward: "the number you last entered stays in effect until you change it."
+  Enter 2000 today → tomorrow uses 2000 for its diet term unless edited; a
+  logged fast (0) sticks and carries the same way. Before the first entry
+  anywhere, intake is -1 → no diet term.
+- Do NOT remove the inheritance again — the user explicitly wants it.
 
 ## Accepted consequences — do NOT "fix" these
 - **Uncapped diet XP dominates on fasting/deep-deficit days.** A fasted day

@@ -120,10 +120,10 @@ class ProgressionTest {
     }
 
     @Test
-    fun diet_absentWhenFoodNotLogged() {
+    fun diet_absentBeforeAnyIntakeIsEverEntered() {
         val day = DayData(LocalDate.parse("2026-04-11"), 100, 100, 100, 100, 100, 5.0)
-        val (_, derived) = Progression.rebuild(listOf(day)) // consumed = -1
-        // No food logged → no diet term, just the burn.
+        val (_, derived) = Progression.rebuild(listOf(day)) // consumed = -1, nothing to carry
+        // Before the first intake entry there's no value in effect → no diet term, just burn.
         assertEquals(Math.round(Progression.baseXp(profile, day)), derived[day.date]!!.xp)
     }
 
@@ -258,10 +258,10 @@ class ProgressionTest {
         assertEquals(rawFor(over), netFor(over))
     }
 
-    // --- Carry-forward: weight yes, intake no ---------------------------------------------
+    // --- Carry-forward: the last entered weight AND intake stay in effect ------------------
 
     @Test
-    fun carryForward_inheritsWeightOnly_neverIntake() {
+    fun carryForward_inheritsLastWeightAndIntakeForwardOnly() {
         val days = listOf(
             DayData(LocalDate.parse("2026-02-01"), weightKg = 90.0, caloriesConsumed = 2000),
             DayData(LocalDate.parse("2026-02-02")),                       // nothing logged
@@ -269,25 +269,41 @@ class ProgressionTest {
         )
         val r = Progression.carryForward(days, defaultWeightKg = 80.0)
         assertEquals(90.0, r[1].weightKg, 0.0)        // weight carried from 02-01
-        assertEquals(-1, r[1].caloriesConsumed)       // intake is NOT carried — no diet term
+        assertEquals(2000, r[1].caloriesConsumed)     // intake carried from 02-01
         assertEquals(88.0, r[2].weightKg, 0.0)        // fresh weigh-in wins
-        assertEquals(-1, r[2].caloriesConsumed)
+        assertEquals(2000, r[2].caloriesConsumed)     // intake still in effect (unchanged)
 
-        // Before any weigh-in, weight falls back to the profile default.
+        // Before any entries, weight falls back to the profile default; intake stays -1.
         val pre = Progression.carryForward(listOf(DayData(LocalDate.parse("2026-02-01"))), 80.0)
         assertEquals(80.0, pre[0].weightKg, 0.0)
         assertEquals(-1, pre[0].caloriesConsumed)
     }
 
     @Test
-    fun explicitZeroIntake_isAFast_andStaysOnItsDayOnly() {
+    fun carryForward_explicitZeroIsAFast_andSticksUntilChanged() {
         val days = listOf(
+            DayData(LocalDate.parse("2026-02-01"), caloriesConsumed = 2000),
             DayData(LocalDate.parse("2026-02-02"), caloriesConsumed = 0),  // logged fast
             DayData(LocalDate.parse("2026-02-03"))                          // unlogged
         )
         val r = Progression.carryForward(days, 80.0)
-        assertEquals("a logged 0 is kept", 0, r[0].caloriesConsumed)
-        assertEquals("the fast does not leak onto the next day", -1, r[1].caloriesConsumed)
+        assertEquals("a logged 0 is kept, not replaced by yesterday", 0, r[1].caloriesConsumed)
+        assertEquals("the fast carries forward like any entered value", 0, r[2].caloriesConsumed)
+    }
+
+    @Test
+    fun carriedIntake_feedsTheNextDaysDietTerm() {
+        // Enter 2000 kcal on day 1, log nothing on day 2: day 2's diet term uses the carried
+        // 2000 — same as if it were re-entered — until the user changes it.
+        val d1 = DayData(LocalDate.parse("2026-02-01"), 100, 100, 100, 100, 100, 5.0,
+            caloriesConsumed = 2000)
+        val d2raw = DayData(LocalDate.parse("2026-02-02"), 100, 100, 100, 100, 100, 5.0)
+        val carried = Progression.carryForward(listOf(d1, d2raw), 80.0)
+        val (_, derived) = Progression.rebuild(carried)
+        val explicit = Progression.carryForward(
+            listOf(d1, d2raw.copy(caloriesConsumed = 2000)), 80.0)
+        val (_, derivedExplicit) = Progression.rebuild(explicit)
+        assertEquals(derivedExplicit[d2raw.date]!!.xp, derived[d2raw.date]!!.xp)
     }
 
     // --- Activity sources all feed the same flat burn --------------------------------------

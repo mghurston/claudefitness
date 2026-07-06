@@ -23,8 +23,10 @@ object Progression {
     // burn      = Calories.activityBurn — gross activity kcal, 1 kcal = 1 XP.
     // shortfall = max(0, dailyBurnTarget − burn) — charged on past days only (today can
     //             still be logged); a fully unlogged day loses the full target.
-    // diet      = (BMR + burn) − consumed — symmetric 1:1, UNCAPPED, only when food was
-    //             logged (Calories.deficit). Eat under your burn → gain; over → lose.
+    // diet      = (BMR + burn) − consumed — symmetric 1:1, UNCAPPED. Eat under your burn →
+    //             gain; over → lose. Intake carries forward until changed (carryForward), so
+    //             the value you last entered keeps applying; before any entry there is no
+    //             diet term (Calories.deficit returns 0 for the -1 sentinel).
     //
     // There are deliberately NO multipliers, bonuses, or caps. Do not add any without
     // asking the user first — every prior "small bonus" got ripped out here.
@@ -40,18 +42,22 @@ object Progression {
     fun baseXp(p: Profile, d: DayData): Double = Calories.activityBurn(p, d) * XP_PER_KCAL
 
     /**
-     * Carry body weight forward across the log: a day with no weigh-in inherits the most
-     * recent prior weigh-in (falling back to [defaultWeightKg] before the first one), so each
-     * day's energy math uses the weight in effect *then*, not the current one. Intake is NOT
-     * carried — a day where food wasn't logged (-1) simply has no diet term; we don't invent
-     * an intake for it. An explicit 0 is a logged fast. Pure + deterministic; the engine and
-     * UI both run the raw log through this before reading per-day weight.
+     * Carry body weight and calories-consumed forward across the log: a day with no weigh-in
+     * inherits the most recent prior weigh-in (falling back to [defaultWeightKg] before the
+     * first one), and a day with no logged intake (-1) inherits the previous day's intake
+     * (-1 until the first logged day → no diet term). An explicit 0 is a logged fast and, like
+     * any entered value, stays in effect until changed. "Carry forward unless changed": the
+     * number you last entered keeps applying, so an unlogged day uses yesterday's body weight
+     * AND yesterday's intake for its diet term. Pure + deterministic; the engine and UI both
+     * run the raw log through this before reading per-day weight/intake.
      */
     fun carryForward(days: List<DayData>, defaultWeightKg: Double): List<DayData> {
         var weight = defaultWeightKg
+        var consumed = -1
         return days.sortedBy { it.date }.map { d ->
             if (d.weightKg > 0.0) weight = d.weightKg
-            d.copy(weightKg = weight)
+            if (d.caloriesConsumed >= 0) consumed = d.caloriesConsumed
+            d.copy(weightKg = weight, caloriesConsumed = consumed)
         }
     }
 
