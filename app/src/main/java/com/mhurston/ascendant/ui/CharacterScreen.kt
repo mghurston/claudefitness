@@ -49,7 +49,9 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import com.mhurston.ascendant.data.Exporter
 import com.mhurston.ascendant.ui.theme.AuraCyan
+import com.mhurston.ascendant.ui.theme.CrimsonRed
 import com.mhurston.ascendant.ui.theme.ManaPurple
+import com.mhurston.ascendant.ui.theme.SuccessGreen
 import com.mhurston.ascendant.ui.theme.TextDim
 import com.mhurston.ascendant.ui.theme.XpGold
 import kotlin.math.roundToInt
@@ -68,6 +70,8 @@ fun CharacterScreen(
     val s = c.stats
     var showTiers by remember { mutableStateOf(false) }
     if (showTiers) RankTiersDialog(currentLevel = c.level) { showTiers = false }
+    var showAttrInfo by remember { mutableStateOf(false) }
+    if (showAttrInfo) AttributesInfoDialog { showAttrInfo = false }
     Column(
         modifier
             .fillMaxSize()
@@ -132,12 +136,16 @@ fun CharacterScreen(
         }
 
         Spacer(Modifier.height(20.dp))
-        SectionHeader("Attributes")
+        // Tap to see how each attribute is earned — same ⓘ pattern as the rank-tiers dialog.
+        Row(verticalAlignment = Alignment.CenterVertically,
+            modifier = Modifier.clickable { showAttrInfo = true }) {
+            SectionHeader("Attributes")
+            Spacer(Modifier.width(6.dp))
+            Text("ⓘ", style = MaterialTheme.typography.titleLarge, color = ManaPurple)
+        }
         // One distinct color per stat (Style Guide §2.2) so bars are tellable at a glance.
-        LabeledBar("STRENGTH", s.strength, statBarMax(s.strength),
-            com.mhurston.ascendant.ui.theme.CrimsonRed)
-        LabeledBar("ENDURANCE", s.endurance, statBarMax(s.endurance),
-            com.mhurston.ascendant.ui.theme.SuccessGreen)
+        LabeledBar("STRENGTH", s.strength, statBarMax(s.strength), CrimsonRed)
+        LabeledBar("ENDURANCE", s.endurance, statBarMax(s.endurance), SuccessGreen)
         LabeledBar("AGILITY", s.agility, statBarMax(s.agility), AuraCyan)
         LabeledBar("DISCIPLINE", s.discipline, statBarMax(s.discipline), ManaPurple)
         LabeledBar("CONSISTENCY", s.consistency, statBarMax(s.consistency), XpGold)
@@ -204,6 +212,47 @@ private fun RankTiersDialog(currentLevel: Int, onDismiss: () -> Unit) {
         },
         confirmButton = { TextButton(onClick = onDismiss) { Text("Got it", fontWeight = FontWeight.Bold) } }
     )
+}
+
+/** How each attribute is earned. The formulas live in Progression.rebuild — this ⓘ dialog is
+ *  the only place the app explains them, so keep the text in sync if the formulas change. */
+@Composable
+private fun AttributesInfoDialog(onDismiss: () -> Unit) {
+    AlertDialog(
+        onDismissRequest = onDismiss,
+        title = { Text("How attributes grow") },
+        text = {
+            Column(Modifier.verticalScroll(rememberScrollState())) {
+                AttrInfo("STRENGTH", CrimsonRed,
+                    "Lifetime pushups, squats & curls.",
+                    "√(reps ÷ 50) — point 1 at 50 reps, point 10 at 5,000.")
+                AttrInfo("ENDURANCE", SuccessGreen,
+                    "Lifetime manually-logged walking miles. Tracked steps earn XP but not END.",
+                    "√(miles × 4) — point 1 at ¼ mile, point 10 at 25 miles.")
+                AttrInfo("AGILITY", AuraCyan,
+                    "Lifetime leg lifts & calf raises.",
+                    "√(reps ÷ 60) — point 1 at 60 reps, point 10 at 6,000.")
+                AttrInfo("DISCIPLINE", ManaPurple,
+                    "Days where you hit at least 80% of the daily goals.",
+                    "1.5 points per qualifying day.")
+                AttrInfo("CONSISTENCY", XpGold,
+                    "Strength streaks — the only attribute that can drop (when a streak dies).",
+                    "Longest streak ever + half your current streak.")
+            }
+        },
+        confirmButton = { TextButton(onClick = onDismiss) { Text("Got it", fontWeight = FontWeight.Bold) } }
+    )
+}
+
+/** One attribute entry in the info dialog: colored name, what feeds it, then the formula. */
+@Composable
+private fun AttrInfo(name: String, color: Color, source: String, formula: String) {
+    Column(Modifier.fillMaxWidth().padding(vertical = 6.dp)) {
+        Text(name, style = MaterialTheme.typography.labelLarge, color = color,
+            fontWeight = FontWeight.Bold)
+        BodyText(source)
+        Caption(formula)
+    }
 }
 
 /** Today's status at a glance — Goals completion, Active Burn, and (when passive sync is on)

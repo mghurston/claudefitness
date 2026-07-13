@@ -137,7 +137,8 @@ object Progression {
         var perfectStreak = 0
         var prev: LocalDate? = null
 
-        var totalStrengthReps = 0
+        var totalStrengthReps = 0 // all five exercises — the Hero row + rep achievements
+        var strStatReps = 0       // pushups+squats+curls only — the STR formula's input
         var totalAgiReps = 0
         var totalMiles = 0.0
         var daysGe80 = 0
@@ -169,7 +170,11 @@ object Progression {
             totalXp += xp
             derived[d.date] = DayDerived(comp, xp)
 
-            totalStrengthReps += d.pushups + d.squats + d.curls
+            // Lifetime reps count every core exercise (matches the per-day strengthReps that
+            // drives burn/streaks); STR's input stays the push/squat/curl subset — leg lifts
+            // and calf raises grow AGI instead, never both.
+            totalStrengthReps += d.strengthReps
+            strStatReps += d.pushups + d.squats + d.curls
             totalAgiReps += d.legLifts + d.calfRaises
             totalMiles += d.miles
             if (comp >= 0.8) daysGe80++
@@ -178,7 +183,7 @@ object Progression {
             prev = d.date
         }
 
-        val str = floor(sqrt(totalStrengthReps / 50.0)).toInt()
+        val str = floor(sqrt(strStatReps / 50.0)).toInt()
         val end = floor(sqrt(totalMiles * 4.0)).toInt()
         val agi = floor(sqrt(totalAgiReps / 60.0)).toInt()
         val dis = floor(daysGe80 * 1.5).toInt()
