@@ -272,8 +272,10 @@ private fun QuestRow(q: com.mhurston.ascendant.domain.Quest) {
         colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface)
     ) {
         Column(Modifier.padding(12.dp)) {
-            Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
+            Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween,
+                verticalAlignment = Alignment.CenterVertically) {
                 Text((if (q.done) "✓ " else "") + q.title,
+                    modifier = Modifier.weight(1f),
                     style = MaterialTheme.typography.bodyLarge,
                     color = if (q.done) XpGold else MaterialTheme.colorScheme.onSurface)
                 if (q.done) Text("DONE", style = MaterialTheme.typography.labelMedium,
@@ -328,18 +330,18 @@ private fun ExerciseRow(name: String, current: Int, onVideos: () -> Unit, onAdd:
         colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface)
     ) {
         Column(Modifier.padding(12.dp)) {
-            Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
-                Row(verticalAlignment = Alignment.CenterVertically) {
-                    BodyText(name)
-                    Spacer(Modifier.width(8.dp))
-                    FormVideoChip(onVideos)
-                }
-                Row {
-                    if (over > 0) Text("OVERDRIVE +$over  ", color = XpGold,
-                        style = MaterialTheme.typography.labelMedium, fontWeight = FontWeight.Bold)
-                    Text("$current / $target", color = if (current >= target) XpGold else TextDim,
-                        fontWeight = FontWeight.Bold)
-                }
+            Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween,
+                verticalAlignment = Alignment.CenterVertically) {
+                BodyText(name, modifier = Modifier.weight(1f))
+                Text("$current / $target", color = if (current >= target) XpGold else TextDim,
+                    fontWeight = FontWeight.Bold)
+            }
+            Spacer(Modifier.height(6.dp))
+            Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween,
+                verticalAlignment = Alignment.CenterVertically) {
+                FormVideoChip(onVideos)
+                if (over > 0) Text("OVERDRIVE +$over", color = XpGold,
+                    style = MaterialTheme.typography.labelMedium, fontWeight = FontWeight.Bold)
             }
             Spacer(Modifier.height(6.dp))
             ProgressTrack(
@@ -378,12 +380,14 @@ private fun VariantGoalSection(
             ) {
                 Caption("Log any of these — they all count toward the goal.",
                     modifier = Modifier.weight(1f))
-                Row {
-                    if (over > 0) Text("OVERDRIVE +$over  ", color = XpGold,
-                        style = MaterialTheme.typography.labelMedium, fontWeight = FontWeight.Bold)
-                    Text("$total / $target", color = if (total >= target) XpGold else TextDim,
-                        fontWeight = FontWeight.Bold)
-                }
+                Text("$total / $target", color = if (total >= target) XpGold else TextDim,
+                    fontWeight = FontWeight.Bold)
+            }
+            if (over > 0) {
+                Spacer(Modifier.height(2.dp))
+                Text("OVERDRIVE +$over", color = XpGold,
+                    style = MaterialTheme.typography.labelMedium, fontWeight = FontWeight.Bold,
+                    modifier = Modifier.align(Alignment.End))
             }
             Spacer(Modifier.height(6.dp))
             ProgressTrack(
@@ -395,16 +399,14 @@ private fun VariantGoalSection(
                 Spacer(Modifier.height(12.dp))
                 Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween,
                     verticalAlignment = Alignment.CenterVertically) {
-                    Row(
-                        Modifier.weight(1f),
-                        verticalAlignment = Alignment.CenterVertically
-                    ) {
-                        BodyText(label, color = if (reps > 0) MaterialTheme.colorScheme.onSurface else TextDim)
-                        Spacer(Modifier.width(8.dp))
-                        FormVideoChip { onVideosFor(id) }
-                    }
+                    BodyText(label, modifier = Modifier.weight(1f),
+                        color = if (reps > 0) MaterialTheme.colorScheme.onSurface else TextDim)
                     Text("$reps", color = if (reps > 0) AuraCyan else TextDim,
                         fontWeight = FontWeight.Bold)
+                }
+                Spacer(Modifier.height(6.dp))
+                Row(Modifier.fillMaxWidth()) {
+                    FormVideoChip { onVideosFor(id) }
                 }
                 Spacer(Modifier.height(4.dp))
                 RepControls(current = reps, onAdd = { onAddVariant(id, it) })
@@ -426,17 +428,16 @@ private fun CardioMinutesRow(label: String, minutes: Int, kcalPerMin: Double,
         Column(Modifier.padding(12.dp)) {
             Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween,
                 verticalAlignment = Alignment.CenterVertically) {
-                Row(verticalAlignment = Alignment.CenterVertically) {
-                    BodyText(label)
-                    Spacer(Modifier.width(8.dp))
-                    FormVideoChip(onVideos)
-                }
-                Row(verticalAlignment = Alignment.CenterVertically) {
-                    if (minutes > 0) Text("≈$kcal XP  ", color = XpGold,
-                        style = MaterialTheme.typography.labelMedium, fontWeight = FontWeight.Bold)
-                    Text("$minutes min", color = if (minutes > 0) AuraCyan else TextDim,
-                        fontWeight = FontWeight.Bold)
-                }
+                BodyText(label, modifier = Modifier.weight(1f))
+                Text("$minutes min", color = if (minutes > 0) AuraCyan else TextDim,
+                    fontWeight = FontWeight.Bold)
+            }
+            Spacer(Modifier.height(6.dp))
+            Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween,
+                verticalAlignment = Alignment.CenterVertically) {
+                FormVideoChip(onVideos)
+                if (minutes > 0) Text("≈$kcal XP", color = XpGold,
+                    style = MaterialTheme.typography.labelMedium, fontWeight = FontWeight.Bold)
             }
             Spacer(Modifier.height(8.dp))
             MinuteControls(minutes = minutes, onAdd = onAdd)
@@ -490,20 +491,20 @@ private fun WalkingRow(
         colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface)
     ) {
         Column(Modifier.padding(12.dp)) {
-            Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
-                Row(verticalAlignment = Alignment.CenterVertically) {
-                    BodyText("Walking")
-                    Spacer(Modifier.width(8.dp))
-                    FormVideoChip(onVideos)
-                }
-                Row {
-                    if (over > 0) Text("OVERDRIVE +${"%.1f".format(java.util.Locale.US, over)}mi  ",
-                        color = XpGold,
-                        style = MaterialTheme.typography.labelMedium, fontWeight = FontWeight.Bold)
-                    Text("${"%.1f".format(java.util.Locale.US, total)} / 5.0 mi",
-                        color = if (total >= Progression.MILE_TARGET) XpGold else TextDim,
-                        fontWeight = FontWeight.Bold)
-                }
+            Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween,
+                verticalAlignment = Alignment.CenterVertically) {
+                BodyText("Walking", modifier = Modifier.weight(1f))
+                Text("${"%.1f".format(java.util.Locale.US, total)} / 5.0 mi",
+                    color = if (total >= Progression.MILE_TARGET) XpGold else TextDim,
+                    fontWeight = FontWeight.Bold)
+            }
+            Spacer(Modifier.height(6.dp))
+            Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween,
+                verticalAlignment = Alignment.CenterVertically) {
+                FormVideoChip(onVideos)
+                if (over > 0) Text("OVERDRIVE +${"%.1f".format(java.util.Locale.US, over)}mi",
+                    color = XpGold,
+                    style = MaterialTheme.typography.labelMedium, fontWeight = FontWeight.Bold)
             }
             Spacer(Modifier.height(6.dp))
             ProgressTrack(
@@ -516,7 +517,7 @@ private fun WalkingRow(
                 Spacer(Modifier.height(12.dp))
                 Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween,
                     verticalAlignment = Alignment.CenterVertically) {
-                    BodyText("Tracked (steps)")
+                    BodyText("Tracked (steps)", modifier = Modifier.weight(1f))
                     Text("${"%.1f".format(java.util.Locale.US, trackedMiles)} mi  ·  " +
                         "${"%,d".format(java.util.Locale.US, steps)} steps",
                         color = AuraCyan, fontWeight = FontWeight.Bold)
@@ -682,8 +683,9 @@ private fun ExtrasSection(
             colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface)
         ) {
             Column(Modifier.padding(12.dp)) {
-                Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
-                    Row(verticalAlignment = Alignment.CenterVertically) {
+                Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween,
+                    verticalAlignment = Alignment.CenterVertically) {
+                    Row(Modifier.weight(1f), verticalAlignment = Alignment.CenterVertically) {
                         BodyText(ex.name)
                         Text("  📌", style = MaterialTheme.typography.labelMedium)
                     }

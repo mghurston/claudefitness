@@ -590,7 +590,7 @@ private fun TrackedWalkRow(steps: Int, trackedMiles: Double) {
     Row(Modifier.fillMaxWidth().padding(vertical = 4.dp),
         horizontalArrangement = Arrangement.SpaceBetween,
         verticalAlignment = Alignment.CenterVertically) {
-        Column {
+        Column(Modifier.weight(1f)) {
             BodyText("Tracked (steps)")
             Caption("auto from Health Connect")
         }
