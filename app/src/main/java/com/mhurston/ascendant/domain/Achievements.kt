@@ -219,14 +219,17 @@ object Achievements {
             if (rbL > 0 && d.legLifts > rbL) prEvents++
             if (rbC > 0 && d.calfRaises > rbC) prEvents++
             if (rbCu > 0 && d.curls > rbCu) prEvents++
-            if (rbM > 0.0 && d.miles > rbM) prEvents++
+            if (rbM > 0.0 && d.walkMiles > rbM) prEvents++
             rbP = maxOf(rbP, d.pushups); rbS = maxOf(rbS, d.squats); rbL = maxOf(rbL, d.legLifts)
-            rbC = maxOf(rbC, d.calfRaises); rbCu = maxOf(rbCu, d.curls); rbM = maxOf(rbM, d.miles)
+            rbC = maxOf(rbC, d.calfRaises); rbCu = maxOf(rbCu, d.curls); rbM = maxOf(rbM, d.walkMiles)
             if (d.notes.isNotBlank()) notesDays++
 
-            p += d.pushups; s += d.squats; l += d.legLifts; cr += d.calfRaises; cu += d.curls; mi += d.miles
+            // Walking achievements read walkMiles (manual/treadmill + step-tracked) — the same
+            // total the dashboard, daily goal, and completion use. Manual-only here would let
+            // an all-steps day (e.g. 16k steps, 0 logged miles) earn nothing.
+            p += d.pushups; s += d.squats; l += d.legLifts; cr += d.calfRaises; cu += d.curls; mi += d.walkMiles
             bp = maxOf(bp, d.pushups); bs = maxOf(bs, d.squats); bl = maxOf(bl, d.legLifts)
-            bc = maxOf(bc, d.calfRaises); bcu = maxOf(bcu, d.curls); bm = maxOf(bm, d.miles)
+            bc = maxOf(bc, d.calfRaises); bcu = maxOf(bcu, d.curls); bm = maxOf(bm, d.walkMiles)
             val comp = Progression.completion(d)
             if (comp >= 1.0) {
                 full100++
@@ -237,15 +240,15 @@ object Achievements {
                     else -> {}
                 }
             }
-            if (d.pushups > 0 && d.squats > 0 && d.legLifts > 0 && d.calfRaises > 0 && d.curls > 0 && d.miles > 0) anySix = true
-            val over = d.pushups > 100 && d.squats > 100 && d.legLifts > 100 && d.calfRaises > 100 && d.curls > 100 && d.miles > 5.0
+            if (d.pushups > 0 && d.squats > 0 && d.legLifts > 0 && d.calfRaises > 0 && d.curls > 0 && d.walkMiles > 0) anySix = true
+            val over = d.pushups > 100 && d.squats > 100 && d.legLifts > 100 && d.calfRaises > 100 && d.curls > 100 && d.walkMiles > 5.0
             if (over) overdrive = true
             if (over && prevOver && prevDate != null && ChronoUnit.DAYS.between(prevDate, d.date) == 1L) doubleOver = true
             if (d.hasActivity) active++
-            // walking streak (consecutive calendar days with miles > 0)
+            // walking streak (consecutive calendar days with any walking, tracked or manual)
             val gap = prevDate?.let { ChronoUnit.DAYS.between(it, d.date) } ?: 1L
             if (gap > 1L) walkStreak = 0
-            walkStreak = if (d.miles > 0) walkStreak + 1 else 0
+            walkStreak = if (d.walkMiles > 0) walkStreak + 1 else 0
             longestWalk = maxOf(longestWalk, walkStreak)
             prevDate = d.date
             prevOver = over

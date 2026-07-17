@@ -332,16 +332,17 @@ class ProgressionTest {
     }
 
     @Test
-    fun passiveKcal_addsFullXp_andIsXpOnly_notMilesOrEndurance() {
+    fun passiveKcal_addsFullXp_andTrackedMilesBuildEndurance() {
         val base = DayData(LocalDate.parse("2026-05-01"), pushups = 50)
         val withPassive = base.copy(passiveSteps = 8000, passiveKcal = 300)
         val (s0, _) = Progression.rebuild(listOf(base))
         val (s1, _) = Progression.rebuild(listOf(withPassive))
         // Passive burn reads max(measured, step estimate); either way it's flat 1:1 XP.
         assertTrue("passive calories become XP", s1.earnedXp > s0.earnedXp + 250)
-        // Passive distance is XP-only: it must NOT inflate miles or the endurance stat.
-        assertEquals("passive steps never add miles", s0.totalMiles, s1.totalMiles, 0.0)
-        assertEquals("passive steps never build endurance", s0.stats.endurance, s1.stats.endurance)
+        // Since v0.3.5 lifetime walking counts walkMiles (manual + tracked) everywhere —
+        // achievements, END, and the Hero Records row — so 8000 steps ≈ 4 tracked miles.
+        assertEquals("tracked steps add lifetime miles", s0.totalMiles + 4.0, s1.totalMiles, 0.001)
+        assertTrue("tracked miles build endurance", s1.stats.endurance > s0.stats.endurance)
     }
 
     @Test

@@ -31,16 +31,21 @@ object Exporter {
      *  0 = a logged fasting day. */
     private const val SCHEMA = 2
 
-    /** Original spreadsheet column order, so the file round-trips back to the sheet.
+    /** Original spreadsheet column order, so the file round-trips back to the sheet
+     *  (steps/totalmiles are appended after so the first eight columns stay put).
+     *  `miles` is the manual/treadmill entry only; `totalmiles` = miles + step-tracked
+     *  distance — the walking total the app scores against.
      *  Locale-pinned: a comma-decimal device locale must not corrupt the CSV. */
     fun toCsv(days: List<WorkoutDayEntity>): String {
         val sb = StringBuilder()
-        sb.append("date,pushups,squats,leglifts,calfraises,curls,miles,completion\n")
+        sb.append("date,pushups,squats,leglifts,calfraises,curls,miles,completion,steps,totalmiles\n")
         days.sortedBy { it.date }.forEach { d ->
             val comp = Progression.completion(d.toDayData())
-            sb.append("${d.date},${d.pushTotal()},${d.squats},${d.legLifts},")
+            sb.append("${d.date},${d.pushTotal()},${d.squats},${d.coreTotal()},")
             sb.append("${d.calfRaises},${d.curls},${d.miles},")
-            sb.append(String.format(Locale.US, "%.4f", comp)).append("\n")
+            sb.append(String.format(Locale.US, "%.4f", comp)).append(",")
+            sb.append("${d.passiveSteps},")
+            sb.append(String.format(Locale.US, "%.2f", d.walkMiles)).append("\n")
         }
         return sb.toString()
     }

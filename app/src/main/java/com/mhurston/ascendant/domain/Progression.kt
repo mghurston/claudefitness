@@ -176,7 +176,9 @@ object Progression {
             totalStrengthReps += d.strengthReps
             strStatReps += d.pushups + d.squats + d.curls
             totalAgiReps += d.legLifts + d.calfRaises
-            totalMiles += d.miles
+            // Lifetime walking = walkMiles (manual + step-tracked), matching the walking
+            // achievements and every walking display; feeds END and the Hero Records row.
+            totalMiles += d.walkMiles
             if (comp >= 0.8) daysGe80++
             if (d.hasActivity) daysTrained++
 

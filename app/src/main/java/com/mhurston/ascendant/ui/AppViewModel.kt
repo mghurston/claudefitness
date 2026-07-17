@@ -159,13 +159,16 @@ class AppViewModel(app: Application) : AndroidViewModel(app) {
     }
 
     fun quickLogFullDay() = mutateDay(todayStr()) { cur ->
+        // Walking goal is walkMiles (manual + step-tracked): only add the manual remainder
+        // still missing, or step-covered days would double-count the walking already done.
+        val remainder = (Progression.MILE_TARGET - cur.trackedMiles).coerceAtLeast(0.0)
         cur.copy(
             pushups = Progression.REP_TARGET,
             squats = Progression.REP_TARGET,
             legLifts = Progression.REP_TARGET,
             calfRaises = Progression.REP_TARGET,
             curls = Progression.REP_TARGET,
-            miles = if (cur.miles < Progression.MILE_TARGET) Progression.MILE_TARGET else cur.miles
+            miles = maxOf(cur.miles, remainder)
         )
     }
 
