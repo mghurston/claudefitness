@@ -234,7 +234,7 @@ private fun AttributesInfoDialog(onDismiss: () -> Unit) {
                     "√(reps ÷ 60) — point 1 at 60 reps, point 10 at 6,000.")
                 AttrInfo("DISCIPLINE", ManaPurple,
                     "Days where you hit at least 80% of the daily goals.",
-                    "1.5 points per qualifying day.")
+                    "1 point per qualifying day.")
                 AttrInfo("CONSISTENCY", XpGold,
                     "Strength streaks — the only attribute that can drop (when a streak dies).",
                     "Longest streak ever + half your current streak.")

@@ -188,7 +188,7 @@ object Progression {
         val str = floor(sqrt(strStatReps / 50.0)).toInt()
         val end = floor(sqrt(totalMiles * 4.0)).toInt()
         val agi = floor(sqrt(totalAgiReps / 60.0)).toInt()
-        val dis = floor(daysGe80 * 1.5).toInt()
+        val dis = daysGe80
         val con = longestStrength + strengthStreak / 2
 
         // --- Inactivity decay (PERMANENT) -------------------------------------
