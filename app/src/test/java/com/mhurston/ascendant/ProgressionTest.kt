@@ -164,7 +164,9 @@ class ProgressionTest {
     fun seedImport_statsAreReasonable() {
         val (state, _) = Progression.rebuild(seedDays())
         val s = state.stats
-        assertTrue("END should dominate (walker profile)", s.endurance > s.strength)
+        // After the v0.3.8 endurance rebalance (miles × 0.75) a heavy-walker profile no
+        // longer sees END run away from the rep stats — it lands on par with strength.
+        assertTrue("endurance stays among the top stats (walker profile)", s.endurance >= s.strength)
         assertTrue("STR positive", s.strength > 0)
         assertTrue("AGI positive", s.agility > 0)
         assertTrue("DIS positive", s.discipline > 0)

@@ -227,8 +227,8 @@ private fun AttributesInfoDialog(onDismiss: () -> Unit) {
                     "Lifetime pushups, squats & curls.",
                     "√(reps ÷ 50) — point 1 at 50 reps, point 10 at 5,000.")
                 AttrInfo("ENDURANCE", SuccessGreen,
-                    "Lifetime manually-logged walking miles. Tracked steps earn XP but not END.",
-                    "√(miles × 4) — point 1 at ¼ mile, point 10 at 25 miles.")
+                    "Lifetime walking miles — manual plus step-tracked.",
+                    "√(miles × 0.75) — point 1 at ~1.3 miles, point 10 at ~133 miles.")
                 AttrInfo("AGILITY", AuraCyan,
                     "Lifetime leg lifts & calf raises.",
                     "√(reps ÷ 60) — point 1 at 60 reps, point 10 at 6,000.")
