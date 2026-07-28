@@ -41,7 +41,6 @@ import com.mhurston.ascendant.ui.theme.ManaPurple
 import com.mhurston.ascendant.ui.theme.TextDim
 import com.mhurston.ascendant.ui.theme.TrackDark
 import com.mhurston.ascendant.ui.theme.XpGold
-import kotlin.math.max
 
 /** The single inline "add" affordance used across the app (one-offs, exercises). Keeping it in
  *  one place guarantees the "＋ X" links look and behave identically everywhere. */
@@ -236,5 +235,7 @@ fun RankBadge(rank: Rank, level: Int) {
     }
 }
 
-/** Suggests a sensible bar max for a stat so the bars look meaningful. */
-fun statBarMax(value: Int): Int = max(10, ((value / 10) + 1) * 10)
+/** Shared bar max for a group of stats: the biggest one, so it fills its bar and the rest
+ *  land proportionally below it. Every bar in the group must use this SAME max — give each
+ *  stat its own and a 12 can draw shorter than an 8. Stacked bars get compared; scale them alike. */
+fun statBarMax(vararg values: Int): Int = values.max()

@@ -144,11 +144,13 @@ fun CharacterScreen(
             Text("ⓘ", style = MaterialTheme.typography.titleLarge, color = ManaPurple)
         }
         // One distinct color per stat (Style Guide §2.2) so bars are tellable at a glance.
-        LabeledBar("STRENGTH", s.strength, statBarMax(s.strength), CrimsonRed)
-        LabeledBar("ENDURANCE", s.endurance, statBarMax(s.endurance), SuccessGreen)
-        LabeledBar("AGILITY", s.agility, statBarMax(s.agility), AuraCyan)
-        LabeledBar("DISCIPLINE", s.discipline, statBarMax(s.discipline), ManaPurple)
-        LabeledBar("CONSISTENCY", s.consistency, statBarMax(s.consistency), XpGold)
+        // All five share one max — the highest stat — so it fills its bar and the rest sit below it.
+        val attrMax = statBarMax(s.strength, s.endurance, s.agility, s.discipline, s.consistency)
+        LabeledBar("STRENGTH", s.strength, attrMax, CrimsonRed)
+        LabeledBar("ENDURANCE", s.endurance, attrMax, SuccessGreen)
+        LabeledBar("AGILITY", s.agility, attrMax, AuraCyan)
+        LabeledBar("DISCIPLINE", s.discipline, attrMax, ManaPurple)
+        LabeledBar("CONSISTENCY", s.consistency, attrMax, XpGold)
 
         Spacer(Modifier.height(20.dp))
         SectionHeader("Records")
