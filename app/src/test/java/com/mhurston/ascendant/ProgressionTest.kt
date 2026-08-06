@@ -30,20 +30,20 @@ class ProgressionTest {
     fun completionParity_fullDay_is100Percent() {
         // 2025-06-30: 100/100/100/100/100 + 5.0 mi → exactly 100%.
         val day = DayData(LocalDate.parse("2025-06-30"), 100, 100, 100, 100, 100, 5.0)
-        assertEquals(1.0, Progression.completion(day), 0.0001)
+        assertEquals(1.0, Progression.completion(day, profile), 0.0001)
     }
 
     @Test
     fun completionParity_partialDay() {
         // 2025-06-01: 50/50/50/50/30 + 1.5 mi → (0.5+0.5+0.5+0.5+0.3+0.3)/6 = 0.4333…
         val day = DayData(LocalDate.parse("2025-06-01"), 50, 50, 50, 50, 30, 1.5)
-        assertEquals(2.6 / 6.0, Progression.completion(day), 0.0001)
+        assertEquals(2.6 / 6.0, Progression.completion(day, profile), 0.0001)
     }
 
     @Test
     fun completionParity_skipDayWithWalkOnly() {
         val day = DayData(LocalDate.parse("2025-06-06"), 0, 0, 0, 0, 0, 3.0)
-        assertEquals((3.0 / 5.0) / 6.0, Progression.completion(day), 0.0001)
+        assertEquals((3.0 / 5.0) / 6.0, Progression.completion(day, profile), 0.0001)
     }
 
     @Test
@@ -315,7 +315,7 @@ class ProgressionTest {
         val base = DayData(LocalDate.parse("2026-02-01"), 100, 100, 100, 100, 100, 5.0)
         val withCustom = base.copy(customReps = mapOf("c1" to 200))
         // Completion is identical — pinned customs never change the tuned core formula.
-        assertEquals(Progression.completion(base), Progression.completion(withCustom), 0.0)
+        assertEquals(Progression.completion(base, profile), Progression.completion(withCustom, profile), 0.0)
         val (s0, _) = Progression.rebuild(listOf(base))
         val (s1, _) = Progression.rebuild(listOf(withCustom))
         assertTrue("custom reps burn calories → more XP", s1.earnedXp > s0.earnedXp)

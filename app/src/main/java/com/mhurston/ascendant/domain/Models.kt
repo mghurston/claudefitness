@@ -68,6 +68,11 @@ data class DayData(
     val cardioMinutes: Map<String, Int> = emptyMap(),
     /** Ad-hoc one-off activities logged to this day only (name + calorie estimate). */
     val oneOffs: List<OneOff> = emptyList(),
+    /** Non-walking cardio from pinned customs (a rower, a bike, an elliptical), expressed as
+     *  the miles you would have to WALK to burn the same calories. Kept out of [walkMiles] on
+     *  purpose: it earns its true calories and fills the Cardio goal, but a bike mile is not a
+     *  walked mile, so it must never touch walking achievements or lifetime miles. */
+    val cardioEquivMiles: Double = 0.0,
     /** Steps banked from Health Connect for this day (phone + any synced watch/app).
      *  XP-only: earns calories like everything else but never feeds the walking-miles goal,
      *  the END stat, or completion. See docs/Passive Activity Tracking. */
@@ -94,7 +99,7 @@ data class DayData(
     val hasPassiveMovement: Boolean get() = passiveSteps >= PASSIVE_ACTIVITY_THRESHOLD
     val hasActivity: Boolean
         get() = hasStrength || miles > 0.0 || customRepsTotal > 0 || oneOffKcal > 0 ||
-            cardioMinutes.values.any { it > 0 } || hasPassiveMovement
+            cardioMinutes.values.any { it > 0 } || cardioEquivMiles > 0.0 || hasPassiveMovement
 
     companion object {
         /** Passive steps at/above this count make a day "active" — it sustains the activity
@@ -229,15 +234,60 @@ enum class ExerciseGoal(val label: String) {
     }
 }
 
+/** How a Cardio-assigned custom exercise is measured. Rowing and cycling are logged by
+ *  distance; an elliptical or a class is easier to log by time. Ignored for every other goal. */
+enum class CardioMode(val label: String) {
+    DISTANCE("Distance (miles)"),
+    MINUTES("Time (minutes)")
+}
+
+/** Per-mile burn rate for a DISTANCE-mode cardio custom. A mile is not a unit of effort: at
+ *  90 kg a walked mile is ~109 kcal and a cycled one ~41, so the exercise carries the rate its
+ *  own miles are worth. Values are the per-kg-per-mile constants in [Calories]. */
+enum class CardioRate(val label: String, val kcalPerKgPerMile: Double) {
+    WALK("Walking pace", Calories.WALK_KCAL_PER_KG_PER_MILE),
+    RUN("Running pace", Calories.RUN_KCAL_PER_KG_PER_MILE),
+    BIKE("Cycling pace", Calories.BIKE_KCAL_PER_KG_PER_MILE)
+}
+
+/** Effort for a MINUTES-mode cardio custom, as a MET. Same formula the built-in bike (8.0) and
+ *  swim (7.0) use: kcal/min = MET x 3.5 x kg / 200. */
+enum class CardioIntensity(val label: String, val met: Double) {
+    LIGHT("Light", 4.0),
+    MODERATE("Moderate", 6.0),
+    HARD("Hard", 9.0)
+}
+
 /** A user-defined supplementary exercise (e.g. "Pull-ups", "Plank seconds").
  *  [archived] = removed from today's options but kept so past logs still resolve its name.
- *  [goal] = the daily goal its reps count toward (NONE = calories only). */
+ *  [goal] = the category its work counts toward (NONE = calories only).
+ *  [cardioMode]/[cardioRate]/[cardioIntensity] only apply when [goal] is CARDIO, and decide
+ *  both how the exercise is logged and what a unit of it burns. */
 data class CustomExercise(
     val id: String,
     val name: String,
     val archived: Boolean = false,
-    val goal: ExerciseGoal = ExerciseGoal.NONE
-)
+    val goal: ExerciseGoal = ExerciseGoal.NONE,
+    val cardioMode: CardioMode = CardioMode.DISTANCE,
+    val cardioRate: CardioRate = CardioRate.WALK,
+    val cardioIntensity: CardioIntensity = CardioIntensity.MODERATE
+) {
+    /** Walk-equivalent miles for [amount] of this exercise (miles in DISTANCE mode, minutes in
+     *  MINUTES mode) — the miles of walking that burn the same calories. Body weight cancels
+     *  out of both conversions, so this is a pure ratio and history never depends on today's
+     *  weigh-in. Only meaningful for a CARDIO exercise. */
+    fun walkEquivalentMiles(amount: Double): Double = when (cardioMode) {
+        CardioMode.DISTANCE ->
+            amount * (cardioRate.kcalPerKgPerMile / Calories.WALK_KCAL_PER_KG_PER_MILE)
+        // kcal/min = MET x 3.5 x kg / 200, and a walked mile = 1.2 x kg, so the kg divides out.
+        CardioMode.MINUTES ->
+            amount * cardioIntensity.met * 3.5 / 200.0 / Calories.WALK_KCAL_PER_KG_PER_MILE
+    }
+
+    /** The unit this exercise is logged in, for labels ("mi" / "min"). */
+    val unitLabel: String
+        get() = if (goal == ExerciseGoal.CARDIO && cardioMode == CardioMode.MINUTES) "min" else "mi"
+}
 
 /** Per-day derived values used by the dashboard/history. */
 data class DayDerived(

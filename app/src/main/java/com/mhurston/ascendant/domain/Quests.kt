@@ -33,7 +33,7 @@ object Quests {
     }
 
     private fun dailyQuests(today: LocalDate, d: DayData, profile: Profile): List<Quest> {
-        val compPct = (Progression.completion(d) * 100).toInt()
+        val compPct = (Progression.completion(d, profile) * 100).toInt()
         val anyReps = d.strengthReps
         val burn = Math.round(Calories.activityBurn(profile, d)).toInt()
         val burnTarget = Calories.dailyBurnTarget(profile)

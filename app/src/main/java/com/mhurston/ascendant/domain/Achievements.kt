@@ -197,7 +197,7 @@ object Achievements {
         }
     ))
 
-    fun computeFacts(days: List<DayData>, state: CharacterState): AchFacts {
+    fun computeFacts(days: List<DayData>, state: CharacterState, profile: Profile = Profile()): AchFacts {
         val sorted = days.sortedBy { it.date }
         var p = 0; var s = 0; var l = 0; var cr = 0; var cu = 0; var mi = 0.0
         var bp = 0; var bs = 0; var bl = 0; var bc = 0; var bcu = 0; var bm = 0.0
@@ -230,7 +230,7 @@ object Achievements {
             p += d.pushups; s += d.squats; l += d.legLifts; cr += d.calfRaises; cu += d.curls; mi += d.walkMiles
             bp = maxOf(bp, d.pushups); bs = maxOf(bs, d.squats); bl = maxOf(bl, d.legLifts)
             bc = maxOf(bc, d.calfRaises); bcu = maxOf(bcu, d.curls); bm = maxOf(bm, d.walkMiles)
-            val comp = Progression.completion(d)
+            val comp = Progression.completion(d, profile)
             if (comp >= 1.0) {
                 full100++
                 when (d.date.dayOfWeek) {
@@ -267,8 +267,8 @@ object Achievements {
         )
     }
 
-    fun evaluate(days: List<DayData>, state: CharacterState): List<AchStatus> {
-        val facts = computeFacts(days, state)
+    fun evaluate(days: List<DayData>, state: CharacterState, profile: Profile = Profile()): List<AchStatus> {
+        val facts = computeFacts(days, state, profile)
         val base = ALL.map { def ->
             val v = def.value(facts)
             AchStatus(def, unlocked = v >= def.target, current = v.coerceAtMost(def.target), target = def.target)

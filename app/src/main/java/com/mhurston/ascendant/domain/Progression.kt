@@ -32,10 +32,21 @@ object Progression {
     // asking the user first — every prior "small bonus" got ripped out here.
     const val XP_PER_KCAL = 1.0
 
-    /** Completion ratio 0..n — reproduces the spreadsheet formula exactly (Mapping §3). */
-    fun completion(d: DayData): Double {
+    /**
+     * Completion ratio 0..n — six equally weighted goals: the five 100-rep lifts plus cardio.
+     *
+     * The first five come straight off the rep columns (Mapping §3). Cardio is the one that
+     * changed: it used to be walked miles / 5, which paid a cycled mile the same as a walked
+     * one despite burning less than half as much. It is now the day's non-strength calories
+     * over what walking 5 miles burns (see Calories.cardioFraction), so every kind of cardio
+     * counts for exactly what it is worth and walking 5 miles still fills it exactly.
+     *
+     * Needs [p] because two of those calorie sources — one-off activities and Health Connect's
+     * measured active calories — are absolute numbers rather than body-weight-scaled ones.
+     */
+    fun completion(d: DayData, p: Profile): Double {
         return (d.pushups / 100.0 + d.squats / 100.0 + d.legLifts / 100.0 +
-            d.calfRaises / 100.0 + d.curls / 100.0 + d.walkMiles / MILE_TARGET) / 6.0
+            d.calfRaises / 100.0 + d.curls / 100.0 + Calories.cardioFraction(p, d)) / 6.0
     }
 
     /** Base XP = calories burned through activity (1 kcal = 1 XP). */
@@ -154,11 +165,11 @@ object Progression {
             if (!d.isRestDay) {
                 strengthStreak = if (d.hasStrength) strengthStreak + 1 else 0
                 activityStreak = if (d.hasActivity) activityStreak + 1 else 0
-                perfectStreak = if (completion(d) >= 1.0) perfectStreak + 1 else 0
+                perfectStreak = if (completion(d, profile) >= 1.0) perfectStreak + 1 else 0
             }
             longestStrength = maxOf(longestStrength, strengthStreak)
 
-            val comp = completion(d)
+            val comp = completion(d, profile)
             // Shortfall — the "lose XP for what you didn't do" half of the rule. A past day
             // that burned less than the daily target loses exactly the gap. Only days at/after
             // the decay anchor (pre-app history is never punished) and strictly before today
@@ -265,6 +276,6 @@ object Progression {
         profile: Profile = Profile()
     ): FullBuild {
         val (state, derived) = rebuild(days, today, decayAnchor, profile)
-        return FullBuild(state, derived, Achievements.evaluate(days, state))
+        return FullBuild(state, derived, Achievements.evaluate(days, state, profile))
     }
 }

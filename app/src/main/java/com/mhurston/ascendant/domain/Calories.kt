@@ -114,7 +114,10 @@ object Calories {
     fun activityBurn(p: Profile, day: DayData): Double {
         val wt = weightFor(p, day)
         if (wt <= 0) return 0.0
-        val walk = walkKcal(wt, day.miles)
+        // Walking + any non-walking cardio custom, which arrives pre-converted to the miles of
+        // walking that burn the same (see CustomExercise.walkEquivalentMiles) — so a cycled mile
+        // earns a cycled mile's calories, not a walked one's.
+        val walk = walkKcal(wt, day.miles + day.cardioEquivMiles)
         val strength = strengthKcal(wt, day.strengthReps + day.customRepsTotal)
         // MET-based time cardio (bike/swim): kcal/min = MET × 3.5 × kg / 200.
         val cardio = day.cardioMinutes.entries.sumOf { (id, min) ->
@@ -129,6 +132,33 @@ object Calories {
         val stepEstimate = walkKcal(wt, day.passiveSteps.coerceAtLeast(0) / STEPS_PER_MILE)
         val passive = maxOf(day.passiveKcal.toDouble(), stepEstimate)
         return walk + strength + cardio + day.oneOffKcal + passive
+    }
+
+    // ── The Cardio goal ──────────────────────────────────────────────────────────────────────
+    // Cardio is scored in CALORIES, not miles, because a mile is not a unit of effort: five
+    // miles walked is ~544 kcal for a 90 kg body, five cycled is ~204. Counting both as "5 mi"
+    // paid the same for less than half the work. The target is what walking the 5-mile goal
+    // burns, so walking five miles still fills the ring exactly, at any body weight.
+
+    /** Calories that fill the Cardio goal: everything the day burned that wasn't strength reps.
+     *  Walking, tracked steps, bike/swim minutes, cardio customs and one-off activities all
+     *  count for exactly what they burn. Reps are excluded — they have their own five goals. */
+    fun cardioKcal(p: Profile, day: DayData): Double {
+        val wt = weightFor(p, day)
+        if (wt <= 0) return 0.0
+        val strength = strengthKcal(wt, day.strengthReps + day.customRepsTotal)
+        return (activityBurn(p, day) - strength).coerceAtLeast(0.0)
+    }
+
+    /** The Cardio target: the calories the 5-mile walking goal burns at this body weight
+     *  (1.2 kcal/kg/mi x 5 mi = 6 kcal per kg — 544 for a 90.7 kg / 200 lb body). */
+    fun cardioTarget(p: Profile, day: DayData): Double =
+        walkKcal(weightFor(p, day), Progression.MILE_TARGET)
+
+    /** Cardio goal progress, 0..n (uncapped, like every other goal — overdrive still counts). */
+    fun cardioFraction(p: Profile, day: DayData): Double {
+        val target = cardioTarget(p, day)
+        return if (target <= 0.0) 0.0 else cardioKcal(p, day) / target
     }
 
     fun estimate(p: Profile, day: DayData, consumed: Int): EnergyEstimate {

@@ -55,9 +55,10 @@ data class UiState(
     val customExercises: List<CustomExercise> = emptyList(),
     /** Every custom exercise incl. archived — used by history to resolve names of past logs. */
     val allCustomExercises: List<CustomExercise> = emptyList(),
-    /** customExerciseId -> the daily goal its reps feed. Archived definitions are included so
-     *  past days keep the credit they earned. Pass to WorkoutDayEntity.toDayData/pushTotal/etc. */
-    val customGoals: Map<String, com.mhurston.ascendant.domain.ExerciseGoal> = emptyMap()
+    /** customExerciseId -> its definition (category, and how a Cardio one is measured). Archived
+     *  definitions are included so past days keep the credit they earned. Pass to
+     *  WorkoutDayEntity.toDayData and the other scoring helpers. */
+    val customSpecs: Map<String, CustomExercise> = emptyMap()
 )
 
 class AppViewModel(app: Application) : AndroidViewModel(app) {
@@ -98,15 +99,15 @@ class AppViewModel(app: Application) : AndroidViewModel(app) {
             val todayStr = today.toString()
             val todayEntity = days.firstOrNull { it.date == todayStr }
                 ?: WorkoutDayEntity(date = todayStr)
-            // Goal assignments are resolved at read time (never stored per day), so re-pointing
-            // a custom exercise re-scores its whole history on the next replay.
-            val goals = customExercises.associate { it.id to it.goal }
-            val rawDays: List<DayData> = days.map { it.toDayData(goals) } +
-                if (days.any { it.date == todayStr }) emptyList() else listOf(todayEntity.toDayData(goals))
+            // Category and cardio settings are resolved at read time (never stored per day), so
+            // re-pointing a custom exercise re-scores its whole history on the next replay.
+            val specs = customExercises.associateBy { it.id }
+            val rawDays: List<DayData> = days.map { it.toDayData(specs) } +
+                if (days.any { it.date == todayStr }) emptyList() else listOf(todayEntity.toDayData(specs))
             // Carry weight + intake forward so unlogged days inherit the last entered values
             // (and each day's energy math uses the body weight in effect then, not just current).
             val dayData = Progression.carryForward(rawDays, profile.weightKg)
-            val todayData = dayData.firstOrNull { it.date == today } ?: todayEntity.toDayData(goals)
+            val todayData = dayData.firstOrNull { it.date == today } ?: todayEntity.toDayData(specs)
             // XP = calories only (burn − shortfall + diet); quests/achievements are badges.
             val full = Progression.rebuildFull(dayData, today, anchor, profile)
             UiState(
@@ -125,7 +126,7 @@ class AppViewModel(app: Application) : AndroidViewModel(app) {
                 userVideos = userVideos,
                 customExercises = customExercises.filterNot { it.archived },
                 allCustomExercises = customExercises,
-                customGoals = goals
+                customSpecs = specs
             )
         }.stateIn(
             scope = viewModelScope,
@@ -221,7 +222,8 @@ class AppViewModel(app: Application) : AndroidViewModel(app) {
             // and no reps, and deleting it outright would erase them from history.
             val everLogged = repo.days.first().any { day ->
                 (WorkoutDayEntity.decodeCustomReps(day.customReps)[id] ?: 0) > 0 ||
-                    (WorkoutDayEntity.decodeCustomReps(day.customDistance)[id] ?: 0) > 0
+                    (WorkoutDayEntity.decodeCustomReps(day.customDistance)[id] ?: 0) > 0 ||
+                    (WorkoutDayEntity.decodeCustomReps(day.customMinutes)[id] ?: 0) > 0
             }
             if (everLogged) repo.archiveCustomExercise(id) else repo.removeCustomExercise(id)
         }
@@ -236,8 +238,8 @@ class AppViewModel(app: Application) : AndroidViewModel(app) {
 
     fun addCustomRepsToday(id: String, delta: Int) = addCustomRepsForDate(todayStr(), id, delta)
 
-    /** Log distance against a Cardio-assigned custom exercise. Stored as hundredths of a mile
-     *  in its own column, so it never collides with the rep count of the same exercise. */
+    /** Log distance against a DISTANCE-mode Cardio exercise. Stored as hundredths of a mile in
+     *  its own column, so it never collides with the rep count of the same exercise. */
     fun addCustomDistanceForDate(date: String, id: String, deltaMiles: Double) = mutateDay(date) { cur ->
         val m = WorkoutDayEntity.decodeCustomReps(cur.customDistance).toMutableMap()
         val next = ((m[id] ?: 0) + (deltaMiles * 100).roundToInt()).coerceAtLeast(0)
@@ -247,6 +249,28 @@ class AppViewModel(app: Application) : AndroidViewModel(app) {
 
     fun addCustomDistanceToday(id: String, deltaMiles: Double) =
         addCustomDistanceForDate(todayStr(), id, deltaMiles)
+
+    /** Log time against a MINUTES-mode Cardio exercise. */
+    fun addCustomMinutesForDate(date: String, id: String, deltaMin: Int) = mutateDay(date) { cur ->
+        val m = WorkoutDayEntity.decodeCustomReps(cur.customMinutes).toMutableMap()
+        val next = ((m[id] ?: 0) + deltaMin).coerceAtLeast(0)
+        if (next == 0) m.remove(id) else m[id] = next
+        cur.copy(customMinutes = WorkoutDayEntity.encodeCustomReps(m))
+    }
+
+    fun addCustomMinutesToday(id: String, deltaMin: Int) =
+        addCustomMinutesForDate(todayStr(), id, deltaMin)
+
+    /** Set how a Cardio exercise is measured (distance vs time) and what a unit of it burns.
+     *  Re-scores every day it was ever logged, like the category itself. */
+    fun setCustomExerciseCardio(
+        id: String,
+        mode: com.mhurston.ascendant.domain.CardioMode,
+        rate: com.mhurston.ascendant.domain.CardioRate,
+        intensity: com.mhurston.ascendant.domain.CardioIntensity
+    ) {
+        viewModelScope.launch { repo.setCustomExerciseCardio(id, mode, rate, intensity) }
+    }
 
     // --- one-off activities (logged to a single day; never an option on other days) ----
     /** Append a one-off (name + calorie estimate + optional distance/reps metrics) to a day.

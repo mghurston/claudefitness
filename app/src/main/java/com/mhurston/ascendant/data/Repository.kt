@@ -55,6 +55,13 @@ class Repository private constructor(
     ) = profileStore.addCustomExercise(name, goal)
     suspend fun setCustomExerciseGoal(id: String, goal: com.mhurston.ascendant.domain.ExerciseGoal) =
         profileStore.setCustomExerciseGoal(id, goal)
+
+    suspend fun setCustomExerciseCardio(
+        id: String,
+        mode: com.mhurston.ascendant.domain.CardioMode,
+        rate: com.mhurston.ascendant.domain.CardioRate,
+        intensity: com.mhurston.ascendant.domain.CardioIntensity
+    ) = profileStore.setCustomExerciseCardio(id, mode, rate, intensity)
     suspend fun removeCustomExercise(id: String) = profileStore.removeCustomExercise(id)
     suspend fun archiveCustomExercise(id: String) = profileStore.archiveCustomExercise(id)
 

@@ -8,6 +8,11 @@ import androidx.datastore.preferences.core.intPreferencesKey
 import androidx.datastore.preferences.core.stringPreferencesKey
 import androidx.datastore.preferences.core.stringSetPreferencesKey
 import androidx.datastore.preferences.preferencesDataStore
+import com.mhurston.ascendant.domain.CardioIntensity
+import com.mhurston.ascendant.domain.CardioMode
+import com.mhurston.ascendant.domain.CardioRate
+import com.mhurston.ascendant.domain.CustomExercise
+import com.mhurston.ascendant.domain.ExerciseGoal
 import com.mhurston.ascendant.domain.Profile
 import com.mhurston.ascendant.domain.Sex
 import com.mhurston.ascendant.domain.VideoLink
@@ -17,6 +22,30 @@ import kotlinx.coroutines.flow.map
 private val Context.dataStore by preferencesDataStore(name = "ascendant_settings")
 
 private const val VIDEO_SEP = "<|>" // delimiter — won't appear in titles/URLs
+
+/** One stored custom-exercise definition -> its record. Null when the entry is too short to
+ *  carry an id and a name. Every later field falls back to its default, so a definition
+ *  written by an older build (which had fewer of them) still loads with its meaning intact. */
+private fun decodeCustomExercise(encoded: String): CustomExercise? {
+    val parts = encoded.split(VIDEO_SEP)
+    if (parts.size < 2) return null
+    fun <T : Enum<T>> pick(index: Int, values: Array<T>, fallback: T): T =
+        values.firstOrNull { it.name == parts.getOrNull(index) } ?: fallback
+    return CustomExercise(
+        id = parts[0],
+        name = parts[1],
+        archived = parts.getOrNull(2) == "1",
+        goal = ExerciseGoal.forName(parts.getOrNull(3) ?: ""),
+        cardioMode = pick(4, CardioMode.entries.toTypedArray(), CardioMode.DISTANCE),
+        cardioRate = pick(5, CardioRate.entries.toTypedArray(), CardioRate.WALK),
+        cardioIntensity = pick(6, CardioIntensity.entries.toTypedArray(), CardioIntensity.MODERATE)
+    )
+}
+
+private fun encodeCustomExercise(ex: CustomExercise): String = listOf(
+    ex.id, ex.name, if (ex.archived) "1" else "0", ex.goal.name,
+    ex.cardioMode.name, ex.cardioRate.name, ex.cardioIntensity.name
+).joinToString(VIDEO_SEP)
 
 /** Persists the user's body profile, first-run flags, and video favorites/additions. */
 class ProfileStore(private val context: Context) {
@@ -40,21 +69,14 @@ class ProfileStore(private val context: Context) {
     }
 
     // --- Custom (supplementary) exercise definitions --------------------------
-    // Encoded as "id<|>name", "id<|>name<|>1" (third part 1 = archived), or
-    // "id<|>name<|>1<|>GOAL" (fourth part = the ExerciseGoal its reps feed). Shorter entries
-    // are read as not archived / no goal, so definitions written by older builds still load.
-    val customExercises: Flow<List<com.mhurston.ascendant.domain.CustomExercise>> =
+    // Encoded "id<|>name<|>archived<|>GOAL<|>CARDIO_MODE<|>CARDIO_RATE<|>CARDIO_INTENSITY".
+    // Every field after the name is optional and falls back to its default, so definitions
+    // written by any older build still load (2 parts = name only, 4 = through the goal).
+    val customExercises: Flow<List<CustomExercise>> =
         context.dataStore.data.map { p ->
-            (p[Keys.CUSTOM_EXERCISES] ?: emptySet()).mapNotNull { encoded ->
-                val parts = encoded.split(VIDEO_SEP)
-                if (parts.size >= 2)
-                    com.mhurston.ascendant.domain.CustomExercise(
-                        parts[0], parts[1], archived = parts.getOrNull(2) == "1",
-                        goal = com.mhurston.ascendant.domain.ExerciseGoal
-                            .forName(parts.getOrNull(3) ?: "")
-                    )
-                else null
-            }.sortedBy { it.name.lowercase() }
+            (p[Keys.CUSTOM_EXERCISES] ?: emptySet())
+                .mapNotNull { decodeCustomExercise(it) }
+                .sortedBy { it.name.lowercase() }
         }
 
     suspend fun addCustomExercise(
@@ -67,20 +89,37 @@ class ProfileStore(private val context: Context) {
         val id = "c${System.currentTimeMillis()}"
         context.dataStore.edit { prefs ->
             val cur = prefs[Keys.CUSTOM_EXERCISES] ?: emptySet()
-            prefs[Keys.CUSTOM_EXERCISES] = cur + "$id$VIDEO_SEP$clean${VIDEO_SEP}0$VIDEO_SEP${goal.name}"
+            prefs[Keys.CUSTOM_EXERCISES] =
+                cur + encodeCustomExercise(CustomExercise(id, clean, goal = goal))
         }
     }
 
-    /** Re-point an existing definition at a different daily goal (or NONE). Applies to every
+    /** Re-point an existing definition at a different category (or NONE). Applies to every
      *  day it was ever logged, since credit is resolved at read time, not stored per day. */
     suspend fun setCustomExerciseGoal(id: String, goal: com.mhurston.ascendant.domain.ExerciseGoal) {
+        editCustomExercise(id) { it.copy(goal = goal) }
+    }
+
+    /** Set how a Cardio exercise is measured and what a unit of it is worth. Like the goal,
+     *  this re-scores every day it was ever logged. */
+    suspend fun setCustomExerciseCardio(
+        id: String,
+        mode: com.mhurston.ascendant.domain.CardioMode,
+        rate: com.mhurston.ascendant.domain.CardioRate,
+        intensity: com.mhurston.ascendant.domain.CardioIntensity
+    ) {
+        editCustomExercise(id) {
+            it.copy(cardioMode = mode, cardioRate = rate, cardioIntensity = intensity)
+        }
+    }
+
+    /** Rewrite one definition in place, leaving every other entry untouched. */
+    private suspend fun editCustomExercise(id: String, change: (CustomExercise) -> CustomExercise) {
         context.dataStore.edit { prefs ->
             val cur = prefs[Keys.CUSTOM_EXERCISES] ?: emptySet()
             prefs[Keys.CUSTOM_EXERCISES] = cur.map { entry ->
-                val parts = entry.split(VIDEO_SEP)
-                if (parts.getOrNull(0) == id && parts.size >= 2)
-                    "${parts[0]}$VIDEO_SEP${parts[1]}$VIDEO_SEP${parts.getOrNull(2) ?: "0"}$VIDEO_SEP${goal.name}"
-                else entry
+                val ex = decodeCustomExercise(entry)
+                if (ex != null && ex.id == id) encodeCustomExercise(change(ex)) else entry
             }.toSet()
         }
     }
@@ -101,25 +140,14 @@ class ProfileStore(private val context: Context) {
             val existingIds = cur.map { it.substringBefore(VIDEO_SEP) }.toSet()
             val added = imported
                 .filter { it.id.isNotBlank() && it.name.isNotBlank() && it.id !in existingIds }
-                .map {
-                    "${it.id}$VIDEO_SEP${it.name.take(40)}$VIDEO_SEP" +
-                        "${if (it.archived) "1" else "0"}$VIDEO_SEP${it.goal.name}"
-                }
+                .map { encodeCustomExercise(it.copy(name = it.name.take(40))) }
             prefs[Keys.CUSTOM_EXERCISES] = cur + added
         }
     }
 
     /** Soft-remove: hide from active options but keep the name so past logs still resolve. */
     suspend fun archiveCustomExercise(id: String) {
-        context.dataStore.edit { prefs ->
-            val cur = prefs[Keys.CUSTOM_EXERCISES] ?: emptySet()
-            prefs[Keys.CUSTOM_EXERCISES] = cur.map { entry ->
-                val parts = entry.split(VIDEO_SEP)
-                if (parts.getOrNull(0) == id && parts.size >= 2)
-                    "${parts[0]}$VIDEO_SEP${parts[1]}${VIDEO_SEP}1$VIDEO_SEP${parts.getOrNull(3) ?: "NONE"}"
-                else entry
-            }.toSet()
-        }
+        editCustomExercise(id) { it.copy(archived = true) }
     }
 
     val avatar: Flow<com.mhurston.ascendant.domain.Avatar> = context.dataStore.data.map {

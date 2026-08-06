@@ -387,7 +387,7 @@ private fun ExportSection(
     ) { uri ->
         uri?.let {
             context.contentResolver.openOutputStream(it)?.use { os ->
-                os.write(Exporter.toCsv(state.days, state.customGoals).toByteArray())
+                os.write(Exporter.toCsv(state.days, state.customSpecs, state.profile).toByteArray())
             }
         }
     }

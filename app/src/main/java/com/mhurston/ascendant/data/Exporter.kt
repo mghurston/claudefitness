@@ -1,6 +1,10 @@
 package com.mhurston.ascendant.data
 
 import com.mhurston.ascendant.domain.Avatar
+import com.mhurston.ascendant.domain.Calories
+import com.mhurston.ascendant.domain.CardioIntensity
+import com.mhurston.ascendant.domain.CardioMode
+import com.mhurston.ascendant.domain.CardioRate
 import com.mhurston.ascendant.domain.CustomExercise
 import com.mhurston.ascendant.domain.ExerciseGoal
 import com.mhurston.ascendant.domain.Profile
@@ -24,6 +28,10 @@ data class Backup(
     val avatar: Avatar? = null
 )
 
+/** Resolve an enum by name, falling back when the value is absent (older backup) or unknown. */
+private inline fun <reified T : Enum<T>> enumOrDefault(name: String, fallback: T): T =
+    enumValues<T>().firstOrNull { it.name == name } ?: fallback
+
 /** Produces and parses export payloads: CSV (spreadsheet layout) and a full JSON backup. */
 object Exporter {
 
@@ -33,31 +41,39 @@ object Exporter {
      *  reps fill); a missing goal reads as NONE, so schema 1-2 backups restore unchanged.
      *  4 = goals are the four training categories rather than one per exercise slot (a schema-3
      *  PUSH/CURLS reads as UPPER, SQUATS/CALF_RAISES as LOWER), and days carry "customDistance"
-     *  for Cardio-assigned customs; a missing value is "" = none logged. */
-    private const val SCHEMA = 4
+     *  for Cardio-assigned customs; a missing value is "" = none logged.
+     *  5 = Cardio exercises carry how they are measured ("cardioMode"/"cardioRate"/
+     *  "cardioIntensity") and days carry "customMinutes" for the time-logged ones. Missing
+     *  values take their defaults (distance, walking pace), so older backups restore unchanged. */
+    private const val SCHEMA = 5
 
     /** Original spreadsheet column order, so the file round-trips back to the sheet
-     *  (steps/totalmiles are appended after so the first eight columns stay put).
+     *  (steps/totalmiles/cardiokcal are appended after so the first eight columns stay put).
      *  `miles` is the manual/treadmill entry only; `totalmiles` = miles + step-tracked
-     *  distance — the walking total the app scores against.
+     *  distance — the walking total. `cardiokcal` is what the cardio sixth of completion
+     *  actually scored, since that goal is calories rather than miles.
      *  Locale-pinned: a comma-decimal device locale must not corrupt the CSV. */
     fun toCsv(
         days: List<WorkoutDayEntity>,
-        customGoals: Map<String, ExerciseGoal> = emptyMap()
+        specs: Map<String, CustomExercise> = emptyMap(),
+        profile: Profile = Profile()
     ): String {
         val sb = StringBuilder()
-        sb.append("date,pushups,squats,leglifts,calfraises,curls,miles,completion,steps,totalmiles\n")
+        sb.append("date,pushups,squats,leglifts,calfraises,curls,miles,completion,steps," +
+            "totalmiles,cardiokcal,cardiotarget\n")
         days.sortedBy { it.date }.forEach { d ->
             // Read every column off the scored day, so the CSV shows exactly the numbers
             // completion was computed from (customs assigned to a category included).
-            val scored = d.toDayData(customGoals)
-            val comp = Progression.completion(scored)
+            val scored = d.toDayData(specs)
+            val comp = Progression.completion(scored, profile)
             sb.append("${d.date},${scored.pushups},${scored.squats},")
             sb.append("${scored.legLifts},")
             sb.append("${scored.calfRaises},${scored.curls},${scored.miles},")
             sb.append(String.format(Locale.US, "%.4f", comp)).append(",")
             sb.append("${d.passiveSteps},")
-            sb.append(String.format(Locale.US, "%.2f", scored.walkMiles)).append("\n")
+            sb.append(String.format(Locale.US, "%.2f", scored.walkMiles)).append(",")
+            sb.append(Math.round(Calories.cardioKcal(profile, scored))).append(",")
+            sb.append(Math.round(Calories.cardioTarget(profile, scored))).append("\n")
         }
         return sb.toString()
     }
@@ -103,7 +119,10 @@ object Exporter {
             sb.append("  \"customExercises\": [\n")
             customExercises.forEachIndexed { i, ex ->
                 sb.append("    {\"id\": \"${esc(ex.id)}\", \"name\": \"${esc(ex.name)}\", ")
-                sb.append("\"archived\": ${ex.archived}, \"goal\": \"${ex.goal.name}\"}")
+                sb.append("\"archived\": ${ex.archived}, \"goal\": \"${ex.goal.name}\", ")
+                sb.append("\"cardioMode\": \"${ex.cardioMode.name}\", ")
+                sb.append("\"cardioRate\": \"${ex.cardioRate.name}\", ")
+                sb.append("\"cardioIntensity\": \"${ex.cardioIntensity.name}\"}")
                 sb.append(if (i < customExercises.lastIndex) ",\n" else "\n")
             }
             sb.append("  ],\n")
@@ -139,6 +158,7 @@ object Exporter {
             sb.append("\"coreVariants\": \"${esc(d.coreVariants)}\", ")
             sb.append("\"cardioMinutes\": \"${esc(d.cardioMinutes)}\", ")
             sb.append("\"customDistance\": \"${esc(d.customDistance)}\", ")
+            sb.append("\"customMinutes\": \"${esc(d.customMinutes)}\", ")
             sb.append("\"oneOffs\": \"${esc(d.oneOffs)}\", ")
             sb.append("\"passiveSteps\": ${d.passiveSteps}, ")
             sb.append("\"passiveKcal\": ${d.passiveKcal}, ")
@@ -190,6 +210,7 @@ object Exporter {
                         coreVariants = d.optString("coreVariants", ""),
                         cardioMinutes = d.optString("cardioMinutes", ""),
                         customDistance = d.optString("customDistance", ""),
+                        customMinutes = d.optString("customMinutes", ""),
                         oneOffs = d.optString("oneOffs", ""),
                         passiveSteps = d.optInt("passiveSteps", 0),
                         passiveKcal = d.optInt("passiveKcal", 0)
@@ -203,7 +224,12 @@ object Exporter {
                 name = o.optString("name", ""),
                 archived = o.optBoolean("archived", false),
                 // Absent in schema ≤ 2 backups → NONE, i.e. the old calories-only behavior.
-                goal = ExerciseGoal.forName(o.optString("goal", ""))
+                goal = ExerciseGoal.forName(o.optString("goal", "")),
+                // Absent in schema ≤ 4 → the defaults: distance, at walking pace.
+                cardioMode = enumOrDefault(o.optString("cardioMode", ""), CardioMode.DISTANCE),
+                cardioRate = enumOrDefault(o.optString("cardioRate", ""), CardioRate.WALK),
+                cardioIntensity =
+                    enumOrDefault(o.optString("cardioIntensity", ""), CardioIntensity.MODERATE)
             )
         }.filter { it.id.isNotBlank() && it.name.isNotBlank() }
         val favorites = buildSet {

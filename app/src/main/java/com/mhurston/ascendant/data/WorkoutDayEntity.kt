@@ -2,6 +2,8 @@ package com.mhurston.ascendant.data
 
 import androidx.room.Entity
 import androidx.room.PrimaryKey
+import com.mhurston.ascendant.domain.CardioMode
+import com.mhurston.ascendant.domain.CustomExercise
 import com.mhurston.ascendant.domain.DayData
 import com.mhurston.ascendant.domain.ExerciseGoal
 import com.mhurston.ascendant.domain.OneOff
@@ -47,27 +49,31 @@ data class WorkoutDayEntity(
      *  delimiters (unit-sep U+001F between name and kcal, record-sep U+001E between entries)
      *  so arbitrary user names are safe. Stays in history; never an option on other days. */
     val oneOffs: String = "",
-    /** Distance logged against custom exercises pointed at the Cardio goal, encoded
-     *  "id:hundredthsOfAMile" (e.g. "c123:250" = 2.50 mi). Its own column so an exercise moved
-     *  between Cardio and a rep category never reads one as the other. Feeds the walking-mile
-     *  goal and burns like walking. */
+    /** Distance logged against DISTANCE-mode Cardio customs, encoded "id:hundredthsOfAMile"
+     *  (e.g. "c123:250" = 2.50 mi). Its own column so an exercise moved between Cardio and a
+     *  rep category never reads one number as the other. */
     val customDistance: String = "",
+    /** Minutes logged against MINUTES-mode Cardio customs, encoded "id:minutes". Separate from
+     *  [cardioMinutes], which holds the built-in bike/swim activities and is burned through
+     *  CardioActivity's fixed METs. */
+    val customMinutes: String = "",
     /** Steps banked from Health Connect for this day (overwritten on each sync, never summed). */
     val passiveSteps: Int = 0,
     /** Active calories banked from Health Connect for this day (preferred passive kcal source). */
     val passiveKcal: Int = 0
 ) {
     /**
-     * @param goals customExerciseId -> the category its reps feed (see ExerciseGoal). Reps for a
-     *   category-assigned custom are folded into that category's slots here and dropped from the
-     *   customReps map, so they count toward completion/stats exactly like a built-in variant
-     *   while their calories stay counted exactly once (DayData.strengthReps instead of
-     *   customRepsTotal — same per-rep burn either way). Upper and Lower cover two slots each, so
-     *   their reps split evenly across the pair (odd remainder to the first). An id missing from
-     *   the map, or mapped to NONE, keeps the original behavior: calories only, no goal credit.
+     * @param specs customExerciseId -> its definition (category, and for Cardio how it is
+     *   measured). Reps for a category-assigned custom are folded into that category's slots
+     *   here and dropped from the customReps map, so they count toward completion/stats exactly
+     *   like a built-in variant while their calories stay counted exactly once
+     *   (DayData.strengthReps instead of customRepsTotal — same per-rep burn either way). Upper
+     *   and Lower cover two slots each, so their reps split evenly across the pair (odd
+     *   remainder to the first). Cardio customs convert to walk-equivalent miles instead. An id
+     *   missing from the map, or set to NONE, keeps the original behavior: calories only.
      */
-    fun toDayData(goals: Map<String, ExerciseGoal> = emptyMap()): DayData {
-        val credit = customRepsByGoal(goals)
+    fun toDayData(specs: Map<String, CustomExercise> = emptyMap()): DayData {
+        val credit = customRepsByGoal(specs)
         val upper = credit(ExerciseGoal.UPPER)
         val lower = credit(ExerciseGoal.LOWER)
         return DayData(
@@ -77,16 +83,17 @@ data class WorkoutDayEntity(
             legLifts = coreTotal() + credit(ExerciseGoal.CORE),
             calfRaises = calfRaises + half(lower, first = false),
             curls = curls + half(upper, first = false),
-            // Cardio customs are logged as distance, so they add to the day's manual miles —
-            // filling the 5-mile goal and burning like any other logged mile, counted once.
-            miles = miles + cardioCustomMiles(goals),
+            miles = miles,
             caloriesConsumed = caloriesConsumed,
             weightKg = weightKg,
             isRestDay = isRestDay,
             notes = notes,
-            customReps = uncreditedCustomReps(goals),
+            customReps = uncreditedCustomReps(specs),
             cardioMinutes = decodeCustomReps(cardioMinutes),
             oneOffs = decodeOneOffs(oneOffs),
+            // Cardio customs stay out of `miles` on purpose: they burn what they are worth via
+            // this field, but a rowed or cycled mile must never count as a walked one.
+            cardioEquivMiles = cardioEquivMiles(specs),
             passiveSteps = passiveSteps,
             passiveKcal = passiveKcal
         )
@@ -97,11 +104,14 @@ data class WorkoutDayEntity(
     private fun half(reps: Int, first: Boolean): Int =
         if (first) reps - reps / 2 else reps / 2
 
+    private fun goalOf(specs: Map<String, CustomExercise>, id: String): ExerciseGoal =
+        specs[id]?.goal ?: ExerciseGoal.NONE
+
     /** Reps this day logged against each category from assigned custom exercises. */
-    private fun customRepsByGoal(goals: Map<String, ExerciseGoal>): (ExerciseGoal) -> Int {
-        if (goals.isEmpty()) return { _ -> 0 }
+    private fun customRepsByGoal(specs: Map<String, CustomExercise>): (ExerciseGoal) -> Int {
+        if (specs.isEmpty()) return { _ -> 0 }
         val byGoal = decodeCustomReps(customReps).entries
-            .groupBy({ goals[it.key] ?: ExerciseGoal.NONE }, { it.value.coerceAtLeast(0) })
+            .groupBy({ goalOf(specs, it.key) }, { it.value.coerceAtLeast(0) })
             .mapValues { (_, v) -> v.sum() }
         return { goal -> byGoal[goal] ?: 0 }
     }
@@ -109,15 +119,15 @@ data class WorkoutDayEntity(
     /** Total reps from customs assigned to [goal] — what the category header adds on top of its
      *  built-in exercises. Kept out of [pushTotal]/[coreTotal] etc. so each per-exercise line
      *  keeps showing only the reps actually logged against that exercise. */
-    fun customRepsCredited(goal: ExerciseGoal, goals: Map<String, ExerciseGoal>): Int =
-        if (goal == ExerciseGoal.NONE) 0 else customRepsByGoal(goals)(goal)
+    fun customRepsCredited(goal: ExerciseGoal, specs: Map<String, CustomExercise>): Int =
+        if (goal == ExerciseGoal.NONE) 0 else customRepsByGoal(specs)(goal)
 
     /** Custom reps that fill no rep goal — the burn-only leftovers that stay in
      *  DayData.customReps. Includes reps left on an exercise that has since been pointed at
-     *  Cardio (its distance is what counts now), so those reps keep earning their calories. */
-    private fun uncreditedCustomReps(goals: Map<String, ExerciseGoal>): Map<String, Int> =
+     *  Cardio (its distance/time is what counts now), so those reps keep earning their calories. */
+    private fun uncreditedCustomReps(specs: Map<String, CustomExercise>): Map<String, Int> =
         decodeCustomReps(customReps).filterKeys {
-            val g = goals[it] ?: ExerciseGoal.NONE
+            val g = goalOf(specs, it)
             g == ExerciseGoal.NONE || g.isDistance
         }
 
@@ -129,9 +139,6 @@ data class WorkoutDayEntity(
     /** Total walking toward the 5-mi goal = manual/treadmill miles + tracked. */
     val walkMiles: Double get() = miles + trackedMiles
 
-    /** [walkMiles] plus the distance logged against Cardio-assigned customs — the full mile
-     *  total the 5-mi goal scores, which is what the Cardio section header shows. */
-    fun cardioMiles(goals: Map<String, ExerciseGoal>): Double = walkMiles + cardioCustomMiles(goals)
 
     /** Total push-ups reps across every variant (base column + alternatives) — what counts
      *  toward the push-ups goal, XP, and stats. Customs assigned to Upper Body are counted at
@@ -151,19 +158,33 @@ data class WorkoutDayEntity(
 
     /** Reps logged today for each custom exercise assigned to [goal] (id -> reps), for showing
      *  them inside their category's section alongside the built-in exercises. */
-    fun customRepsForGoal(goal: ExerciseGoal, goals: Map<String, ExerciseGoal>): Map<String, Int> =
+    fun customRepsForGoal(goal: ExerciseGoal, specs: Map<String, CustomExercise>): Map<String, Int> =
         if (goal == ExerciseGoal.NONE || goal.isDistance) emptyMap()
-        else decodeCustomReps(customReps).filterKeys { goals[it] == goal }
+        else decodeCustomReps(customReps).filterKeys { goalOf(specs, it) == goal }
 
-    /** Distance in miles logged today for each Cardio-assigned custom exercise (id -> miles). */
-    fun customMilesForCardio(goals: Map<String, ExerciseGoal>): Map<String, Double> =
-        decodeCustomReps(customDistance)
-            .filterKeys { goals[it] == ExerciseGoal.CARDIO }
-            .mapValues { (_, hundredths) -> hundredths.coerceAtLeast(0) / 100.0 }
+    /** What each Cardio custom logged today, in its own unit: miles for a DISTANCE exercise,
+     *  minutes for a MINUTES one. This is the number its row shows and its controls edit. */
+    fun cardioAmounts(specs: Map<String, CustomExercise>): Map<String, Double> = buildMap {
+        decodeCustomReps(customDistance).forEach { (id, hundredths) ->
+            val ex = specs[id] ?: return@forEach
+            if (ex.goal == ExerciseGoal.CARDIO && ex.cardioMode == CardioMode.DISTANCE) {
+                put(id, hundredths.coerceAtLeast(0) / 100.0)
+            }
+        }
+        decodeCustomReps(customMinutes).forEach { (id, min) ->
+            val ex = specs[id] ?: return@forEach
+            if (ex.goal == ExerciseGoal.CARDIO && ex.cardioMode == CardioMode.MINUTES) {
+                put(id, min.coerceAtLeast(0).toDouble())
+            }
+        }
+    }
 
-    /** Total Cardio-custom distance for the day, in miles. */
-    fun cardioCustomMiles(goals: Map<String, ExerciseGoal>): Double =
-        customMilesForCardio(goals).values.sum()
+    /** Every Cardio custom's work for the day, converted to the miles of walking that burn the
+     *  same — the single number the burn engine and the Cardio goal both read. */
+    fun cardioEquivMiles(specs: Map<String, CustomExercise>): Double =
+        cardioAmounts(specs).entries.sumOf { (id, amount) ->
+            specs[id]?.walkEquivalentMiles(amount) ?: 0.0
+        }
 
     /** Reps for each core variant by CoreExercise.id, including the base legLifts column.
      *  Only non-zero entries are present. */

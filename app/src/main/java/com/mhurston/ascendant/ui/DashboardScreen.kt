@@ -62,6 +62,13 @@ fun DashboardScreen(
     onSetNotes: (String) -> Unit = {},
     onAddCustomReps: (String, Int) -> Unit = { _, _ -> },
     onAddCustomDistance: (String, Double) -> Unit = { _, _ -> },
+    onAddCustomMinutes: (String, Int) -> Unit = { _, _ -> },
+    onSetCustomCardio: (
+        String,
+        com.mhurston.ascendant.domain.CardioMode,
+        com.mhurston.ascendant.domain.CardioRate,
+        com.mhurston.ascendant.domain.CardioIntensity
+    ) -> Unit = { _, _, _, _ -> },
     onAddCustomExercise: (String, com.mhurston.ascendant.domain.ExerciseGoal) -> Unit = { _, _ -> },
     onRemoveCustomExercise: (String) -> Unit = {},
     onSetCustomGoal: (String, com.mhurston.ascendant.domain.ExerciseGoal) -> Unit = { _, _ -> },
@@ -84,10 +91,15 @@ fun DashboardScreen(
     }
 
     pickingGoalFor?.let { ex ->
+        // Re-read the exercise from state each recomposition so the dialog reflects a pick
+        // immediately (the captured copy is a snapshot from before the change).
+        val live = state.customExercises.firstOrNull { it.id == ex.id } ?: ex
         ExerciseGoalDialog(
-            exerciseName = ex.name,
-            selected = ex.goal,
-            onPick = { onSetCustomGoal(ex.id, it); pickingGoalFor = null },
+            exercise = live,
+            onPick = { onSetCustomGoal(live.id, it) },
+            onPickCardio = { mode, rate, intensity ->
+                onSetCustomCardio(live.id, mode, rate, intensity)
+            },
             onDismiss = { pickingGoalFor = null }
         )
     }
@@ -160,15 +172,15 @@ fun DashboardScreen(
 
         Spacer(Modifier.height(20.dp))
         SectionHeader("Today's Training")
-        Caption("100 is the goal — every rep and mile burns calories, and calories are XP. " +
-            "Tap a group to log it.")
+        Caption("100 reps is the goal for each lift; cardio is scored in calories. Every rep " +
+            "and mile burns calories, and calories are XP. Tap a group to log it.")
         Spacer(Modifier.height(4.dp))
 
         // A pinned custom is assigned to a whole category, not to one exercise slot, so its reps
         // are added at the category level — which is exactly the level completion scores.
-        val goals = state.customGoals
+        val specs = state.customSpecs
         fun customsFor(goal: com.mhurston.ascendant.domain.ExerciseGoal): List<CustomGoalEntry> {
-            val reps = today.customRepsForGoal(goal, goals)
+            val reps = today.customRepsForGoal(goal, specs)
             return state.customExercises.filter { it.goal == goal }.map { ex ->
                 CustomGoalEntry(
                     id = ex.id,
@@ -180,7 +192,7 @@ fun DashboardScreen(
             }
         }
         fun credited(goal: com.mhurston.ascendant.domain.ExerciseGoal) =
-            today.customRepsCredited(goal, goals)
+            today.customRepsCredited(goal, specs)
 
         val upperGoal = com.mhurston.ascendant.domain.ExerciseGoal.UPPER
         val upperReps = today.pushTotal() + today.curls + credited(upperGoal)
@@ -219,26 +231,40 @@ fun DashboardScreen(
             }
             CategoryCustomsCard("Lower Body", customsFor(lowerGoal))
         }
+        // Cardio is scored in calories, not miles: five miles cycled is less than half the work
+        // of five walked, and the ring now pays each for exactly what it burns. The target is
+        // what walking the 5-mile goal burns, so 5 walked miles still fills it exactly.
         val cardioGoal = com.mhurston.ascendant.domain.ExerciseGoal.CARDIO
-        CollapsibleSection(
-            "Cardio",
-            "%.1f / 5.0 mi".format(java.util.Locale.US, today.cardioMiles(goals))
-        ) {
+        val scoredToday = state.todayData
+        val cardioKcal = com.mhurston.ascendant.domain.Calories
+            .cardioKcal(state.profile, scoredToday).roundToInt()
+        val cardioTarget = com.mhurston.ascendant.domain.Calories
+            .cardioTarget(state.profile, scoredToday).roundToInt()
+        CollapsibleSection("Cardio", "$cardioKcal / $cardioTarget kcal") {
+            CardioGoalHeader(kcal = cardioKcal, target = cardioTarget)
             WalkingRow(
                 treadmillMiles = today.miles,
                 trackedMiles = today.trackedMiles,
                 steps = today.passiveSteps,
+                kcalPerMile = com.mhurston.ascendant.domain.Calories
+                    .walkKcal(state.profile.weightKg, 1.0),
                 onVideos = { videoFor = "walking" },
                 onAdd = onAddMiles
             )
-            // Cardio customs are logged in miles, so they get distance controls, not rep ones.
-            val cardioMiles = today.customMilesForCardio(goals)
+            // Cardio customs are logged the way they are actually measured — miles for a rower
+            // or a bike, minutes for an elliptical or a class.
+            val amounts = today.cardioAmounts(specs)
             state.customExercises.filter { it.goal == cardioGoal }.forEach { ex ->
-                CardioDistanceRow(
-                    name = ex.name,
-                    miles = cardioMiles[ex.id] ?: 0.0,
+                val amount = amounts[ex.id] ?: 0.0
+                CardioCustomRow(
+                    exercise = ex,
+                    amount = amount,
+                    kcal = com.mhurston.ascendant.domain.Calories.walkKcal(
+                        state.profile.weightKg, ex.walkEquivalentMiles(amount)
+                    ).roundToInt(),
                     onChangeGoal = { pickingGoalFor = ex },
-                    onAdd = { onAddCustomDistance(ex.id, it) }
+                    onAddMiles = { onAddCustomDistance(ex.id, it) },
+                    onAddMinutes = { onAddCustomMinutes(ex.id, it) }
                 )
             }
             val cardioMin = com.mhurston.ascendant.data.WorkoutDayEntity.decodeCustomReps(today.cardioMinutes)
@@ -533,15 +559,56 @@ private fun VariantGoalSection(
     }
 }
 
-/** A pinned custom pointed at Cardio: logged as distance (rowing, elliptical), so it gets mile
- *  controls and its miles land on the same 5-mile goal walking does. */
+/** The Cardio goal itself: one calorie total for every kind of cardio the day logged, against
+ *  what walking the 5-mile goal burns. Calories rather than miles because a cycled mile is worth
+ *  about a third of a walked one, and the old miles-only goal paid them the same. */
 @Composable
-private fun CardioDistanceRow(
-    name: String,
-    miles: Double,
+private fun CardioGoalHeader(kcal: Int, target: Int) {
+    Card(
+        Modifier.fillMaxWidth().padding(vertical = 4.dp),
+        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface)
+    ) {
+        Column(Modifier.padding(12.dp)) {
+            Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween,
+                verticalAlignment = Alignment.CenterVertically) {
+                Caption("Each counts for what it burns.", modifier = Modifier.weight(1f))
+                Text("$kcal / $target kcal", color = if (kcal >= target) XpGold else TextDim,
+                    fontWeight = FontWeight.Bold)
+            }
+            val over = kcal - target
+            if (over > 0) {
+                Spacer(Modifier.height(2.dp))
+                Text("OVERDRIVE +$over", color = XpGold,
+                    style = MaterialTheme.typography.labelMedium, fontWeight = FontWeight.Bold,
+                    modifier = Modifier.align(Alignment.End))
+            }
+            Spacer(Modifier.height(6.dp))
+            ProgressTrack(
+                fraction = if (target <= 0) 0f else (kcal.toFloat() / target).coerceIn(0f, 1f),
+                color = if (kcal >= target) XpGold else AuraCyan
+            )
+            Spacer(Modifier.height(6.dp))
+            Caption("Target = walking ${"%.0f".format(Progression.MILE_TARGET)} miles.")
+        }
+    }
+}
+
+/** A pinned custom pointed at Cardio. It is logged the way it is actually measured — miles for
+ *  a rower or a bike, minutes for an elliptical or a class — and shows the calories that is
+ *  worth, which is what fills the goal. */
+@Composable
+private fun CardioCustomRow(
+    exercise: com.mhurston.ascendant.domain.CustomExercise,
+    amount: Double,
+    kcal: Int,
     onChangeGoal: () -> Unit,
-    onAdd: (Double) -> Unit
+    onAddMiles: (Double) -> Unit,
+    onAddMinutes: (Int) -> Unit
 ) {
+    val byTime = exercise.cardioMode == com.mhurston.ascendant.domain.CardioMode.MINUTES
+    val shown =
+        if (byTime) "${amount.roundToInt()} min"
+        else "${"%.1f".format(java.util.Locale.US, amount)} mi"
     Card(
         Modifier.fillMaxWidth().padding(vertical = 4.dp),
         colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface)
@@ -550,18 +617,27 @@ private fun CardioDistanceRow(
             Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween,
                 verticalAlignment = Alignment.CenterVertically) {
                 Row(Modifier.weight(1f), verticalAlignment = Alignment.CenterVertically) {
-                    BodyText(name,
-                        color = if (miles > 0) MaterialTheme.colorScheme.onSurface else TextDim)
+                    BodyText(exercise.name,
+                        color = if (amount > 0) MaterialTheme.colorScheme.onSurface else TextDim)
                     Text("  📌", style = MaterialTheme.typography.labelMedium)
                 }
-                Text("${"%.1f".format(java.util.Locale.US, miles)} mi",
-                    color = if (miles > 0) AuraCyan else TextDim, fontWeight = FontWeight.Bold)
+                Text(shown, color = if (amount > 0) AuraCyan else TextDim,
+                    fontWeight = FontWeight.Bold)
             }
-            Caption("Counts toward the 5-mile Cardio goal.")
+            Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween,
+                verticalAlignment = Alignment.CenterVertically) {
+                Caption(
+                    if (byTime) exercise.cardioIntensity.label else exercise.cardioRate.label,
+                    modifier = Modifier.weight(1f)
+                )
+                if (kcal > 0) Text("≈$kcal kcal", color = XpGold,
+                    style = MaterialTheme.typography.labelMedium, fontWeight = FontWeight.Bold)
+            }
             Spacer(Modifier.height(6.dp))
             GoalChip("🎯 Change goal") { onChangeGoal() }
             Spacer(Modifier.height(6.dp))
-            MileControls(miles = miles, onAdd = onAdd)
+            if (byTime) MinuteControls(minutes = amount.roundToInt(), onAdd = onAddMinutes)
+            else MileControls(miles = amount, onAdd = onAddMiles)
         }
     }
 }
@@ -587,7 +663,9 @@ private fun CardioMinutesRow(label: String, minutes: Int, kcalPerMin: Double,
             Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween,
                 verticalAlignment = Alignment.CenterVertically) {
                 FormVideoChip(onVideos)
-                if (minutes > 0) Text("≈$kcal XP", color = XpGold,
+                // kcal, not "XP", so it reads against the Cardio goal above — same number
+                // either way, since 1 kcal = 1 XP.
+                if (minutes > 0) Text("≈$kcal kcal", color = XpGold,
                     style = MaterialTheme.typography.labelMedium, fontWeight = FontWeight.Bold)
             }
             Spacer(Modifier.height(8.dp))
@@ -632,6 +710,7 @@ private fun WalkingRow(
     treadmillMiles: Double,
     trackedMiles: Double,
     steps: Int,
+    kcalPerMile: Double,
     onVideos: () -> Unit,
     onAdd: (Double) -> Unit
 ) {
@@ -653,7 +732,10 @@ private fun WalkingRow(
             Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween,
                 verticalAlignment = Alignment.CenterVertically) {
                 FormVideoChip(onVideos)
-                if (over > 0) Text("OVERDRIVE +${"%.1f".format(java.util.Locale.US, over)}mi",
+                val kcal = (total * kcalPerMile).roundToInt()
+                if (kcal > 0) Text("≈$kcal kcal", color = XpGold,
+                    style = MaterialTheme.typography.labelMedium, fontWeight = FontWeight.Bold)
+                else if (over > 0) Text("OVERDRIVE +${"%.1f".format(java.util.Locale.US, over)}mi",
                     color = XpGold,
                     style = MaterialTheme.typography.labelMedium, fontWeight = FontWeight.Bold)
             }
@@ -881,28 +963,65 @@ private fun ExtrasSection(
     }
 }
 
-/** Pick which daily goal a custom exercise's reps fill. NONE keeps it calories-only. The choice
- *  applies to every day the exercise was ever logged — credit is resolved when the log is
- *  replayed, so re-pointing it re-scores that history on the spot. */
+/** Pick which category a custom exercise fills. NONE keeps it calories-only. The choice applies
+ *  to every day the exercise was ever logged — credit is resolved when the log is replayed, so
+ *  re-pointing it re-scores that history on the spot.
+ *
+ *  Picking Cardio opens a second question, because cardio is scored in calories: how the
+ *  exercise is measured, and what a mile or a minute of it is worth. */
 @Composable
 internal fun ExerciseGoalDialog(
-    exerciseName: String,
-    selected: com.mhurston.ascendant.domain.ExerciseGoal,
+    exercise: com.mhurston.ascendant.domain.CustomExercise,
     onPick: (com.mhurston.ascendant.domain.ExerciseGoal) -> Unit,
+    onPickCardio: (
+        com.mhurston.ascendant.domain.CardioMode,
+        com.mhurston.ascendant.domain.CardioRate,
+        com.mhurston.ascendant.domain.CardioIntensity
+    ) -> Unit,
     onDismiss: () -> Unit
 ) {
+    val isCardio = exercise.goal == com.mhurston.ascendant.domain.ExerciseGoal.CARDIO
     AlertDialog(
         onDismissRequest = onDismiss,
-        title = { Text("\"$exerciseName\" counts toward") },
+        title = { Text("\"${exercise.name}\" counts toward") },
         text = {
-            Column {
+            Column(Modifier.verticalScroll(rememberScrollState())) {
                 Caption("Its reps fill that category's goal 1:1, like a built-in exercise, on " +
-                    "every day you have logged it. Cardio is the exception: it is measured in " +
-                    "miles, so a Cardio exercise is logged as distance. Calories and XP are " +
-                    "unchanged either way.")
+                    "every day you have logged it. Cardio is the exception: that goal is " +
+                    "calories, so a Cardio exercise is logged as distance or time and counts " +
+                    "for what it actually burns.")
                 Spacer(Modifier.height(8.dp))
                 com.mhurston.ascendant.domain.ExerciseGoal.entries.forEach { goal ->
-                    GoalOptionRow(goal.label, goal == selected) { onPick(goal) }
+                    GoalOptionRow(goal.label, goal == exercise.goal) { onPick(goal) }
+                }
+                if (isCardio) {
+                    Spacer(Modifier.height(14.dp))
+                    SectionHeader("How is it measured?")
+                    com.mhurston.ascendant.domain.CardioMode.entries.forEach { mode ->
+                        GoalOptionRow(mode.label, mode == exercise.cardioMode) {
+                            onPickCardio(mode, exercise.cardioRate, exercise.cardioIntensity)
+                        }
+                    }
+                    Spacer(Modifier.height(14.dp))
+                    if (exercise.cardioMode == com.mhurston.ascendant.domain.CardioMode.DISTANCE) {
+                        SectionHeader("What is a mile of it worth?")
+                        Caption("A cycled mile burns about a third of a walked one, so the pace " +
+                            "decides how much of the goal each mile fills.")
+                        com.mhurston.ascendant.domain.CardioRate.entries.forEach { rate ->
+                            GoalOptionRow(rate.label, rate == exercise.cardioRate) {
+                                onPickCardio(exercise.cardioMode, rate, exercise.cardioIntensity)
+                            }
+                        }
+                    } else {
+                        SectionHeader("How hard is it?")
+                        Caption("Sets the burn per minute, the same way Bike Riding and " +
+                            "Swimming are already scored.")
+                        com.mhurston.ascendant.domain.CardioIntensity.entries.forEach { level ->
+                            GoalOptionRow(level.label, level == exercise.cardioIntensity) {
+                                onPickCardio(exercise.cardioMode, exercise.cardioRate, level)
+                            }
+                        }
+                    }
                 }
             }
         },

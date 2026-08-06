@@ -56,6 +56,7 @@ fun CalendarScreen(
     onSetWeight: (String, Double) -> Unit = { _, _ -> },
     onAddCustomReps: (String, String, Int) -> Unit = { _, _, _ -> },
     onAddCustomDistance: (String, String, Double) -> Unit = { _, _, _ -> },
+    onAddCustomMinutes: (String, String, Int) -> Unit = { _, _, _ -> },
     onAddCustomExercise: (String, com.mhurston.ascendant.domain.ExerciseGoal) -> Unit = { _, _ -> },
     onAddPushVariant: (String, String, Int) -> Unit = { _, _, _ -> },
     onAddCoreVariant: (String, String, Int) -> Unit = { _, _, _ -> },
@@ -89,7 +90,7 @@ fun CalendarScreen(
         val ent = byDate[dateStr]
         // Day's gross activity burn, computed with the carried-forward weight so the number
         // matches the day's XP/energy math (weightFor uses day.weightKg when > 0).
-        val dayForBurn = (ent ?: WorkoutDayEntity(date = dateStr)).toDayData(state.customGoals)
+        val dayForBurn = (ent ?: WorkoutDayEntity(date = dateStr)).toDayData(state.customSpecs)
             .copy(weightKg = carriedWeightKg)
         val caloriesBurned =
             com.mhurston.ascendant.domain.Calories.activityBurn(state.profile, dayForBurn).roundToInt()
@@ -112,6 +113,7 @@ fun CalendarScreen(
             customExercises = state.allCustomExercises,
             onAddCustomReps = { id, delta -> onAddCustomReps(date.toString(), id, delta) },
             onAddCustomDistance = { id, delta -> onAddCustomDistance(date.toString(), id, delta) },
+            onAddCustomMinutes = { id, delta -> onAddCustomMinutes(date.toString(), id, delta) },
             onAddCustomExercise = onAddCustomExercise,
             onAddPushVariant = { id, delta -> onAddPushVariant(date.toString(), id, delta) },
             onAddCoreVariant = { id, delta -> onAddCoreVariant(date.toString(), id, delta) },
@@ -291,6 +293,7 @@ private fun DayEditorDialog(
     customExercises: List<com.mhurston.ascendant.domain.CustomExercise> = emptyList(),
     onAddCustomReps: (String, Int) -> Unit = { _, _ -> },
     onAddCustomDistance: (String, Double) -> Unit = { _, _ -> },
+    onAddCustomMinutes: (String, Int) -> Unit = { _, _ -> },
     onAddCustomExercise: (String, com.mhurston.ascendant.domain.ExerciseGoal) -> Unit = { _, _ -> },
     onAddPushVariant: (String, Int) -> Unit = { _, _ -> },
     onAddCoreVariant: (String, Int) -> Unit = { _, _ -> },
@@ -375,8 +378,8 @@ private fun DayEditorDialog(
                 // category (listed under "Pinned" below with a → arrow showing where they land).
                 // A category's customs split evenly across its two slots, which is why these
                 // headline numbers can exceed the reps typed into the rows beneath them.
-                val goals = customExercises.associate { it.id to it.goal }
-                val scored = e.toDayData(goals)
+                val specs = customExercises.associateBy { it.id }
+                val scored = e.toDayData(specs)
                 val pushBreak = e.pushBreakdown()
                 Caption("Push-ups — ${scored.pushups} / 100  (any of these count)")
                 com.mhurston.ascendant.domain.PushExercise.entries.forEach { v ->
@@ -399,20 +402,27 @@ private fun DayEditorDialog(
                     TrackedWalkRow(steps = e.passiveSteps, trackedMiles = e.trackedMiles)
                 }
                 MilesEditRow(e.miles, onAdd = onAddMiles)
-                // Cardio-assigned customs are logged in miles, so they get distance controls
-                // here too and add to the same 5-mile goal.
-                val cardioMiles = e.customMilesForCardio(goals)
-                customExercises
-                    .filter { it.goal == com.mhurston.ascendant.domain.ExerciseGoal.CARDIO }
-                    .filter { !it.archived || (cardioMiles[it.id] ?: 0.0) > 0.0 }
-                    .forEach { ex ->
-                        MilesEditRow(cardioMiles[ex.id] ?: 0.0, "${ex.name} 📌") { delta ->
-                            onAddCustomDistance(ex.id, delta)
-                        }
-                    }
-                if (e.passiveSteps > 0 || cardioMiles.isNotEmpty()) {
+                if (e.passiveSteps > 0) {
                     ReadOnlyRow("Total walking", "${"%.1f".format(Locale.US, scored.walkMiles)} mi")
                 }
+                // Cardio customs are edited in whatever they are measured in — miles for a
+                // rower, minutes for an elliptical.
+                val cardioAmounts = e.cardioAmounts(specs)
+                customExercises
+                    .filter { it.goal == com.mhurston.ascendant.domain.ExerciseGoal.CARDIO }
+                    .filter { !it.archived || (cardioAmounts[it.id] ?: 0.0) > 0.0 }
+                    .forEach { ex ->
+                        val amount = cardioAmounts[ex.id] ?: 0.0
+                        if (ex.cardioMode == com.mhurston.ascendant.domain.CardioMode.MINUTES) {
+                            EditRow("${ex.name} 📌 (min)", amount.roundToInt()) { delta ->
+                                onAddCustomMinutes(ex.id, delta)
+                            }
+                        } else {
+                            MilesEditRow(amount, "${ex.name} 📌") { delta ->
+                                onAddCustomDistance(ex.id, delta)
+                            }
+                        }
+                    }
                 val cardioMin = WorkoutDayEntity.decodeCustomReps(e.cardioMinutes)
                 com.mhurston.ascendant.domain.CardioActivity.entries.forEach { act ->
                     EditRow("${act.label} (min)", cardioMin[act.id] ?: 0) { onAddCardioMinutes(act.id, it) }
