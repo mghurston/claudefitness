@@ -92,6 +92,29 @@ inferred; the commands and numbers are in the session log.
 - Reminder notification actually firing at the scheduled time.
 - Anything on a physical phone: this was all emulator.
 
+## ✅ Verified on emulator (2026-08-06, v0.6.0 toolchain upgrade QA)
+
+Second full pass, after moving the whole build to latest stable (Gradle 9.7.0, AGP 9.3.1,
+Kotlin 2.4.10, compileSdk 37). Observed this session:
+
+- **81 unit tests, 0 failures** on the new compiler (`--rerun-tasks`), unchanged from the
+  pre-upgrade run: the scoring engine behaves identically on Kotlin 2.4.
+- **Lint: 0 errors, 3 warnings** (was 24 at the start of the day). What is left, and why:
+  `targetSdk` 36 under `compileSdk` 37 (deliberate), a launcher icon that fills its square
+  (needs new artwork), and `mipmap-anydpi-v26`.
+- **Do not take lint's `mipmap-anydpi-v26` advice.** Renaming that folder to `mipmap-anydpi`
+  was tried and reverted: AAPT then fails with `resource mipmap/ic_launcher not found` and the
+  build dies. The redundant `-v26` qualifier stays.
+- **Resolved versions confirmed from the dependency graph**, not from the catalog file:
+  kotlin-stdlib 2.4.10, core-ktx 1.19.0, lifecycle 2.11.0, activity 1.13.0, room 2.8.4,
+  navigation 2.9.8, datastore 1.2.1, browser 1.10.0, work 2.11.2.
+- **KSP 2.3.11 runs on the Kotlin 2.4.10 compiler** — Room's `kspDebugKotlin` is green. There
+  is no KSP 2.4 line yet; this is the pairing to check first if a future Kotlin bump breaks.
+- **App runs on the new stack** with the real 67-day log: Level 14, 30693 XP, END 14, DB still
+  at v12, all five tabs open, no `FATAL EXCEPTION` in logcat.
+- **Launcher icon still renders** after moving the bitmap drawables to `drawable-nodpi`
+  (checked in the device app drawer, not just at build time).
+
 ## ☐ Needs testing on the phone (not exercised on emulator)
 
 These are expected to work but were never run end-to-end on real hardware:

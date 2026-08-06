@@ -60,12 +60,12 @@ import kotlin.math.roundToInt
 @Composable
 fun CharacterScreen(
     state: UiState,
+    modifier: Modifier = Modifier,
     onImportJson: (String, (Boolean, String) -> Unit) -> Unit = { _, _ -> },
     /** Builds the full backup JSON (days + profile + settings) — see AppViewModel.buildBackupJson. */
     onExportJson: () -> String = { "" },
     avatar: com.mhurston.ascendant.domain.Avatar = com.mhurston.ascendant.domain.Avatar.MALE,
-    onSetAvatar: (com.mhurston.ascendant.domain.Avatar) -> Unit = {},
-    modifier: Modifier = Modifier
+    onSetAvatar: (com.mhurston.ascendant.domain.Avatar) -> Unit = {}
 ) {
     val c = state.character
     val s = c.stats

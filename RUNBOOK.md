@@ -10,18 +10,23 @@ design package see [`README.md`](README.md) and [`docs/`](docs/); this file is a
 
 | Layer | Choice | Notes |
 |-------|--------|-------|
-| Language | **Kotlin** 2.0.21 | |
-| UI | **Jetpack Compose** (Material 3, BOM 2024.10.01) | No XML layouts; everything is `@Composable`. |
-| Build | **Gradle 8.x** (Kotlin DSL) + **AGP 8.7.3** | Version catalog in `gradle/libs.versions.toml`. |
-| Annotation processing | **KSP** 2.0.21-1.0.28 | Room compiler only. |
-| Local DB | **Room** 2.6.1 | The workout day log (schema with migrations). |
-| Key-value store | **DataStore (Preferences)** 1.1.1 | Profile, units, settings. |
-| Navigation | **Navigation-Compose** 2.8.4 | |
-| Background work | **WorkManager** 2.9.1 | Periodic passive Health Connect sync. |
-| Health data | **Health Connect** 1.1.0-alpha10 | Read-only steps + active calories. Pinned — see catalog comment. |
-| In-app browser | **AndroidX Browser** (Custom Tabs) 1.8.0 | Form-video + About links. |
-| Min / target SDK | **26 / 35**, `compileSdk 35` | Java/JVM target **17**. |
-| Tests | JUnit 4 | Host-JVM unit tests on the progression engine. |
+| Language | **Kotlin** 2.4.10 | Compiled by AGP's built-in Kotlin; there is no `kotlin-android` plugin any more. |
+| UI | **Jetpack Compose** (Material 3, BOM 2026.06.01) | No XML layouts; everything is `@Composable`. |
+| Build | **Gradle 9.7.0** (Kotlin DSL) + **AGP 9.3.1** | Version catalog in `gradle/libs.versions.toml`. |
+| Annotation processing | **KSP** 2.3.11 | Room compiler only. No 2.4 line exists yet; 2.3.11 runs fine on the Kotlin 2.4 compiler. |
+| Local DB | **Room** 2.8.4 | The workout day log (schema v12, migration per step). |
+| Key-value store | **DataStore (Preferences)** 1.2.1 | Profile, units, settings, custom-exercise definitions. |
+| Navigation | **Navigation-Compose** 2.9.8 | |
+| Background work | **WorkManager** 2.11.2 | Periodic passive Health Connect sync. |
+| Health data | **Health Connect** 1.1.0 | Read-only steps + active calories. Stable since the SDK 36 upgrade; the alpha pin is gone. |
+| In-app browser | **AndroidX Browser** (Custom Tabs) 1.10.0 | Form-video + About links. |
+| Min / target SDK | **26 / 36**, `compileSdk 37` | Java/JVM target **17**. compileSdk 37 is what core-ktx 1.19 / lifecycle 2.11 require; targetSdk stays 36 deliberately. |
+| Tests | JUnit 4 + org.json | Host-JVM unit tests on the progression engine; org.json so backup restore is testable off-device. |
+
+> Versions above are the latest **stable** as of 2026-08-06, checked against Google Maven and
+> Maven Central. Pre-release lines are skipped on purpose, so a "newer version available"
+> query can look ahead of this table while the table is still current stable. `gradle/libs.versions.toml`
+> is the single source of truth and carries the same note.
 
 **Architecture in one line:** offline-first, no backend, no Play Store. The whole
 character (XP/level/rank/stats/streaks) is a *pure function* of the immutable day log,
@@ -160,7 +165,7 @@ $adb="$env:ANDROID_HOME\platform-tools\adb.exe"
 | **Personal links** | The **About** card on the Hero screen (`ui/CharacterScreen.kt`) — website + Linktree URLs. |
 | **Ship a new build** | Bump **both** `versionCode` (+1) and `versionName` in `app/build.gradle.kts` on **every** delivered build — sideloads reject an equal/lower `versionCode`. |
 | **Release (signed) build** | No release keystore is configured; `buildTypes.release` has `isMinifyEnabled = false` and no signing. Add a keystore + `signingConfigs` before distributing a release APK. For full Play Store publishing (upload key, AAB, Play App Signing) see **§7**. |
-| **Bump a dependency / Gradle / AGP / SDK** | Edit `gradle/libs.versions.toml` (single source of truth). Note Health Connect is pinned to `1.1.0-alpha10` because newer needs `compileSdk 36` / AGP 8.9.1. |
+| **Bump a dependency / Gradle / AGP / SDK** | Edit `gradle/libs.versions.toml` (single source of truth). Check the header comment there first: it records why a version is held back (e.g. KSP has no 2.4 line, targetSdk is deliberately behind compileSdk). |
 | **Change permissions** | `app/src/main/AndroidManifest.xml` declares `POST_NOTIFICATIONS` + Health Connect read perms and the HC rationale deep-links. |
 | **Seed/import history** | `data/` seeding is disabled so fresh installs start at Level 1; `docs/assets/seed_history.csv` + the in-app JSON/CSV restore are the import paths. |
 

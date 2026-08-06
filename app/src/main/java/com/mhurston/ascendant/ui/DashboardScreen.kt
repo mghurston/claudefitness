@@ -59,6 +59,7 @@ fun DashboardScreen(
     onResetToday: () -> Unit,
     onToggleFavVideo: (String) -> Unit,
     onAddUserVideo: (String, String, String) -> Unit,
+    modifier: Modifier = Modifier,
     onSetNotes: (String) -> Unit = {},
     onAddCustomReps: (String, Int) -> Unit = { _, _ -> },
     onAddCustomDistance: (String, Double) -> Unit = { _, _ -> },
@@ -78,8 +79,7 @@ fun DashboardScreen(
     onAddOneOff: (com.mhurston.ascendant.domain.OneOff) -> Unit = {},
     onUpdateOneOff: (Int, com.mhurston.ascendant.domain.OneOff) -> Unit = { _, _ -> },
     onRemoveOneOff: (Int) -> Unit = {},
-    unitSystem: com.mhurston.ascendant.domain.UnitSystem = com.mhurston.ascendant.domain.UnitSystem.IMPERIAL,
-    modifier: Modifier = Modifier
+    unitSystem: com.mhurston.ascendant.domain.UnitSystem = com.mhurston.ascendant.domain.UnitSystem.IMPERIAL
 ) {
     val c = state.character
     val today = state.today

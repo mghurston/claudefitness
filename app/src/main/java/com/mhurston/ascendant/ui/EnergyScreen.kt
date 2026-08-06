@@ -49,16 +49,16 @@ fun EnergyScreen(
     state: UiState,
     onSaveProfile: (Profile) -> Unit,
     onSetConsumed: (Int) -> Unit,
-    onSetWeightToday: (Double) -> Unit = {},
     onResetGoalStart: (Double) -> Unit,
+    modifier: Modifier = Modifier,
+    onSetWeightToday: (Double) -> Unit = {},
     unitSystem: UnitSystem = UnitSystem.IMPERIAL,
     onSetUnit: (UnitSystem) -> Unit = {},
     reminderEnabled: Boolean = false,
     onSetReminder: (Boolean) -> Unit = {},
     passiveSyncEnabled: Boolean = false,
     lastPassiveSync: String? = null,
-    onSetPassiveSync: (Boolean) -> Unit = {},
-    modifier: Modifier = Modifier
+    onSetPassiveSync: (Boolean) -> Unit = {}
 ) {
     val p = state.profile
     val imperial = unitSystem == UnitSystem.IMPERIAL

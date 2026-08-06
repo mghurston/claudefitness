@@ -1,13 +1,12 @@
 plugins {
     alias(libs.plugins.android.application)
-    alias(libs.plugins.kotlin.android)
     alias(libs.plugins.kotlin.compose)
     alias(libs.plugins.ksp)
 }
 
 android {
     namespace = "com.mhurston.ascendant"
-    compileSdk = 36
+    compileSdk = 37
 
     defaultConfig {
         applicationId = "com.mhurston.ascendant"
@@ -16,8 +15,8 @@ android {
         // Bump BOTH on every delivered build: versionCode +1 (Android uses this to
         // gate installs — equal/lower is rejected on sideload), versionName as the
         // human label (patch++, rolling 0.1.9 -> 0.2.0).
-        versionCode = 43
-        versionName = "0.5.2"
+        versionCode = 44
+        versionName = "0.6.0"
     }
 
     buildTypes {
@@ -62,9 +61,9 @@ dependencies {
     implementation(libs.androidx.work.runtime)
     implementation(libs.androidx.health.connect)
     debugImplementation(libs.androidx.ui.tooling)
-    testImplementation("junit:junit:4.13.2")
+    testImplementation(libs.junit)
     // Real org.json on the unit-test classpath. android.jar ships stubs that throw
     // "not mocked", which made backup RESTORE (Exporter.fromJson) impossible to test off
     // a device — the one path where a dropped field silently loses logged data.
-    testImplementation("org.json:json:20250107")
+    testImplementation(libs.json)
 }

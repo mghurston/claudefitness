@@ -2,7 +2,7 @@
 
 Status: **BUILT** (v0.1.3, versionCode 4). Shipped in package `com.mhurston.ascendant.health`
 (`HealthConnect.kt` + `PassiveSync.kt`), DB migrated v7→v8, dependency pinned to
-`connect-client:1.1.0-alpha10` (newer 1.1.0 stable needs compileSdk 36 / AGP 8.9.1 — see §8).
+`connect-client` (now on **1.1.0 stable** since the SDK 36 upgrade; the alpha10 pin below is history).
 Goal: steps/activity the phone already collects (like Pokémon GO Adventure Sync, Orna, MH Now)
 feed ASCENDANT automatically, awarding **full XP** with no manual logging.
 
@@ -17,8 +17,8 @@ feed ASCENDANT automatically, awarding **full XP** with no manual logging.
   No reduced rate.
 - **Distribution:** personal sideload → **no privacy policy / Play data-safety form needed.**
   (Those are Play Store requirements only.)
-- **Passive distance is XP-only** — it does **not** build the Endurance stat or count toward
-  the 5-mile goal. Deliberate logged `miles` stays the sole driver of those. (was §6 #1)
+- ~~**Passive distance is XP-only**~~ — **reversed in v0.3.4-0.3.5**: tracked steps count as
+  walking everywhere, including ENDURANCE and the cardio goal. See §6 #1.
 - **Passive movement keeps your streak alive** — a real-movement day (`passiveSteps ≥ ~1000`)
   counts as activity, so it sustains the activity streak and resets the idle-decay anchor.
   Strength streak stays strength-only. (was §6 #2)
@@ -129,9 +129,9 @@ watch/active-calorie data). Not the primary plan; documented so we don't re-deri
 
 ## 8. Build checklist (DONE)
 
-- [x] Add `connect-client` dependency. **Pinned `1.1.0-alpha10`** — the 1.1.0 stable/rc line
-      requires compileSdk 36 + AGP 8.9.1; alpha10 is the newest that compiles against SDK 35 /
-      AGP 8.7.3 and still has every aggregate + permission API we use.
+- [x] Add `connect-client` dependency. Was **pinned `1.1.0-alpha10`** because the 1.1.0 stable
+      line needed compileSdk 36 + AGP 8.9.1; that pin was lifted at the SDK 36 upgrade and the
+      app has been on **1.1.0 stable** since.
 - [x] Manifest: `READ_STEPS` + `READ_ACTIVE_CALORIES_BURNED`, `<queries>` for the provider
       package, `SHOW_PERMISSIONS_RATIONALE` intent-filter (≤A13) + `ViewPermissionUsageActivity`
       alias (A14+). (Skipped `READ_DISTANCE` — passive distance is never used.)

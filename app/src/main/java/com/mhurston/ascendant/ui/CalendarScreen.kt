@@ -51,6 +51,7 @@ fun CalendarScreen(
     onAddReps: (String, ExerciseKind, Int) -> Unit,
     onAddMiles: (String, Double) -> Unit,
     onResetDay: (String) -> Unit,
+    modifier: Modifier = Modifier,
     onSetNotes: (String, String) -> Unit = { _, _ -> },
     onSetConsumed: (String, Int) -> Unit = { _, _ -> },
     onSetWeight: (String, Double) -> Unit = { _, _ -> },
@@ -64,8 +65,7 @@ fun CalendarScreen(
     onAddOneOff: (String, com.mhurston.ascendant.domain.OneOff) -> Unit = { _, _ -> },
     onUpdateOneOff: (String, Int, com.mhurston.ascendant.domain.OneOff) -> Unit = { _, _, _ -> },
     onRemoveOneOff: (String, Int) -> Unit = { _, _ -> },
-    unitSystem: com.mhurston.ascendant.domain.UnitSystem = com.mhurston.ascendant.domain.UnitSystem.IMPERIAL,
-    modifier: Modifier = Modifier
+    unitSystem: com.mhurston.ascendant.domain.UnitSystem = com.mhurston.ascendant.domain.UnitSystem.IMPERIAL
 ) {
     val today = LocalDate.now()
     var month by remember { mutableStateOf(YearMonth.from(today)) }

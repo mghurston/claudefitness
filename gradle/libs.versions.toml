@@ -1,14 +1,25 @@
 [versions]
-# Upgraded 2026-07 to the SDK 36 stack (latest stable as of the upgrade; verified against
-# Google Maven / Maven Central). AGP kept on the 8.x line on purpose — 9.x is a major
-# rewrite; revisit separately. KSP 2.3.x is decoupled from Kotlin versions but targets
-# Kotlin language 2.3, so Kotlin stays on 2.3.x until KSP targets 2.4.
-agp = "8.13.2"
-kotlin = "2.3.21"
-ksp = "2.3.9"
-# core 1.19.0 / lifecycle 2.11.0 demand compileSdk 37 + AGP 9.1 — held one line back.
-coreKtx = "1.18.0"
-lifecycleRuntimeKtx = "2.10.0"
+# Upgraded 2026-08-06: every entry here is the latest STABLE release, checked against Google
+# Maven / Maven Central maven-metadata that day. Pre-release lines are deliberately skipped
+# (navigation 2.10.0-beta01, work 2.12.0-beta01, datastore 1.3.0-alpha10, health-connect
+# 1.2.0-alpha04, AGP 9.4.0-alpha08, Kotlin 2.4.20-Beta2), so several versions below look
+# behind a "latest" query but are in fact current stable.
+#
+# AGP 9 has Kotlin support BUILT IN: there is no org.jetbrains.kotlin.android plugin any
+# more, and applying it fails the build. `kotlin` below still drives the Compose compiler
+# plugin, and AGP compiles with that same version.
+#
+# KSP has no 2.4 line yet — 2.3.11 is its latest stable, and it runs fine against the
+# Kotlin 2.4.10 compiler (Room's KSP pass is green). If a future Kotlin bump breaks KSP,
+# that is the constraint to check first.
+agp = "9.3.1"
+kotlin = "2.4.10"
+ksp = "2.3.11"
+# core 1.19.0 / lifecycle 2.11.0 require compileSdk 37, which is why the app compiles
+# against 37 (platform android-37.1). targetSdk stays at 36 on purpose: raising it opts
+# into new OS behaviors and wants testing on an API 37 device, which is a separate call.
+coreKtx = "1.19.0"
+lifecycleRuntimeKtx = "2.11.0"
 activityCompose = "1.13.0"
 composeBom = "2026.06.01"
 room = "2.8.4"
@@ -17,8 +28,12 @@ navigationCompose = "2.9.8"
 browser = "1.10.0"
 work = "2.11.2"
 healthConnect = "1.1.0"
+junit = "4.13.2"
+json = "20260719"
 
 [libraries]
+junit = { group = "junit", name = "junit", version.ref = "junit" }
+json = { group = "org.json", name = "json", version.ref = "json" }
 androidx-browser = { group = "androidx.browser", name = "browser", version.ref = "browser" }
 androidx-work-runtime = { group = "androidx.work", name = "work-runtime-ktx", version.ref = "work" }
 androidx-health-connect = { group = "androidx.health.connect", name = "connect-client", version.ref = "healthConnect" }

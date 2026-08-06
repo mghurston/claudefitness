@@ -10,6 +10,36 @@ it was before. That is the whole point of keeping it.
 
 ---
 
+## v0.6.0 — 2026-08-06
+**Whole toolchain to latest stable.** Gradle 8.14.3 → 9.7.0, AGP 8.13.2 → **9.3.1** (a major
+version), Kotlin 2.3.21 → 2.4.10, KSP 2.3.9 → 2.3.11, core-ktx 1.18.0 → 1.19.0, lifecycle
+2.10.0 → 2.11.0, and `compileSdk` 36 → 37 (platform android-37.1), which is what the two
+AndroidX bumps require.
+
+AGP 9 has **Kotlin support built in**: applying `org.jetbrains.kotlin.android` now fails the
+build outright, so that plugin is gone from both build files. The Compose compiler plugin
+stays and is what pins the Kotlin version AGP compiles with.
+
+`targetSdk` deliberately stays at **36**. Raising it opts the app into new OS behaviors and
+wants testing on an API 37 device; that is an app-behavior decision, not a library update.
+
+Everything else was already current stable — Room 2.8.4, Compose BOM 2026.06.01, activity
+1.13.0, navigation 2.9.8, datastore 1.2.1, browser 1.10.0, work 2.11.2, health-connect 1.1.0.
+Several of those have newer **pre-release** lines that a "latest version" query will report;
+they are skipped on purpose.
+
+Lint cleanup rode along: warnings 24 → 3. The `modifier` parameter now sits first-optional on
+all four screens, bitmap drawables moved to `drawable-nodpi`, and the two test dependencies
+moved into the version catalog. The three left are a deliberate `targetSdk` gap, a launcher
+icon that fills its square (needs new artwork), and a `mipmap-anydpi-v26` folder that lint
+says to rename — **do not**: dropping the `-v26` qualifier makes AAPT fail to resolve
+`mipmap/ic_launcher` and breaks the build.
+
+## v0.5.2 — 2026-08-06
+Docs sweep for the cardio rework plus a QA pass: new `Scoring Model.md` and this changelog,
+superseded banners on the design docs, first-ever tests for backup **restore** (org.json on
+the test classpath), and a lint error fixed in the Calendar month header.
+
 ## v0.5.1 — 2026-08-06
 **ENDURANCE counts every kind of cardio, not just walking.**
 END was lifetime walked miles, so an hour on a bike built none of it. It now reads lifetime

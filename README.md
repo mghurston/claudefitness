@@ -1,6 +1,6 @@
 # ASCENDANT — Personal Anime-Themed Fitness RPG
 
-> **Status: BUILT & RUNNING** (updated 2026-08-06, v0.5.1). The full app is implemented in Kotlin + Jetpack Compose and verified on an Android emulator (API 34). Docs below are the original design package; this header tracks live status. **Two specs are authoritative over the design docs: `docs/XP Simplification Spec.md` (XP, v0.2.0+) and `docs/Scoring Model.md` (daily completion, the Cardio calorie goal, custom-exercise categories, and the five attributes, v0.5.1+). `docs/CHANGELOG.md` tracks what changed in each version.**
+> **Status: BUILT & RUNNING** (updated 2026-08-06, v0.6.0). The full app is implemented in Kotlin + Jetpack Compose and verified on an Android emulator (API 36). Docs below are the original design package; this header tracks live status. **Two specs are authoritative over the design docs: `docs/XP Simplification Spec.md` (XP, v0.2.0+) and `docs/Scoring Model.md` (daily completion, the Cardio calorie goal, custom-exercise categories, and the five attributes, v0.5.1+). `docs/CHANGELOG.md` tracks what changed in each version.**
 
 A single-user, Android-only, offline-first app that replaces a Google Sheets workout tracker with an anime-RPG progression system — turning daily exercise into XP, levels, stats, streaks, quests, and achievements. Every mechanic is tuned against the real 30-day data from `Anime_Workout_Tracker_30_Days.xlsx`.
 
