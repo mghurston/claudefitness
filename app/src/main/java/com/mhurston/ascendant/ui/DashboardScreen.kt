@@ -1,5 +1,6 @@
 package com.mhurston.ascendant.ui
 
+import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
@@ -434,11 +435,9 @@ private fun CustomGoalRow(entry: CustomGoalEntry) {
         Text("${entry.reps}", color = if (entry.reps > 0) AuraCyan else TextDim,
             fontWeight = FontWeight.Bold)
     }
-    Spacer(Modifier.height(4.dp))
-    Text("Counts toward this goal · change",
-        style = MaterialTheme.typography.labelMedium, color = AuraCyan,
-        modifier = Modifier.clickable { entry.onChangeGoal() })
-    Spacer(Modifier.height(4.dp))
+    Spacer(Modifier.height(6.dp))
+    GoalChip("🎯 Change goal") { entry.onChangeGoal() }
+    Spacer(Modifier.height(6.dp))
     RepControls(current = entry.reps, onAdd = entry.onAdd)
 }
 
@@ -671,6 +670,22 @@ private fun FormVideoChip(onClick: () -> Unit) {
     }
 }
 
+/** Bordered chip for a custom exercise's goal assignment. Same shape and hit area as
+ *  [FormVideoChip] so it reads as a button, not a caption. */
+@Composable
+private fun GoalChip(label: String, onClick: () -> Unit) {
+    Box(
+        Modifier
+            .clip(RoundedCornerShape(20.dp))
+            .border(1.dp, ManaPurple, RoundedCornerShape(20.dp))
+            .clickable(onClick = onClick)
+            .padding(horizontal = 12.dp, vertical = 6.dp)
+    ) {
+        Text(label, color = ManaPurple, style = MaterialTheme.typography.labelMedium,
+            fontWeight = FontWeight.Bold)
+    }
+}
+
 /** Extras: pinned recurring custom exercises (rep-based) + per-day one-off activities
  *  (calorie-based). One-offs live only on today; pinning promotes one to a daily option. */
 @Composable
@@ -790,10 +805,8 @@ private fun ExtrasSection(
                             modifier = Modifier.clickable { removing = ex })
                     }
                 }
-                Spacer(Modifier.height(4.dp))
-                Text("Earns XP only · count it toward a goal",
-                    style = MaterialTheme.typography.labelMedium, color = AuraCyan,
-                    modifier = Modifier.clickable { onSetGoal(ex) })
+                Spacer(Modifier.height(8.dp))
+                GoalChip("🎯 Count toward a goal") { onSetGoal(ex) }
                 Spacer(Modifier.height(8.dp))
                 RepControls(current = reps, onAdd = { onAddReps(ex.id, it) })
             }
@@ -825,20 +838,37 @@ internal fun ExerciseGoalDialog(
                     "you have logged it. Calories and XP are unchanged either way.")
                 Spacer(Modifier.height(8.dp))
                 com.mhurston.ascendant.domain.ExerciseGoal.entries.forEach { goal ->
-                    val isSel = goal == selected
-                    Row(
-                        Modifier.fillMaxWidth().clickable { onPick(goal) }.padding(vertical = 10.dp),
-                        verticalAlignment = Alignment.CenterVertically
-                    ) {
-                        Text(if (isSel) "●  " else "○  ", color = if (isSel) AuraCyan else TextDim)
-                        BodyText(goal.label,
-                            color = if (isSel) AuraCyan else MaterialTheme.colorScheme.onSurface)
-                    }
+                    GoalOptionRow(goal.label, goal == selected) { onPick(goal) }
                 }
             }
         },
         confirmButton = { TextButton(onClick = onDismiss) { Text("Done") } }
     )
+}
+
+/** One selectable goal in a picker. Drawn as an outlined, filled-when-selected row so it reads
+ *  as a button — a bare radio glyph and a line of text did not. Shared by both goal pickers. */
+@Composable
+internal fun GoalOptionRow(label: String, selected: Boolean, onClick: () -> Unit) {
+    Box(
+        Modifier
+            .fillMaxWidth()
+            .padding(vertical = 4.dp)
+            .clip(RoundedCornerShape(10.dp))
+            .background(if (selected) ManaPurple.copy(alpha = 0.22f) else Color.Transparent)
+            .border(
+                1.dp,
+                if (selected) ManaPurple else MaterialTheme.colorScheme.onSurface.copy(alpha = 0.35f),
+                RoundedCornerShape(10.dp)
+            )
+            .clickable(onClick = onClick)
+            .padding(horizontal = 12.dp, vertical = 12.dp)
+    ) {
+        Row(verticalAlignment = Alignment.CenterVertically) {
+            Text(if (selected) "●  " else "○  ", color = if (selected) ManaPurple else TextDim)
+            BodyText(label, color = MaterialTheme.colorScheme.onSurface)
+        }
+    }
 }
 
 /** Free-form one-off entry: name + any of reps / distance / calories. Reps and distance drive a

@@ -527,16 +527,7 @@ private fun AddCustomExerciseDialog(
                 Spacer(Modifier.height(12.dp))
                 Caption("Counts toward")
                 com.mhurston.ascendant.domain.ExerciseGoal.entries.forEach { g ->
-                    val isSel = g == goal
-                    Row(
-                        Modifier.fillMaxWidth().clickable { goal = g }.padding(vertical = 8.dp),
-                        verticalAlignment = Alignment.CenterVertically
-                    ) {
-                        Text(if (isSel) "●  " else "○  ",
-                            color = if (isSel) AuraCyan else TextDim)
-                        BodyText(g.label,
-                            color = if (isSel) AuraCyan else MaterialTheme.colorScheme.onSurface)
-                    }
+                    GoalOptionRow(g.label, g == goal) { goal = g }
                 }
             }
         },
