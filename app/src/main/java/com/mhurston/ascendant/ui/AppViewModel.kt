@@ -27,6 +27,7 @@ import kotlinx.coroutines.launch
 import java.time.Duration
 import java.time.LocalDate
 import java.time.LocalDateTime
+import kotlin.math.roundToInt
 
 enum class ExerciseKind { PUSHUPS, SQUATS, LEG_LIFTS, CALF_RAISES, CURLS }
 
@@ -216,8 +217,11 @@ class AppViewModel(app: Application) : AndroidViewModel(app) {
      *  name and reps); otherwise hard-delete since there's nothing to preserve. */
     fun removeCustomExercise(id: String) {
         viewModelScope.launch {
+            // Reps and Cardio distance both count as "logged" — a rowing exercise has miles
+            // and no reps, and deleting it outright would erase them from history.
             val everLogged = repo.days.first().any { day ->
-                (WorkoutDayEntity.decodeCustomReps(day.customReps)[id] ?: 0) > 0
+                (WorkoutDayEntity.decodeCustomReps(day.customReps)[id] ?: 0) > 0 ||
+                    (WorkoutDayEntity.decodeCustomReps(day.customDistance)[id] ?: 0) > 0
             }
             if (everLogged) repo.archiveCustomExercise(id) else repo.removeCustomExercise(id)
         }
@@ -231,6 +235,18 @@ class AppViewModel(app: Application) : AndroidViewModel(app) {
     }
 
     fun addCustomRepsToday(id: String, delta: Int) = addCustomRepsForDate(todayStr(), id, delta)
+
+    /** Log distance against a Cardio-assigned custom exercise. Stored as hundredths of a mile
+     *  in its own column, so it never collides with the rep count of the same exercise. */
+    fun addCustomDistanceForDate(date: String, id: String, deltaMiles: Double) = mutateDay(date) { cur ->
+        val m = WorkoutDayEntity.decodeCustomReps(cur.customDistance).toMutableMap()
+        val next = ((m[id] ?: 0) + (deltaMiles * 100).roundToInt()).coerceAtLeast(0)
+        if (next == 0) m.remove(id) else m[id] = next
+        cur.copy(customDistance = WorkoutDayEntity.encodeCustomReps(m))
+    }
+
+    fun addCustomDistanceToday(id: String, deltaMiles: Double) =
+        addCustomDistanceForDate(todayStr(), id, deltaMiles)
 
     // --- one-off activities (logged to a single day; never an option on other days) ----
     /** Append a one-off (name + calorie estimate + optional distance/reps metrics) to a day.

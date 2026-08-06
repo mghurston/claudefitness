@@ -30,8 +30,11 @@ object Exporter {
     /** Backup format version. 1 = days + profile, caloriesConsumed 0 meant "not logged".
      *  2 = adds settings (customs/videos/unit/avatar); caloriesConsumed -1 = not logged,
      *  0 = a logged fasting day. 3 = custom exercises carry a "goal" (the daily goal their
-     *  reps fill); a missing goal reads as NONE, so schema 1-2 backups restore unchanged. */
-    private const val SCHEMA = 3
+     *  reps fill); a missing goal reads as NONE, so schema 1-2 backups restore unchanged.
+     *  4 = goals are the four training categories rather than one per exercise slot (a schema-3
+     *  PUSH/CURLS reads as UPPER, SQUATS/CALF_RAISES as LOWER), and days carry "customDistance"
+     *  for Cardio-assigned customs; a missing value is "" = none logged. */
+    private const val SCHEMA = 4
 
     /** Original spreadsheet column order, so the file round-trips back to the sheet
      *  (steps/totalmiles are appended after so the first eight columns stay put).
@@ -45,13 +48,16 @@ object Exporter {
         val sb = StringBuilder()
         sb.append("date,pushups,squats,leglifts,calfraises,curls,miles,completion,steps,totalmiles\n")
         days.sortedBy { it.date }.forEach { d ->
-            val comp = Progression.completion(d.toDayData(customGoals))
-            sb.append("${d.date},${d.pushTotal(customGoals)},${d.squatsTotal(customGoals)},")
-            sb.append("${d.coreTotal(customGoals)},")
-            sb.append("${d.calfRaisesTotal(customGoals)},${d.curlsTotal(customGoals)},${d.miles},")
+            // Read every column off the scored day, so the CSV shows exactly the numbers
+            // completion was computed from (customs assigned to a category included).
+            val scored = d.toDayData(customGoals)
+            val comp = Progression.completion(scored)
+            sb.append("${d.date},${scored.pushups},${scored.squats},")
+            sb.append("${scored.legLifts},")
+            sb.append("${scored.calfRaises},${scored.curls},${scored.miles},")
             sb.append(String.format(Locale.US, "%.4f", comp)).append(",")
             sb.append("${d.passiveSteps},")
-            sb.append(String.format(Locale.US, "%.2f", d.walkMiles)).append("\n")
+            sb.append(String.format(Locale.US, "%.2f", scored.walkMiles)).append("\n")
         }
         return sb.toString()
     }
@@ -132,6 +138,7 @@ object Exporter {
             sb.append("\"pushVariants\": \"${esc(d.pushVariants)}\", ")
             sb.append("\"coreVariants\": \"${esc(d.coreVariants)}\", ")
             sb.append("\"cardioMinutes\": \"${esc(d.cardioMinutes)}\", ")
+            sb.append("\"customDistance\": \"${esc(d.customDistance)}\", ")
             sb.append("\"oneOffs\": \"${esc(d.oneOffs)}\", ")
             sb.append("\"passiveSteps\": ${d.passiveSteps}, ")
             sb.append("\"passiveKcal\": ${d.passiveKcal}, ")
@@ -182,6 +189,7 @@ object Exporter {
                         pushVariants = d.optString("pushVariants", ""),
                         coreVariants = d.optString("coreVariants", ""),
                         cardioMinutes = d.optString("cardioMinutes", ""),
+                        customDistance = d.optString("customDistance", ""),
                         oneOffs = d.optString("oneOffs", ""),
                         passiveSteps = d.optInt("passiveSteps", 0),
                         passiveKcal = d.optInt("passiveKcal", 0)

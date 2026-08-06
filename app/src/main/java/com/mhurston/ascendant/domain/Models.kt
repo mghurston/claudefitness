@@ -194,24 +194,38 @@ data class CharacterState(
 }
 
 /**
- * Which daily goal a custom exercise's reps count toward. [NONE] is the original behavior:
- * the reps burn calories (= XP) but fill no goal, so they never move completion or stats.
- * Any other value makes the reps count 1:1 into that goal's column, exactly like a built-in
- * variant — so "Overhead Press" can feed Push-ups and "Bicycle Kicks" can feed Core.
+ * Which training category a custom exercise's reps count toward — the same four groups the
+ * Train tab shows. [NONE] is the original behavior: the reps burn calories (= XP) but fill no
+ * goal, so they never move completion or stats.
  *
- * Walking is deliberately absent: it is measured in miles, not reps.
+ * [UPPER] and [LOWER] each cover two 100-rep slots (push/curls and squats/calf raises), for a
+ * 200-rep category goal, so their reps split evenly across the pair — 100 reps is half the
+ * category either way, which is exactly what it contributes to completion. [CORE] is a single
+ * 100-rep slot and takes the full amount.
+ *
+ * [CARDIO] is the odd one out: its goal is 5 MILES, not reps, so an exercise pointed at it is
+ * logged as a distance (rowing, elliptical, a rower's 500 m piece) and fills the mile goal.
+ * That distance lives in its own per-day column, so switching an exercise between Cardio and a
+ * rep category never reinterprets a number you already logged.
  */
 enum class ExerciseGoal(val label: String) {
     NONE("Extra only (XP)"),
-    PUSH("Upper Body: Push-ups"),
-    CURLS("Upper Body: Curls"),
+    UPPER("Upper Body"),
     CORE("Core"),
-    SQUATS("Lower Body: Squats"),
-    CALF_RAISES("Lower Body: Calf Raises");
+    LOWER("Lower Body"),
+    CARDIO("Cardio (distance)");
+
+    /** Cardio is measured in distance; every other category is measured in reps. */
+    val isDistance: Boolean get() = this == CARDIO
 
     companion object {
-        fun forName(name: String): ExerciseGoal =
-            entries.firstOrNull { it.name == name } ?: NONE
+        /** Older builds stored one goal per exercise slot; fold those into their category so
+         *  definitions and backups written before the categories still resolve. */
+        fun forName(name: String): ExerciseGoal = when (name) {
+            "PUSH", "CURLS" -> UPPER
+            "SQUATS", "CALF_RAISES" -> LOWER
+            else -> entries.firstOrNull { it.name == name } ?: NONE
+        }
     }
 }
 

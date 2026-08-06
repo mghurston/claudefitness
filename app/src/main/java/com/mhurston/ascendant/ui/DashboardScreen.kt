@@ -61,6 +61,7 @@ fun DashboardScreen(
     onAddUserVideo: (String, String, String) -> Unit,
     onSetNotes: (String) -> Unit = {},
     onAddCustomReps: (String, Int) -> Unit = { _, _ -> },
+    onAddCustomDistance: (String, Double) -> Unit = { _, _ -> },
     onAddCustomExercise: (String, com.mhurston.ascendant.domain.ExerciseGoal) -> Unit = { _, _ -> },
     onRemoveCustomExercise: (String) -> Unit = {},
     onSetCustomGoal: (String, com.mhurston.ascendant.domain.ExerciseGoal) -> Unit = { _, _ -> },
@@ -163,8 +164,8 @@ fun DashboardScreen(
             "Tap a group to log it.")
         Spacer(Modifier.height(4.dp))
 
-        // Goal totals include any pinned custom exercise pointed at that goal (ExerciseGoal),
-        // so what the section header shows is exactly what completion scores.
+        // A pinned custom is assigned to a whole category, not to one exercise slot, so its reps
+        // are added at the category level — which is exactly the level completion scores.
         val goals = state.customGoals
         fun customsFor(goal: com.mhurston.ascendant.domain.ExerciseGoal): List<CustomGoalEntry> {
             val reps = today.customRepsForGoal(goal, goals)
@@ -178,44 +179,51 @@ fun DashboardScreen(
                 )
             }
         }
+        fun credited(goal: com.mhurston.ascendant.domain.ExerciseGoal) =
+            today.customRepsCredited(goal, goals)
 
-        val upperReps = today.pushTotal(goals) + today.curlsTotal(goals)
+        val upperGoal = com.mhurston.ascendant.domain.ExerciseGoal.UPPER
+        val upperReps = today.pushTotal() + today.curls + credited(upperGoal)
         CollapsibleSection("Upper Body", "$upperReps / 200") {
             VariantGoalSection(
                 variants = com.mhurston.ascendant.domain.PushExercise.entries.map { it.id to it.label },
                 breakdown = today.pushBreakdown(),
-                total = today.pushTotal(goals),
+                total = today.pushTotal(),
                 onVideosFor = { videoFor = it },
-                customs = customsFor(com.mhurston.ascendant.domain.ExerciseGoal.PUSH),
                 onAddVariant = onAddPushVariant
             )
-            ExerciseRow("Curls", today.curlsTotal(goals), { videoFor = "curls" },
-                base = today.curls,
-                customs = customsFor(com.mhurston.ascendant.domain.ExerciseGoal.CURLS)
-            ) { onAddReps(ExerciseKind.CURLS, it) }
+            ExerciseRow("Curls", today.curls, { videoFor = "curls" }) {
+                onAddReps(ExerciseKind.CURLS, it)
+            }
+            CategoryCustomsCard("Upper Body", customsFor(upperGoal))
         }
-        CollapsibleSection("Core", "${today.coreTotal(goals)} / 100") {
+        val coreGoal = com.mhurston.ascendant.domain.ExerciseGoal.CORE
+        CollapsibleSection("Core", "${today.coreTotal() + credited(coreGoal)} / 100") {
             VariantGoalSection(
                 variants = com.mhurston.ascendant.domain.CoreExercise.entries.map { it.id to it.label },
                 breakdown = today.coreBreakdown(),
-                total = today.coreTotal(goals),
+                total = today.coreTotal(),
                 onVideosFor = { videoFor = it },
-                customs = customsFor(com.mhurston.ascendant.domain.ExerciseGoal.CORE),
                 onAddVariant = onAddCoreVariant
             )
+            CategoryCustomsCard("Core", customsFor(coreGoal))
         }
-        val lowerReps = today.squatsTotal(goals) + today.calfRaisesTotal(goals)
+        val lowerGoal = com.mhurston.ascendant.domain.ExerciseGoal.LOWER
+        val lowerReps = today.squats + today.calfRaises + credited(lowerGoal)
         CollapsibleSection("Lower Body", "$lowerReps / 200") {
-            ExerciseRow("Squats", today.squatsTotal(goals), { videoFor = "squats" },
-                base = today.squats,
-                customs = customsFor(com.mhurston.ascendant.domain.ExerciseGoal.SQUATS)
-            ) { onAddReps(ExerciseKind.SQUATS, it) }
-            ExerciseRow("Calf Raises", today.calfRaisesTotal(goals), { videoFor = "calfraises" },
-                base = today.calfRaises,
-                customs = customsFor(com.mhurston.ascendant.domain.ExerciseGoal.CALF_RAISES)
-            ) { onAddReps(ExerciseKind.CALF_RAISES, it) }
+            ExerciseRow("Squats", today.squats, { videoFor = "squats" }) {
+                onAddReps(ExerciseKind.SQUATS, it)
+            }
+            ExerciseRow("Calf Raises", today.calfRaises, { videoFor = "calfraises" }) {
+                onAddReps(ExerciseKind.CALF_RAISES, it)
+            }
+            CategoryCustomsCard("Lower Body", customsFor(lowerGoal))
         }
-        CollapsibleSection("Cardio", "%.1f / 5.0 mi".format(java.util.Locale.US, today.walkMiles)) {
+        val cardioGoal = com.mhurston.ascendant.domain.ExerciseGoal.CARDIO
+        CollapsibleSection(
+            "Cardio",
+            "%.1f / 5.0 mi".format(java.util.Locale.US, today.cardioMiles(goals))
+        ) {
             WalkingRow(
                 treadmillMiles = today.miles,
                 trackedMiles = today.trackedMiles,
@@ -223,6 +231,16 @@ fun DashboardScreen(
                 onVideos = { videoFor = "walking" },
                 onAdd = onAddMiles
             )
+            // Cardio customs are logged in miles, so they get distance controls, not rep ones.
+            val cardioMiles = today.customMilesForCardio(goals)
+            state.customExercises.filter { it.goal == cardioGoal }.forEach { ex ->
+                CardioDistanceRow(
+                    name = ex.name,
+                    miles = cardioMiles[ex.id] ?: 0.0,
+                    onChangeGoal = { pickingGoalFor = ex },
+                    onAdd = { onAddCustomDistance(ex.id, it) }
+                )
+            }
             val cardioMin = com.mhurston.ascendant.data.WorkoutDayEntity.decodeCustomReps(today.cardioMinutes)
             com.mhurston.ascendant.domain.CardioActivity.entries.forEach { act ->
                 CardioMinutesRow(
@@ -368,16 +386,13 @@ private fun StreakChip(label: String, value: Int, modifier: Modifier = Modifier)
     }
 }
 
-/** One rep goal. [current] is the goal total (base reps + any custom exercise pointed at this
- *  goal); [base] is the built-in exercise's own reps, which is what its controls edit. Customs
- *  assigned here get their own labelled sub-row so it's obvious where the extra reps came from. */
+/** One built-in rep goal and its controls. Pinned customs are not shown here: they belong to a
+ *  whole category, so they get their own card under the category's built-in exercises. */
 @Composable
 private fun ExerciseRow(
     name: String,
     current: Int,
     onVideos: () -> Unit,
-    base: Int = current,
-    customs: List<CustomGoalEntry> = emptyList(),
     onAdd: (Int) -> Unit
 ) {
     val target = Progression.REP_TARGET
@@ -406,7 +421,23 @@ private fun ExerciseRow(
                 color = if (current >= target) XpGold else ManaPurple
             )
             Spacer(Modifier.height(8.dp))
-            RepControls(current = base, onAdd = onAdd)
+            RepControls(current = current, onAdd = onAdd)
+        }
+    }
+}
+
+/** The pinned customs feeding one category, in their own card under that category's built-in
+ *  exercises. Their reps are already in the section header's total; this is where they're
+ *  logged. Renders nothing when the category has no customs pointed at it. */
+@Composable
+private fun CategoryCustomsCard(category: String, customs: List<CustomGoalEntry>) {
+    if (customs.isEmpty()) return
+    Card(
+        Modifier.fillMaxWidth().padding(vertical = 4.dp),
+        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface)
+    ) {
+        Column(Modifier.padding(12.dp)) {
+            Caption("Your exercises counting toward $category.")
             customs.forEach { CustomGoalRow(it) }
         }
     }
@@ -451,7 +482,6 @@ private fun VariantGoalSection(
     breakdown: Map<String, Int>,
     total: Int,
     onVideosFor: (String) -> Unit,
-    customs: List<CustomGoalEntry> = emptyList(),
     onAddVariant: (String, Int) -> Unit
 ) {
     val target = Progression.REP_TARGET
@@ -499,7 +529,39 @@ private fun VariantGoalSection(
                 Spacer(Modifier.height(4.dp))
                 RepControls(current = reps, onAdd = { onAddVariant(id, it) })
             }
-            customs.forEach { CustomGoalRow(it) }
+        }
+    }
+}
+
+/** A pinned custom pointed at Cardio: logged as distance (rowing, elliptical), so it gets mile
+ *  controls and its miles land on the same 5-mile goal walking does. */
+@Composable
+private fun CardioDistanceRow(
+    name: String,
+    miles: Double,
+    onChangeGoal: () -> Unit,
+    onAdd: (Double) -> Unit
+) {
+    Card(
+        Modifier.fillMaxWidth().padding(vertical = 4.dp),
+        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface)
+    ) {
+        Column(Modifier.padding(12.dp)) {
+            Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween,
+                verticalAlignment = Alignment.CenterVertically) {
+                Row(Modifier.weight(1f), verticalAlignment = Alignment.CenterVertically) {
+                    BodyText(name,
+                        color = if (miles > 0) MaterialTheme.colorScheme.onSurface else TextDim)
+                    Text("  📌", style = MaterialTheme.typography.labelMedium)
+                }
+                Text("${"%.1f".format(java.util.Locale.US, miles)} mi",
+                    color = if (miles > 0) AuraCyan else TextDim, fontWeight = FontWeight.Bold)
+            }
+            Caption("Counts toward the 5-mile Cardio goal.")
+            Spacer(Modifier.height(6.dp))
+            GoalChip("🎯 Change goal") { onChangeGoal() }
+            Spacer(Modifier.height(6.dp))
+            MileControls(miles = miles, onAdd = onAdd)
         }
     }
 }
@@ -834,8 +896,10 @@ internal fun ExerciseGoalDialog(
         title = { Text("\"$exerciseName\" counts toward") },
         text = {
             Column {
-                Caption("Its reps fill this goal 1:1, like a built-in variant, on every day " +
-                    "you have logged it. Calories and XP are unchanged either way.")
+                Caption("Its reps fill that category's goal 1:1, like a built-in exercise, on " +
+                    "every day you have logged it. Cardio is the exception: it is measured in " +
+                    "miles, so a Cardio exercise is logged as distance. Calories and XP are " +
+                    "unchanged either way.")
                 Spacer(Modifier.height(8.dp))
                 com.mhurston.ascendant.domain.ExerciseGoal.entries.forEach { goal ->
                     GoalOptionRow(goal.label, goal == selected) { onPick(goal) }

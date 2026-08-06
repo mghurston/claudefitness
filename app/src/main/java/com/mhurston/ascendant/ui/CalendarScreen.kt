@@ -55,6 +55,7 @@ fun CalendarScreen(
     onSetConsumed: (String, Int) -> Unit = { _, _ -> },
     onSetWeight: (String, Double) -> Unit = { _, _ -> },
     onAddCustomReps: (String, String, Int) -> Unit = { _, _, _ -> },
+    onAddCustomDistance: (String, String, Double) -> Unit = { _, _, _ -> },
     onAddCustomExercise: (String, com.mhurston.ascendant.domain.ExerciseGoal) -> Unit = { _, _ -> },
     onAddPushVariant: (String, String, Int) -> Unit = { _, _, _ -> },
     onAddCoreVariant: (String, String, Int) -> Unit = { _, _, _ -> },
@@ -110,6 +111,7 @@ fun CalendarScreen(
             onSetWeight = { kg -> onSetWeight(date.toString(), kg) },
             customExercises = state.allCustomExercises,
             onAddCustomReps = { id, delta -> onAddCustomReps(date.toString(), id, delta) },
+            onAddCustomDistance = { id, delta -> onAddCustomDistance(date.toString(), id, delta) },
             onAddCustomExercise = onAddCustomExercise,
             onAddPushVariant = { id, delta -> onAddPushVariant(date.toString(), id, delta) },
             onAddCoreVariant = { id, delta -> onAddCoreVariant(date.toString(), id, delta) },
@@ -288,6 +290,7 @@ private fun DayEditorDialog(
     consumedLoggedToday: Boolean = false,
     customExercises: List<com.mhurston.ascendant.domain.CustomExercise> = emptyList(),
     onAddCustomReps: (String, Int) -> Unit = { _, _ -> },
+    onAddCustomDistance: (String, Double) -> Unit = { _, _ -> },
     onAddCustomExercise: (String, com.mhurston.ascendant.domain.ExerciseGoal) -> Unit = { _, _ -> },
     onAddPushVariant: (String, Int) -> Unit = { _, _ -> },
     onAddCoreVariant: (String, Int) -> Unit = { _, _ -> },
@@ -368,17 +371,20 @@ private fun DayEditorDialog(
         },
         text = {
             Column(Modifier.verticalScroll(rememberScrollState())) {
-                // Goal totals include custom exercises pointed at that goal (listed under
-                // "Pinned" below with a → arrow showing where their reps land).
+                // Totals come off the scored day, so they include the customs pointed at each
+                // category (listed under "Pinned" below with a → arrow showing where they land).
+                // A category's customs split evenly across its two slots, which is why these
+                // headline numbers can exceed the reps typed into the rows beneath them.
                 val goals = customExercises.associate { it.id to it.goal }
+                val scored = e.toDayData(goals)
                 val pushBreak = e.pushBreakdown()
-                Caption("Push-ups — ${e.pushTotal(goals)} / 100  (any of these count)")
+                Caption("Push-ups — ${scored.pushups} / 100  (any of these count)")
                 com.mhurston.ascendant.domain.PushExercise.entries.forEach { v ->
                     EditRow(v.label, pushBreak[v.id] ?: 0) { onAddPushVariant(v.id, it) }
                 }
                 Spacer(Modifier.height(8.dp))
                 val coreBreak = e.coreBreakdown()
-                Caption("Core — ${e.coreTotal(goals)} / 100  (any of these count)")
+                Caption("Core — ${scored.legLifts} / 100  (any of these count)")
                 com.mhurston.ascendant.domain.CoreExercise.entries.forEach { v ->
                     EditRow(v.label, coreBreak[v.id] ?: 0) { onAddCoreVariant(v.id, it) }
                 }
@@ -392,9 +398,20 @@ private fun DayEditorDialog(
                 if (e.passiveSteps > 0) {
                     TrackedWalkRow(steps = e.passiveSteps, trackedMiles = e.trackedMiles)
                 }
-                MilesEditRow(e.miles, onAddMiles)
-                if (e.passiveSteps > 0) {
-                    ReadOnlyRow("Total walking", "${"%.1f".format(Locale.US, e.walkMiles)} mi")
+                MilesEditRow(e.miles, onAdd = onAddMiles)
+                // Cardio-assigned customs are logged in miles, so they get distance controls
+                // here too and add to the same 5-mile goal.
+                val cardioMiles = e.customMilesForCardio(goals)
+                customExercises
+                    .filter { it.goal == com.mhurston.ascendant.domain.ExerciseGoal.CARDIO }
+                    .filter { !it.archived || (cardioMiles[it.id] ?: 0.0) > 0.0 }
+                    .forEach { ex ->
+                        MilesEditRow(cardioMiles[ex.id] ?: 0.0, "${ex.name} 📌") { delta ->
+                            onAddCustomDistance(ex.id, delta)
+                        }
+                    }
+                if (e.passiveSteps > 0 || cardioMiles.isNotEmpty()) {
+                    ReadOnlyRow("Total walking", "${"%.1f".format(Locale.US, scored.walkMiles)} mi")
                 }
                 val cardioMin = WorkoutDayEntity.decodeCustomReps(e.cardioMinutes)
                 com.mhurston.ascendant.domain.CardioActivity.entries.forEach { act ->
@@ -472,6 +489,10 @@ private fun DayEditorDialog(
                 // days they were actually logged, so old entries stay visible after removal.
                 customExercises
                     .filter { !it.archived || (customReps[it.id] ?: 0) > 0 }
+                    // Cardio ones are edited in miles up in the walking block; showing a rep row
+                    // for them here would offer a number that no longer counts for anything.
+                    .filter { it.goal != com.mhurston.ascendant.domain.ExerciseGoal.CARDIO ||
+                        (customReps[it.id] ?: 0) > 0 }
                     .forEach { ex ->
                         val label =
                             if (ex.goal == com.mhurston.ascendant.domain.ExerciseGoal.NONE) ex.name
@@ -631,12 +652,12 @@ private fun ReadOnlyRow(label: String, value: String) {
 }
 
 @Composable
-private fun MilesEditRow(miles: Double, onAdd: (Double) -> Unit) {
+private fun MilesEditRow(miles: Double, label: String = "Treadmill / manual", onAdd: (Double) -> Unit) {
     Row(Modifier.fillMaxWidth().padding(vertical = 4.dp),
         horizontalArrangement = Arrangement.SpaceBetween,
         verticalAlignment = Alignment.CenterVertically) {
-        Column {
-            BodyText("Treadmill / manual")
+        Column(Modifier.weight(1f)) {
+            BodyText(label)
             Caption("${"%.1f".format(Locale.US, miles)} mi", color = AuraCyan)
         }
         Row(horizontalArrangement = Arrangement.spacedBy(4.dp)) {

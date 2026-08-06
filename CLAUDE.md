@@ -58,9 +58,13 @@ so test data doesn't inflate XP/level. (Use the Bash tool, not PowerShell — `/
 `(*)` get mangled by PS/MSYS path conversion.)
 
 ## Verification rules
-- The user CANNOT see my screenshots — he watches the emulator window himself.
+- The user CANNOT see my screenshots. He watches the emulator window himself.
   **Leave the emulator running** after checks; don't `adb emu kill`. Use my screenshots
   to catch regressions, not as proof to him.
+- **Two global rules are overridden here.** The global "never take screenshots" line is
+  about his Windows desktop; `adb screencap` of the emulator is required in this project.
+  And the global "kill your own strays" cleanup rule does not apply to the emulator: it
+  is his viewport into the app, so it stays up. Temp `shot*.png` files still get deleted.
 - Build green check: `BUILD SUCCESSFUL`. APK at `app\build\outputs\apk\debug\app-debug.apk`.
 
 Deeper notes live in `C:\Users\mghur\.claude\projects\G--claudefitness\memory\` (toolchain,
