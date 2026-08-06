@@ -73,9 +73,9 @@ data class DayData(
      *  purpose: it earns its true calories and fills the Cardio goal, but a bike mile is not a
      *  walked mile, so it must never touch walking achievements or lifetime miles. */
     val cardioEquivMiles: Double = 0.0,
-    /** Steps banked from Health Connect for this day (phone + any synced watch/app).
-     *  XP-only: earns calories like everything else but never feeds the walking-miles goal,
-     *  the END stat, or completion. See docs/Passive Activity Tracking. */
+    /** Steps banked from Health Connect for this day (phone + any synced watch/app). Counted
+     *  as walking at ~2000 steps/mi ([trackedMiles]), so they earn calories and feed the
+     *  walking total, the Cardio goal, and END alike. See docs/Passive Activity Tracking. */
     val passiveSteps: Int = 0,
     /** Active calories banked from Health Connect for this day. Preferred kcal source for
      *  passive burn; when 0 (device reports steps only) we estimate from passiveSteps. */
@@ -192,7 +192,11 @@ data class CharacterState(
     val longestStrengthStreak: Int,
     val daysTrained: Int,
     val totalStrengthReps: Int,
-    val totalMiles: Double
+    /** Lifetime WALKED miles (manual + step-tracked) — the Records row and walking achievements. */
+    val totalMiles: Double,
+    /** Lifetime cardio of every kind, as the walked miles it is worth. What END is built from;
+     *  equal to [totalMiles] for a log whose only cardio was walking. */
+    val enduranceMiles: Double = 0.0
 ) {
     val levelProgress: Float
         get() = if (xpForNextLevel <= 0) 0f else (xpIntoLevel.toFloat() / xpForNextLevel.toFloat())

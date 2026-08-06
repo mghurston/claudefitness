@@ -160,7 +160,10 @@ fun CharacterScreen(
         InfoRow("Activity streak", "${c.activityStreak} days")
         InfoRow("Days trained", "${c.daysTrained}")
         InfoRow("Lifetime strength reps", "${c.totalStrengthReps}")
-        InfoRow("Lifetime miles", "${c.totalMiles.roundToInt()}")
+        InfoRow("Lifetime miles walked", "${c.totalMiles.roundToInt()}")
+        // What ENDURANCE is actually built from. Equal to the walked miles above until you log
+        // cardio that isn't walking, then it pulls ahead by whatever that was worth.
+        InfoRow("Lifetime cardio (walk-equivalent)", "${c.enduranceMiles.roundToInt()} mi")
 
         Spacer(Modifier.height(20.dp))
         AboutSection()
@@ -229,7 +232,9 @@ private fun AttributesInfoDialog(onDismiss: () -> Unit) {
                     "Lifetime pushups, squats & curls.",
                     "√(reps ÷ 50) — point 1 at 50 reps, point 10 at 5,000.")
                 AttrInfo("ENDURANCE", SuccessGreen,
-                    "Lifetime walking miles — manual plus step-tracked.",
+                    "Lifetime cardio of every kind: walking, tracked steps, bike, swim, and " +
+                        "anything logged against the Cardio goal. Each counts as the walking " +
+                        "it is worth, so a mile is a mile of effort, not of ground.",
                     "√(miles × 0.75) — point 1 at ~1.3 miles, point 10 at ~133 miles.")
                 AttrInfo("AGILITY", AuraCyan,
                     "Lifetime leg lifts & calf raises.",

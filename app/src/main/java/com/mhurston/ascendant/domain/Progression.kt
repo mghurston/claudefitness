@@ -151,7 +151,8 @@ object Progression {
         var totalStrengthReps = 0 // all five exercises — the Hero row + rep achievements
         var strStatReps = 0       // pushups+squats+curls only — the STR formula's input
         var totalAgiReps = 0
-        var totalMiles = 0.0
+        var totalMiles = 0.0       // lifetime WALKING — the Records row and walking achievements
+        var enduranceMiles = 0.0   // every kind of cardio, as walk-equivalent miles — feeds END
         var daysGe80 = 0
         var daysTrained = 0
 
@@ -188,8 +189,13 @@ object Progression {
             strStatReps += d.pushups + d.squats + d.curls
             totalAgiReps += d.legLifts + d.calfRaises
             // Lifetime walking = walkMiles (manual + step-tracked), matching the walking
-            // achievements and every walking display; feeds END and the Hero Records row.
+            // achievements and every walking display; feeds the Hero Records row.
             totalMiles += d.walkMiles
+            // END is endurance, not walking: a bike ride, a swim and a row all build it. Each
+            // is counted as the walking it is worth (Calories.cardioEquivalentMiles), which is
+            // exactly walkMiles on a day whose only cardio was walking — so this changes
+            // nothing for a walking-only log and finally counts everything else.
+            enduranceMiles += Calories.cardioEquivalentMiles(profile, d)
             if (comp >= 0.8) daysGe80++
             if (d.hasActivity) daysTrained++
 
@@ -197,7 +203,7 @@ object Progression {
         }
 
         val str = floor(sqrt(strStatReps / 50.0)).toInt()
-        val end = floor(sqrt(totalMiles * 0.75)).toInt()
+        val end = floor(sqrt(enduranceMiles * 0.75)).toInt()
         val agi = floor(sqrt(totalAgiReps / 60.0)).toInt()
         val dis = daysGe80
         val con = longestStrength + strengthStreak / 2
@@ -254,7 +260,8 @@ object Progression {
             longestStrengthStreak = longestStrength,
             daysTrained = daysTrained,
             totalStrengthReps = totalStrengthReps,
-            totalMiles = totalMiles
+            totalMiles = totalMiles,
+            enduranceMiles = enduranceMiles
         )
         return state to derived
     }

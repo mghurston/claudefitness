@@ -164,6 +164,59 @@ class CustomExerciseGoalTest {
             Calories.cardioFraction(profile, d), 1e-9)
     }
 
+    // --- ENDURANCE is built from all of that cardio, not just walking --------------------
+
+    @Test
+    fun endurance_countsEveryKindOfCardio_notJustWalking() {
+        // An hour of moderate cycling builds END, which walking-only scoring ignored entirely.
+        val walkOnly = WorkoutDayEntity(date = "2026-08-05", miles = 4.0).toDayData()
+        val plusBike = WorkoutDayEntity(date = "2026-08-05", miles = 4.0,
+            cardioMinutes = "bike:60").toDayData()
+        val (a, _) = Progression.rebuild(listOf(walkOnly), profile = profile)
+        val (b, _) = Progression.rebuild(listOf(plusBike), profile = profile)
+        assertTrue("the ride builds endurance", b.stats.endurance > a.stats.endurance)
+        assertEquals("but it is not walking, so lifetime walked miles are untouched",
+            a.totalMiles, b.totalMiles, 1e-9)
+    }
+
+    @Test
+    fun endurance_isUnchangedForAWalkingOnlyLog() {
+        // The point of measuring END in walk-equivalent miles: an existing walking-only history
+        // scores exactly what it always did.
+        val days = (1..20).map {
+            WorkoutDayEntity(date = "2026-07-%02d".format(it), miles = 2.0, passiveSteps = 4000)
+                .toDayData()
+        }
+        val (s, _) = Progression.rebuild(days, profile = profile)
+        // 20 days x (2.0 manual + 2.0 tracked) = 80 walked miles → floor(sqrt(80 x 0.75)) = 7.
+        assertEquals(80.0, s.totalMiles, 1e-9)
+        assertEquals("END reads the same miles it always did", 80.0, s.enduranceMiles, 1e-9)
+        assertEquals(7, s.stats.endurance)
+    }
+
+    @Test
+    fun endurance_ratesCyclingBelowWalking() {
+        // Five cycled miles must not build the endurance five walked ones do.
+        val e = WorkoutDayEntity(date = "2026-08-05", customDistance = "c1:500")
+        val cycled = Progression.rebuild(
+            listOf(e.toDayData(spec(ExerciseGoal.CARDIO, rate = CardioRate.BIKE))),
+            profile = profile).first
+        val walked = Progression.rebuild(
+            listOf(WorkoutDayEntity(date = "2026-08-05", miles = 5.0).toDayData()),
+            profile = profile).first
+        assertEquals(5.0 * 0.45 / 1.2, cycled.enduranceMiles, 1e-9)
+        assertEquals(5.0, walked.enduranceMiles, 1e-9)
+    }
+
+    @Test
+    fun endurance_ignoresReps() {
+        val lifting = WorkoutDayEntity(date = "2026-08-05", pushups = 100, squats = 100,
+            legLifts = 100, calfRaises = 100, curls = 100).toDayData()
+        val (s, _) = Progression.rebuild(listOf(lifting), profile = profile)
+        assertEquals("a pure lifting day builds no endurance", 0.0, s.enduranceMiles, 1e-9)
+        assertEquals(0, s.stats.endurance)
+    }
+
     @Test
     fun repsNeverCountAsCardio() {
         // Strength has its own five goals; letting reps fill cardio too would pay them twice.

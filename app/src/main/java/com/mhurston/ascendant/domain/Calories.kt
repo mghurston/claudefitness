@@ -155,11 +155,17 @@ object Calories {
     fun cardioTarget(p: Profile, day: DayData): Double =
         walkKcal(weightFor(p, day), Progression.MILE_TARGET)
 
-    /** Cardio goal progress, 0..n (uncapped, like every other goal — overdrive still counts). */
-    fun cardioFraction(p: Profile, day: DayData): Double {
-        val target = cardioTarget(p, day)
-        return if (target <= 0.0) 0.0 else cardioKcal(p, day) / target
+    /** The day's cardio as walked miles: the distance you would have to walk to burn the same
+     *  calories. One currency for every kind of cardio, so an hour on a bike and a long walk
+     *  can be added together honestly. Feeds the END stat as well as the goal below. */
+    fun cardioEquivalentMiles(p: Profile, day: DayData): Double {
+        val perMile = walkKcal(weightFor(p, day), 1.0)
+        return if (perMile <= 0.0) 0.0 else cardioKcal(p, day) / perMile
     }
+
+    /** Cardio goal progress, 0..n (uncapped, like every other goal — overdrive still counts). */
+    fun cardioFraction(p: Profile, day: DayData): Double =
+        cardioEquivalentMiles(p, day) / Progression.MILE_TARGET
 
     fun estimate(p: Profile, day: DayData, consumed: Int): EnergyEstimate {
         val b = bmrFor(p, day)
