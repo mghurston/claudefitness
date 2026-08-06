@@ -49,7 +49,12 @@ class Repository private constructor(
     }
     suspend fun setUnitSystem(u: com.mhurston.ascendant.domain.UnitSystem) = profileStore.setUnitSystem(u)
     suspend fun setAvatar(a: com.mhurston.ascendant.domain.Avatar) = profileStore.setAvatar(a)
-    suspend fun addCustomExercise(name: String) = profileStore.addCustomExercise(name)
+    suspend fun addCustomExercise(
+        name: String,
+        goal: com.mhurston.ascendant.domain.ExerciseGoal = com.mhurston.ascendant.domain.ExerciseGoal.NONE
+    ) = profileStore.addCustomExercise(name, goal)
+    suspend fun setCustomExerciseGoal(id: String, goal: com.mhurston.ascendant.domain.ExerciseGoal) =
+        profileStore.setCustomExerciseGoal(id, goal)
     suspend fun removeCustomExercise(id: String) = profileStore.removeCustomExercise(id)
     suspend fun archiveCustomExercise(id: String) = profileStore.archiveCustomExercise(id)
 

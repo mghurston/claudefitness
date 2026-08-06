@@ -3,6 +3,7 @@ package com.mhurston.ascendant.data
 import androidx.room.Entity
 import androidx.room.PrimaryKey
 import com.mhurston.ascendant.domain.DayData
+import com.mhurston.ascendant.domain.ExerciseGoal
 import com.mhurston.ascendant.domain.OneOff
 import java.time.LocalDate
 
@@ -51,24 +52,49 @@ data class WorkoutDayEntity(
     /** Active calories banked from Health Connect for this day (preferred passive kcal source). */
     val passiveKcal: Int = 0
 ) {
-    fun toDayData(): DayData = DayData(
-        date = LocalDate.parse(date),
-        pushups = pushTotal(),
-        squats = squats,
-        legLifts = coreTotal(),
-        calfRaises = calfRaises,
-        curls = curls,
-        miles = miles,
-        caloriesConsumed = caloriesConsumed,
-        weightKg = weightKg,
-        isRestDay = isRestDay,
-        notes = notes,
-        customReps = decodeCustomReps(customReps),
-        cardioMinutes = decodeCustomReps(cardioMinutes),
-        oneOffs = decodeOneOffs(oneOffs),
-        passiveSteps = passiveSteps,
-        passiveKcal = passiveKcal
-    )
+    /**
+     * @param goals customExerciseId -> the daily goal its reps feed (see ExerciseGoal). Reps for a
+     *   goal-assigned custom are folded into that goal's column here and dropped from the
+     *   customReps map, so they count toward completion/stats exactly like a built-in variant
+     *   while their calories stay counted exactly once (DayData.strengthReps instead of
+     *   customRepsTotal — same per-rep burn either way). An id missing from the map, or mapped to
+     *   NONE, keeps the original behavior: calories only, no goal credit.
+     */
+    fun toDayData(goals: Map<String, ExerciseGoal> = emptyMap()): DayData {
+        val credit = customRepsByGoal(goals)
+        return DayData(
+            date = LocalDate.parse(date),
+            pushups = pushTotal(goals),
+            squats = squats + credit(ExerciseGoal.SQUATS),
+            legLifts = coreTotal(goals),
+            calfRaises = calfRaises + credit(ExerciseGoal.CALF_RAISES),
+            curls = curls + credit(ExerciseGoal.CURLS),
+            miles = miles,
+            caloriesConsumed = caloriesConsumed,
+            weightKg = weightKg,
+            isRestDay = isRestDay,
+            notes = notes,
+            customReps = uncreditedCustomReps(goals),
+            cardioMinutes = decodeCustomReps(cardioMinutes),
+            oneOffs = decodeOneOffs(oneOffs),
+            passiveSteps = passiveSteps,
+            passiveKcal = passiveKcal
+        )
+    }
+
+    /** Reps this day logged against each goal from goal-assigned custom exercises. */
+    private fun customRepsByGoal(goals: Map<String, ExerciseGoal>): (ExerciseGoal) -> Int {
+        if (goals.isEmpty()) return { 0 }
+        val byGoal = decodeCustomReps(customReps).entries
+            .groupBy({ goals[it.key] ?: ExerciseGoal.NONE }, { it.value.coerceAtLeast(0) })
+            .mapValues { (_, v) -> v.sum() }
+        return { goal -> byGoal[goal] ?: 0 }
+    }
+
+    /** Custom reps that fill no goal — the burn-only leftovers that stay in DayData.customReps. */
+    private fun uncreditedCustomReps(goals: Map<String, ExerciseGoal>): Map<String, Int> =
+        decodeCustomReps(customReps)
+            .filterKeys { (goals[it] ?: ExerciseGoal.NONE) == ExerciseGoal.NONE }
 
     /** Distance estimated from passive steps (~2000 steps/mi) — the "tracked walked" part of
      *  walking. Mirrors DayData.trackedMiles so the UI can read it off the entity directly. */
@@ -78,9 +104,11 @@ data class WorkoutDayEntity(
     /** Total walking toward the 5-mi goal = manual/treadmill miles + tracked. */
     val walkMiles: Double get() = miles + trackedMiles
 
-    /** Total push-ups reps across every variant (base column + alternatives) — what counts
-     *  toward the push-ups goal, XP, and stats. */
-    fun pushTotal(): Int = pushups + decodeCustomReps(pushVariants).values.sum()
+    /** Total push-ups reps across every variant (base column + alternatives + any custom
+     *  exercise assigned to the PUSH goal) — what counts toward the push-ups goal, XP, and stats. */
+    fun pushTotal(goals: Map<String, ExerciseGoal> = emptyMap()): Int =
+        pushups + decodeCustomReps(pushVariants).values.sum() +
+            customRepsByGoal(goals)(ExerciseGoal.PUSH)
 
     /** Reps for each push-up variant by PushExercise.id, including the base Pushups column.
      *  Only non-zero entries are present. */
@@ -89,9 +117,28 @@ data class WorkoutDayEntity(
         putAll(decodeCustomReps(pushVariants))
     }
 
-    /** Total core reps across every variant (legLifts column + alternatives) — what counts
-     *  toward the core goal, completion, XP, and stats. */
-    fun coreTotal(): Int = legLifts + decodeCustomReps(coreVariants).values.sum()
+    /** Total core reps across every variant (legLifts column + alternatives + any custom
+     *  exercise assigned to the CORE goal) — what counts toward the core goal, completion,
+     *  XP, and stats. */
+    fun coreTotal(goals: Map<String, ExerciseGoal> = emptyMap()): Int =
+        legLifts + decodeCustomReps(coreVariants).values.sum() +
+            customRepsByGoal(goals)(ExerciseGoal.CORE)
+
+    /** Curls / squats / calf raises including any custom exercise assigned to that goal. */
+    fun curlsTotal(goals: Map<String, ExerciseGoal> = emptyMap()): Int =
+        curls + customRepsByGoal(goals)(ExerciseGoal.CURLS)
+
+    fun squatsTotal(goals: Map<String, ExerciseGoal> = emptyMap()): Int =
+        squats + customRepsByGoal(goals)(ExerciseGoal.SQUATS)
+
+    fun calfRaisesTotal(goals: Map<String, ExerciseGoal> = emptyMap()): Int =
+        calfRaises + customRepsByGoal(goals)(ExerciseGoal.CALF_RAISES)
+
+    /** Reps logged today for each custom exercise assigned to [goal] (id -> reps), for showing
+     *  them inside their goal's section alongside the built-in variants. */
+    fun customRepsForGoal(goal: ExerciseGoal, goals: Map<String, ExerciseGoal>): Map<String, Int> =
+        if (goal == ExerciseGoal.NONE) emptyMap()
+        else decodeCustomReps(customReps).filterKeys { goals[it] == goal }
 
     /** Reps for each core variant by CoreExercise.id, including the base legLifts column.
      *  Only non-zero entries are present. */

@@ -105,7 +105,8 @@ fun EnergyScreen(
     // Preview uses the weight currently typed in the form (liveProfile), so clear today's stamped
     // per-day weight — otherwise the estimate would ignore edits until Save re-stamps it.
     val est = Calories.estimate(
-        liveProfile, state.today.toDayData().copy(weightKg = 0.0), consumed.toIntOrNull() ?: 0
+        liveProfile, state.today.toDayData(state.customGoals).copy(weightKg = 0.0),
+        consumed.toIntOrNull() ?: 0
     )
 
     Column(

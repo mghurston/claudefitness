@@ -40,27 +40,48 @@ class ProfileStore(private val context: Context) {
     }
 
     // --- Custom (supplementary) exercise definitions --------------------------
-    // Encoded as "id<|>name" or "id<|>name<|>1" (trailing 1 = archived). Old 2-part
-    // entries are treated as not archived for backward compatibility.
+    // Encoded as "id<|>name", "id<|>name<|>1" (third part 1 = archived), or
+    // "id<|>name<|>1<|>GOAL" (fourth part = the ExerciseGoal its reps feed). Shorter entries
+    // are read as not archived / no goal, so definitions written by older builds still load.
     val customExercises: Flow<List<com.mhurston.ascendant.domain.CustomExercise>> =
         context.dataStore.data.map { p ->
             (p[Keys.CUSTOM_EXERCISES] ?: emptySet()).mapNotNull { encoded ->
                 val parts = encoded.split(VIDEO_SEP)
                 if (parts.size >= 2)
                     com.mhurston.ascendant.domain.CustomExercise(
-                        parts[0], parts[1], archived = parts.getOrNull(2) == "1"
+                        parts[0], parts[1], archived = parts.getOrNull(2) == "1",
+                        goal = com.mhurston.ascendant.domain.ExerciseGoal
+                            .forName(parts.getOrNull(3) ?: "")
                     )
                 else null
             }.sortedBy { it.name.lowercase() }
         }
 
-    suspend fun addCustomExercise(name: String) {
+    suspend fun addCustomExercise(
+        name: String,
+        goal: com.mhurston.ascendant.domain.ExerciseGoal =
+            com.mhurston.ascendant.domain.ExerciseGoal.NONE
+    ) {
         val clean = name.trim().take(40)
         if (clean.isBlank()) return
         val id = "c${System.currentTimeMillis()}"
         context.dataStore.edit { prefs ->
             val cur = prefs[Keys.CUSTOM_EXERCISES] ?: emptySet()
-            prefs[Keys.CUSTOM_EXERCISES] = cur + "$id$VIDEO_SEP$clean${VIDEO_SEP}0"
+            prefs[Keys.CUSTOM_EXERCISES] = cur + "$id$VIDEO_SEP$clean${VIDEO_SEP}0$VIDEO_SEP${goal.name}"
+        }
+    }
+
+    /** Re-point an existing definition at a different daily goal (or NONE). Applies to every
+     *  day it was ever logged, since credit is resolved at read time, not stored per day. */
+    suspend fun setCustomExerciseGoal(id: String, goal: com.mhurston.ascendant.domain.ExerciseGoal) {
+        context.dataStore.edit { prefs ->
+            val cur = prefs[Keys.CUSTOM_EXERCISES] ?: emptySet()
+            prefs[Keys.CUSTOM_EXERCISES] = cur.map { entry ->
+                val parts = entry.split(VIDEO_SEP)
+                if (parts.getOrNull(0) == id && parts.size >= 2)
+                    "${parts[0]}$VIDEO_SEP${parts[1]}$VIDEO_SEP${parts.getOrNull(2) ?: "0"}$VIDEO_SEP${goal.name}"
+                else entry
+            }.toSet()
         }
     }
 
@@ -80,7 +101,10 @@ class ProfileStore(private val context: Context) {
             val existingIds = cur.map { it.substringBefore(VIDEO_SEP) }.toSet()
             val added = imported
                 .filter { it.id.isNotBlank() && it.name.isNotBlank() && it.id !in existingIds }
-                .map { "${it.id}$VIDEO_SEP${it.name.take(40)}$VIDEO_SEP${if (it.archived) "1" else "0"}" }
+                .map {
+                    "${it.id}$VIDEO_SEP${it.name.take(40)}$VIDEO_SEP" +
+                        "${if (it.archived) "1" else "0"}$VIDEO_SEP${it.goal.name}"
+                }
             prefs[Keys.CUSTOM_EXERCISES] = cur + added
         }
     }
@@ -92,7 +116,7 @@ class ProfileStore(private val context: Context) {
             prefs[Keys.CUSTOM_EXERCISES] = cur.map { entry ->
                 val parts = entry.split(VIDEO_SEP)
                 if (parts.getOrNull(0) == id && parts.size >= 2)
-                    "${parts[0]}$VIDEO_SEP${parts[1]}${VIDEO_SEP}1"
+                    "${parts[0]}$VIDEO_SEP${parts[1]}${VIDEO_SEP}1$VIDEO_SEP${parts.getOrNull(3) ?: "NONE"}"
                 else entry
             }.toSet()
         }

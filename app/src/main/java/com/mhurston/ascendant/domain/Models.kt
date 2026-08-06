@@ -193,9 +193,37 @@ data class CharacterState(
         get() = if (xpForNextLevel <= 0) 0f else (xpIntoLevel.toFloat() / xpForNextLevel.toFloat())
 }
 
+/**
+ * Which daily goal a custom exercise's reps count toward. [NONE] is the original behavior:
+ * the reps burn calories (= XP) but fill no goal, so they never move completion or stats.
+ * Any other value makes the reps count 1:1 into that goal's column, exactly like a built-in
+ * variant — so "Overhead Press" can feed Push-ups and "Bicycle Kicks" can feed Core.
+ *
+ * Walking is deliberately absent: it is measured in miles, not reps.
+ */
+enum class ExerciseGoal(val label: String) {
+    NONE("Extra only (XP)"),
+    PUSH("Upper Body: Push-ups"),
+    CURLS("Upper Body: Curls"),
+    CORE("Core"),
+    SQUATS("Lower Body: Squats"),
+    CALF_RAISES("Lower Body: Calf Raises");
+
+    companion object {
+        fun forName(name: String): ExerciseGoal =
+            entries.firstOrNull { it.name == name } ?: NONE
+    }
+}
+
 /** A user-defined supplementary exercise (e.g. "Pull-ups", "Plank seconds").
- *  [archived] = removed from today's options but kept so past logs still resolve its name. */
-data class CustomExercise(val id: String, val name: String, val archived: Boolean = false)
+ *  [archived] = removed from today's options but kept so past logs still resolve its name.
+ *  [goal] = the daily goal its reps count toward (NONE = calories only). */
+data class CustomExercise(
+    val id: String,
+    val name: String,
+    val archived: Boolean = false,
+    val goal: ExerciseGoal = ExerciseGoal.NONE
+)
 
 /** Per-day derived values used by the dashboard/history. */
 data class DayDerived(

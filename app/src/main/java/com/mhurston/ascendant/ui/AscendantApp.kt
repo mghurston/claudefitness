@@ -78,6 +78,7 @@ fun AscendantApp(vm: AppViewModel) {
                 onAddCustomReps = vm::addCustomRepsToday,
                 onAddCustomExercise = vm::addCustomExercise,
                 onRemoveCustomExercise = vm::removeCustomExercise,
+                onSetCustomGoal = vm::setCustomExerciseGoal,
                 onAddPushVariant = vm::addPushVariantToday,
                 onAddCoreVariant = vm::addCoreVariantToday,
                 onAddCardioMinutes = vm::addCardioMinutesToday,

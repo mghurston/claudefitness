@@ -55,7 +55,7 @@ fun CalendarScreen(
     onSetConsumed: (String, Int) -> Unit = { _, _ -> },
     onSetWeight: (String, Double) -> Unit = { _, _ -> },
     onAddCustomReps: (String, String, Int) -> Unit = { _, _, _ -> },
-    onAddCustomExercise: (String) -> Unit = {},
+    onAddCustomExercise: (String, com.mhurston.ascendant.domain.ExerciseGoal) -> Unit = { _, _ -> },
     onAddPushVariant: (String, String, Int) -> Unit = { _, _, _ -> },
     onAddCoreVariant: (String, String, Int) -> Unit = { _, _, _ -> },
     onAddCardioMinutes: (String, String, Int) -> Unit = { _, _, _ -> },
@@ -88,7 +88,7 @@ fun CalendarScreen(
         val ent = byDate[dateStr]
         // Day's gross activity burn, computed with the carried-forward weight so the number
         // matches the day's XP/energy math (weightFor uses day.weightKg when > 0).
-        val dayForBurn = (ent ?: WorkoutDayEntity(date = dateStr)).toDayData()
+        val dayForBurn = (ent ?: WorkoutDayEntity(date = dateStr)).toDayData(state.customGoals)
             .copy(weightKg = carriedWeightKg)
         val caloriesBurned =
             com.mhurston.ascendant.domain.Calories.activityBurn(state.profile, dayForBurn).roundToInt()
@@ -288,7 +288,7 @@ private fun DayEditorDialog(
     consumedLoggedToday: Boolean = false,
     customExercises: List<com.mhurston.ascendant.domain.CustomExercise> = emptyList(),
     onAddCustomReps: (String, Int) -> Unit = { _, _ -> },
-    onAddCustomExercise: (String) -> Unit = {},
+    onAddCustomExercise: (String, com.mhurston.ascendant.domain.ExerciseGoal) -> Unit = { _, _ -> },
     onAddPushVariant: (String, Int) -> Unit = { _, _ -> },
     onAddCoreVariant: (String, Int) -> Unit = { _, _ -> },
     onAddCardioMinutes: (String, Int) -> Unit = { _, _ -> },
@@ -324,7 +324,7 @@ private fun DayEditorDialog(
 
     if (showAddCustom) {
         AddCustomExerciseDialog(
-            onAdd = { name -> onAddCustomExercise(name); showAddCustom = false },
+            onAdd = { name, goal -> onAddCustomExercise(name, goal); showAddCustom = false },
             onDismiss = { showAddCustom = false }
         )
     }
@@ -335,7 +335,7 @@ private fun DayEditorDialog(
             unitSystem = unitSystem,
             onAdd = { oneOff, pin ->
                 onAddOneOff(oneOff)
-                if (pin) onAddCustomExercise(oneOff.name)
+                if (pin) onAddCustomExercise(oneOff.name, com.mhurston.ascendant.domain.ExerciseGoal.NONE)
                 showOneOff = false
             },
             onDismiss = { showOneOff = false }
@@ -368,14 +368,17 @@ private fun DayEditorDialog(
         },
         text = {
             Column(Modifier.verticalScroll(rememberScrollState())) {
+                // Goal totals include custom exercises pointed at that goal (listed under
+                // "Pinned" below with a → arrow showing where their reps land).
+                val goals = customExercises.associate { it.id to it.goal }
                 val pushBreak = e.pushBreakdown()
-                Caption("Push-ups — ${e.pushTotal()} / 100  (any of these count)")
+                Caption("Push-ups — ${e.pushTotal(goals)} / 100  (any of these count)")
                 com.mhurston.ascendant.domain.PushExercise.entries.forEach { v ->
                     EditRow(v.label, pushBreak[v.id] ?: 0) { onAddPushVariant(v.id, it) }
                 }
                 Spacer(Modifier.height(8.dp))
                 val coreBreak = e.coreBreakdown()
-                Caption("Core — ${e.coreTotal()} / 100  (any of these count)")
+                Caption("Core — ${e.coreTotal(goals)} / 100  (any of these count)")
                 com.mhurston.ascendant.domain.CoreExercise.entries.forEach { v ->
                     EditRow(v.label, coreBreak[v.id] ?: 0) { onAddCoreVariant(v.id, it) }
                 }
@@ -470,7 +473,10 @@ private fun DayEditorDialog(
                 customExercises
                     .filter { !it.archived || (customReps[it.id] ?: 0) > 0 }
                     .forEach { ex ->
-                        EditRow(ex.name, customReps[ex.id] ?: 0) { onAddCustomReps(ex.id, it) }
+                        val label =
+                            if (ex.goal == com.mhurston.ascendant.domain.ExerciseGoal.NONE) ex.name
+                            else "${ex.name} → ${ex.goal.label}"
+                        EditRow(label, customReps[ex.id] ?: 0) { onAddCustomReps(ex.id, it) }
                     }
                 Spacer(Modifier.height(12.dp))
                 JournalSection(
@@ -491,17 +497,25 @@ private fun DayEditorDialog(
     )
 }
 
-/** Name-entry dialog for creating a custom exercise from a logged day. Mirrors the
- *  dashboard's add flow; the new exercise is created globally and then loggable here. */
+/** Name + goal entry for creating a custom exercise. The goal decides whether its reps only
+ *  burn calories (NONE) or also fill one of the daily goals, and can be changed later from the
+ *  exercise's card on the Train tab. */
 @Composable
-private fun AddCustomExerciseDialog(onAdd: (String) -> Unit, onDismiss: () -> Unit) {
+private fun AddCustomExerciseDialog(
+    onAdd: (String, com.mhurston.ascendant.domain.ExerciseGoal) -> Unit,
+    onDismiss: () -> Unit
+) {
     var name by remember { mutableStateOf("") }
+    var goal by remember {
+        mutableStateOf(com.mhurston.ascendant.domain.ExerciseGoal.NONE)
+    }
     AlertDialog(
         onDismissRequest = onDismiss,
         title = { Text("Add custom exercise") },
         text = {
-            Column {
-                Caption("Their reps burn calories (= XP) but don't change your completion % or stats.")
+            Column(Modifier.verticalScroll(rememberScrollState())) {
+                Caption("Reps always burn calories (= XP). Pick a goal to also have them count " +
+                    "toward your completion % and stats.")
                 Spacer(Modifier.height(8.dp))
                 androidx.compose.material3.OutlinedTextField(
                     value = name,
@@ -510,10 +524,24 @@ private fun AddCustomExerciseDialog(onAdd: (String) -> Unit, onDismiss: () -> Un
                     label = { Text("Name (e.g. Pull-ups, Plank sec)") },
                     modifier = Modifier.fillMaxWidth()
                 )
+                Spacer(Modifier.height(12.dp))
+                Caption("Counts toward")
+                com.mhurston.ascendant.domain.ExerciseGoal.entries.forEach { g ->
+                    val isSel = g == goal
+                    Row(
+                        Modifier.fillMaxWidth().clickable { goal = g }.padding(vertical = 8.dp),
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        Text(if (isSel) "●  " else "○  ",
+                            color = if (isSel) AuraCyan else TextDim)
+                        BodyText(g.label,
+                            color = if (isSel) AuraCyan else MaterialTheme.colorScheme.onSurface)
+                    }
+                }
             }
         },
         confirmButton = {
-            TextButton(enabled = name.isNotBlank(), onClick = { onAdd(name.trim()) }) {
+            TextButton(enabled = name.isNotBlank(), onClick = { onAdd(name.trim(), goal) }) {
                 Text("Add", fontWeight = FontWeight.Bold)
             }
         },

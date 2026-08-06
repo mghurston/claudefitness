@@ -60,8 +60,9 @@ fun DashboardScreen(
     onAddUserVideo: (String, String, String) -> Unit,
     onSetNotes: (String) -> Unit = {},
     onAddCustomReps: (String, Int) -> Unit = { _, _ -> },
-    onAddCustomExercise: (String) -> Unit = {},
+    onAddCustomExercise: (String, com.mhurston.ascendant.domain.ExerciseGoal) -> Unit = { _, _ -> },
     onRemoveCustomExercise: (String) -> Unit = {},
+    onSetCustomGoal: (String, com.mhurston.ascendant.domain.ExerciseGoal) -> Unit = { _, _ -> },
     onAddPushVariant: (String, Int) -> Unit = { _, _ -> },
     onAddCoreVariant: (String, Int) -> Unit = { _, _ -> },
     onAddCardioMinutes: (String, Int) -> Unit = { _, _ -> },
@@ -75,6 +76,19 @@ fun DashboardScreen(
     val today = state.today
     var confirmReset by remember { mutableStateOf(false) }
     var videoFor by remember { mutableStateOf<String?>(null) }
+    // The custom exercise whose daily-goal assignment is being changed (null = picker closed).
+    var pickingGoalFor by remember {
+        mutableStateOf<com.mhurston.ascendant.domain.CustomExercise?>(null)
+    }
+
+    pickingGoalFor?.let { ex ->
+        ExerciseGoalDialog(
+            exerciseName = ex.name,
+            selected = ex.goal,
+            onPick = { onSetCustomGoal(ex.id, it); pickingGoalFor = null },
+            onDismiss = { pickingGoalFor = null }
+        )
+    }
 
     videoFor?.let { key ->
         VideoDialog(
@@ -148,30 +162,57 @@ fun DashboardScreen(
             "Tap a group to log it.")
         Spacer(Modifier.height(4.dp))
 
-        val upperReps = today.pushTotal() + today.curls
+        // Goal totals include any pinned custom exercise pointed at that goal (ExerciseGoal),
+        // so what the section header shows is exactly what completion scores.
+        val goals = state.customGoals
+        fun customsFor(goal: com.mhurston.ascendant.domain.ExerciseGoal): List<CustomGoalEntry> {
+            val reps = today.customRepsForGoal(goal, goals)
+            return state.customExercises.filter { it.goal == goal }.map { ex ->
+                CustomGoalEntry(
+                    id = ex.id,
+                    name = ex.name,
+                    reps = reps[ex.id] ?: 0,
+                    onAdd = { onAddCustomReps(ex.id, it) },
+                    onChangeGoal = { pickingGoalFor = ex }
+                )
+            }
+        }
+
+        val upperReps = today.pushTotal(goals) + today.curlsTotal(goals)
         CollapsibleSection("Upper Body", "$upperReps / 200") {
             VariantGoalSection(
                 variants = com.mhurston.ascendant.domain.PushExercise.entries.map { it.id to it.label },
                 breakdown = today.pushBreakdown(),
-                total = today.pushTotal(),
+                total = today.pushTotal(goals),
                 onVideosFor = { videoFor = it },
+                customs = customsFor(com.mhurston.ascendant.domain.ExerciseGoal.PUSH),
                 onAddVariant = onAddPushVariant
             )
-            ExerciseRow("Curls", today.curls, { videoFor = "curls" }) { onAddReps(ExerciseKind.CURLS, it) }
+            ExerciseRow("Curls", today.curlsTotal(goals), { videoFor = "curls" },
+                base = today.curls,
+                customs = customsFor(com.mhurston.ascendant.domain.ExerciseGoal.CURLS)
+            ) { onAddReps(ExerciseKind.CURLS, it) }
         }
-        CollapsibleSection("Core", "${today.coreTotal()} / 100") {
+        CollapsibleSection("Core", "${today.coreTotal(goals)} / 100") {
             VariantGoalSection(
                 variants = com.mhurston.ascendant.domain.CoreExercise.entries.map { it.id to it.label },
                 breakdown = today.coreBreakdown(),
-                total = today.coreTotal(),
+                total = today.coreTotal(goals),
                 onVideosFor = { videoFor = it },
+                customs = customsFor(com.mhurston.ascendant.domain.ExerciseGoal.CORE),
                 onAddVariant = onAddCoreVariant
             )
         }
-        val lowerReps = today.squats + today.calfRaises
+        val lowerReps = today.squatsTotal(goals) + today.calfRaisesTotal(goals)
         CollapsibleSection("Lower Body", "$lowerReps / 200") {
-            ExerciseRow("Squats", today.squats, { videoFor = "squats" }) { onAddReps(ExerciseKind.SQUATS, it) }
-            ExerciseRow("Calf Raises", today.calfRaises, { videoFor = "calfraises" }) { onAddReps(ExerciseKind.CALF_RAISES, it) }
+            ExerciseRow("Squats", today.squatsTotal(goals), { videoFor = "squats" },
+                base = today.squats,
+                customs = customsFor(com.mhurston.ascendant.domain.ExerciseGoal.SQUATS)
+            ) { onAddReps(ExerciseKind.SQUATS, it) }
+            ExerciseRow("Calf Raises", today.calfRaisesTotal(goals), { videoFor = "calfraises" },
+                base = today.calfRaises,
+                customs = customsFor(com.mhurston.ascendant.domain.ExerciseGoal.CALF_RAISES)
+            ) { onAddReps(ExerciseKind.CALF_RAISES, it) }
         }
         CollapsibleSection("Cardio", "%.1f / 5.0 mi".format(java.util.Locale.US, today.walkMiles)) {
             WalkingRow(
@@ -195,7 +236,11 @@ fun DashboardScreen(
 
         Spacer(Modifier.height(20.dp))
         ExtrasSection(
-            customExercises = state.customExercises,
+            // Customs that fill a goal are logged in that goal's section above; Extra Work keeps
+            // the calories-only ones so each exercise has exactly one place to log it.
+            customExercises = state.customExercises.filter {
+                it.goal == com.mhurston.ascendant.domain.ExerciseGoal.NONE
+            },
             todayReps = com.mhurston.ascendant.data.WorkoutDayEntity.decodeCustomReps(today.customReps),
             oneOffs = com.mhurston.ascendant.data.WorkoutDayEntity.decodeOneOffs(today.oneOffs),
             weightKg = state.profile.weightKg,
@@ -203,6 +248,7 @@ fun DashboardScreen(
             onAddReps = onAddCustomReps,
             onAddExercise = onAddCustomExercise,
             onRemoveExercise = onRemoveCustomExercise,
+            onSetGoal = { pickingGoalFor = it },
             onAddOneOff = onAddOneOff,
             onUpdateOneOff = onUpdateOneOff,
             onRemoveOneOff = onRemoveOneOff
@@ -321,8 +367,18 @@ private fun StreakChip(label: String, value: Int, modifier: Modifier = Modifier)
     }
 }
 
+/** One rep goal. [current] is the goal total (base reps + any custom exercise pointed at this
+ *  goal); [base] is the built-in exercise's own reps, which is what its controls edit. Customs
+ *  assigned here get their own labelled sub-row so it's obvious where the extra reps came from. */
 @Composable
-private fun ExerciseRow(name: String, current: Int, onVideos: () -> Unit, onAdd: (Int) -> Unit) {
+private fun ExerciseRow(
+    name: String,
+    current: Int,
+    onVideos: () -> Unit,
+    base: Int = current,
+    customs: List<CustomGoalEntry> = emptyList(),
+    onAdd: (Int) -> Unit
+) {
     val target = Progression.REP_TARGET
     val over = current - target
     Card(
@@ -349,9 +405,41 @@ private fun ExerciseRow(name: String, current: Int, onVideos: () -> Unit, onAdd:
                 color = if (current >= target) XpGold else ManaPurple
             )
             Spacer(Modifier.height(8.dp))
-            RepControls(current = current, onAdd = onAdd)
+            RepControls(current = base, onAdd = onAdd)
+            customs.forEach { CustomGoalRow(it) }
         }
     }
+}
+
+/** A pinned custom exercise shown inside the goal it feeds: its reps, its controls, and a link
+ *  back to the goal picker so it can be re-pointed or dropped back to extra-only. */
+internal data class CustomGoalEntry(
+    val id: String,
+    val name: String,
+    val reps: Int,
+    val onAdd: (Int) -> Unit,
+    val onChangeGoal: () -> Unit
+)
+
+@Composable
+private fun CustomGoalRow(entry: CustomGoalEntry) {
+    Spacer(Modifier.height(12.dp))
+    Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween,
+        verticalAlignment = Alignment.CenterVertically) {
+        Row(Modifier.weight(1f), verticalAlignment = Alignment.CenterVertically) {
+            BodyText(entry.name,
+                color = if (entry.reps > 0) MaterialTheme.colorScheme.onSurface else TextDim)
+            Text("  📌", style = MaterialTheme.typography.labelMedium)
+        }
+        Text("${entry.reps}", color = if (entry.reps > 0) AuraCyan else TextDim,
+            fontWeight = FontWeight.Bold)
+    }
+    Spacer(Modifier.height(4.dp))
+    Text("Counts toward this goal · change",
+        style = MaterialTheme.typography.labelMedium, color = AuraCyan,
+        modifier = Modifier.clickable { entry.onChangeGoal() })
+    Spacer(Modifier.height(4.dp))
+    RepControls(current = entry.reps, onAdd = entry.onAdd)
 }
 
 /** A single rep goal satisfied by any of several equivalent exercises (Upper Body, Core).
@@ -364,6 +452,7 @@ private fun VariantGoalSection(
     breakdown: Map<String, Int>,
     total: Int,
     onVideosFor: (String) -> Unit,
+    customs: List<CustomGoalEntry> = emptyList(),
     onAddVariant: (String, Int) -> Unit
 ) {
     val target = Progression.REP_TARGET
@@ -411,6 +500,7 @@ private fun VariantGoalSection(
                 Spacer(Modifier.height(4.dp))
                 RepControls(current = reps, onAdd = { onAddVariant(id, it) })
             }
+            customs.forEach { CustomGoalRow(it) }
         }
     }
 }
@@ -591,8 +681,9 @@ private fun ExtrasSection(
     weightKg: Double,
     unitSystem: com.mhurston.ascendant.domain.UnitSystem,
     onAddReps: (String, Int) -> Unit,
-    onAddExercise: (String) -> Unit,
+    onAddExercise: (String, com.mhurston.ascendant.domain.ExerciseGoal) -> Unit,
     onRemoveExercise: (String) -> Unit,
+    onSetGoal: (com.mhurston.ascendant.domain.CustomExercise) -> Unit,
     onAddOneOff: (com.mhurston.ascendant.domain.OneOff) -> Unit,
     onUpdateOneOff: (Int, com.mhurston.ascendant.domain.OneOff) -> Unit,
     onRemoveOneOff: (Int) -> Unit
@@ -607,7 +698,8 @@ private fun ExtrasSection(
             unitSystem = unitSystem,
             onAdd = { oneOff, pin ->
                 onAddOneOff(oneOff)
-                if (pin) onAddExercise(oneOff.name)
+                // Pinning creates it as extra-only; point it at a goal from the card below.
+                if (pin) onAddExercise(oneOff.name, com.mhurston.ascendant.domain.ExerciseGoal.NONE)
                 showOneOff = false
             },
             onDismiss = { showOneOff = false }
@@ -698,6 +790,10 @@ private fun ExtrasSection(
                             modifier = Modifier.clickable { removing = ex })
                     }
                 }
+                Spacer(Modifier.height(4.dp))
+                Text("Earns XP only · count it toward a goal",
+                    style = MaterialTheme.typography.labelMedium, color = AuraCyan,
+                    modifier = Modifier.clickable { onSetGoal(ex) })
                 Spacer(Modifier.height(8.dp))
                 RepControls(current = reps, onAdd = { onAddReps(ex.id, it) })
             }
@@ -708,6 +804,41 @@ private fun ExtrasSection(
         BodyText("Nothing extra yet. Tap ＋ One-off to log something like a marathon or a yoga class.", color = TextDim)
     }
     }
+}
+
+/** Pick which daily goal a custom exercise's reps fill. NONE keeps it calories-only. The choice
+ *  applies to every day the exercise was ever logged — credit is resolved when the log is
+ *  replayed, so re-pointing it re-scores that history on the spot. */
+@Composable
+internal fun ExerciseGoalDialog(
+    exerciseName: String,
+    selected: com.mhurston.ascendant.domain.ExerciseGoal,
+    onPick: (com.mhurston.ascendant.domain.ExerciseGoal) -> Unit,
+    onDismiss: () -> Unit
+) {
+    AlertDialog(
+        onDismissRequest = onDismiss,
+        title = { Text("\"$exerciseName\" counts toward") },
+        text = {
+            Column {
+                Caption("Its reps fill this goal 1:1, like a built-in variant, on every day " +
+                    "you have logged it. Calories and XP are unchanged either way.")
+                Spacer(Modifier.height(8.dp))
+                com.mhurston.ascendant.domain.ExerciseGoal.entries.forEach { goal ->
+                    val isSel = goal == selected
+                    Row(
+                        Modifier.fillMaxWidth().clickable { onPick(goal) }.padding(vertical = 10.dp),
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        Text(if (isSel) "●  " else "○  ", color = if (isSel) AuraCyan else TextDim)
+                        BodyText(goal.label,
+                            color = if (isSel) AuraCyan else MaterialTheme.colorScheme.onSurface)
+                    }
+                }
+            }
+        },
+        confirmButton = { TextButton(onClick = onDismiss) { Text("Done") } }
+    )
 }
 
 /** Free-form one-off entry: name + any of reps / distance / calories. Reps and distance drive a

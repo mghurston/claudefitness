@@ -53,7 +53,10 @@ data class UiState(
     /** Active (non-archived) custom exercises — the loggable options shown on the dashboard. */
     val customExercises: List<CustomExercise> = emptyList(),
     /** Every custom exercise incl. archived — used by history to resolve names of past logs. */
-    val allCustomExercises: List<CustomExercise> = emptyList()
+    val allCustomExercises: List<CustomExercise> = emptyList(),
+    /** customExerciseId -> the daily goal its reps feed. Archived definitions are included so
+     *  past days keep the credit they earned. Pass to WorkoutDayEntity.toDayData/pushTotal/etc. */
+    val customGoals: Map<String, com.mhurston.ascendant.domain.ExerciseGoal> = emptyMap()
 )
 
 class AppViewModel(app: Application) : AndroidViewModel(app) {
@@ -94,12 +97,15 @@ class AppViewModel(app: Application) : AndroidViewModel(app) {
             val todayStr = today.toString()
             val todayEntity = days.firstOrNull { it.date == todayStr }
                 ?: WorkoutDayEntity(date = todayStr)
-            val rawDays: List<DayData> = days.map { it.toDayData() } +
-                if (days.any { it.date == todayStr }) emptyList() else listOf(todayEntity.toDayData())
+            // Goal assignments are resolved at read time (never stored per day), so re-pointing
+            // a custom exercise re-scores its whole history on the next replay.
+            val goals = customExercises.associate { it.id to it.goal }
+            val rawDays: List<DayData> = days.map { it.toDayData(goals) } +
+                if (days.any { it.date == todayStr }) emptyList() else listOf(todayEntity.toDayData(goals))
             // Carry weight + intake forward so unlogged days inherit the last entered values
             // (and each day's energy math uses the body weight in effect then, not just current).
             val dayData = Progression.carryForward(rawDays, profile.weightKg)
-            val todayData = dayData.firstOrNull { it.date == today } ?: todayEntity.toDayData()
+            val todayData = dayData.firstOrNull { it.date == today } ?: todayEntity.toDayData(goals)
             // XP = calories only (burn − shortfall + diet); quests/achievements are badges.
             val full = Progression.rebuildFull(dayData, today, anchor, profile)
             UiState(
@@ -117,7 +123,8 @@ class AppViewModel(app: Application) : AndroidViewModel(app) {
                 favoriteVideoUrls = favVideos,
                 userVideos = userVideos,
                 customExercises = customExercises.filterNot { it.archived },
-                allCustomExercises = customExercises
+                allCustomExercises = customExercises,
+                customGoals = goals
             )
         }.stateIn(
             scope = viewModelScope,
@@ -195,7 +202,15 @@ class AppViewModel(app: Application) : AndroidViewModel(app) {
     fun setNotesToday(notes: String) = setNotesForDate(todayStr(), notes)
 
     // --- custom (supplementary) exercises ------------------------------------
-    fun addCustomExercise(name: String) { viewModelScope.launch { repo.addCustomExercise(name) } }
+    fun addCustomExercise(
+        name: String,
+        goal: com.mhurston.ascendant.domain.ExerciseGoal = com.mhurston.ascendant.domain.ExerciseGoal.NONE
+    ) { viewModelScope.launch { repo.addCustomExercise(name, goal) } }
+
+    /** Point a custom exercise at a daily goal (or back to NONE). Re-scores its whole history. */
+    fun setCustomExerciseGoal(id: String, goal: com.mhurston.ascendant.domain.ExerciseGoal) {
+        viewModelScope.launch { repo.setCustomExerciseGoal(id, goal) }
+    }
 
     /** Remove from the active list. If it was ever logged, archive it (so history keeps the
      *  name and reps); otherwise hard-delete since there's nothing to preserve. */

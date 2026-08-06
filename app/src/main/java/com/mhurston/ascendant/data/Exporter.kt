@@ -2,6 +2,7 @@ package com.mhurston.ascendant.data
 
 import com.mhurston.ascendant.domain.Avatar
 import com.mhurston.ascendant.domain.CustomExercise
+import com.mhurston.ascendant.domain.ExerciseGoal
 import com.mhurston.ascendant.domain.Profile
 import com.mhurston.ascendant.domain.Progression
 import com.mhurston.ascendant.domain.Sex
@@ -28,21 +29,26 @@ object Exporter {
 
     /** Backup format version. 1 = days + profile, caloriesConsumed 0 meant "not logged".
      *  2 = adds settings (customs/videos/unit/avatar); caloriesConsumed -1 = not logged,
-     *  0 = a logged fasting day. */
-    private const val SCHEMA = 2
+     *  0 = a logged fasting day. 3 = custom exercises carry a "goal" (the daily goal their
+     *  reps fill); a missing goal reads as NONE, so schema 1-2 backups restore unchanged. */
+    private const val SCHEMA = 3
 
     /** Original spreadsheet column order, so the file round-trips back to the sheet
      *  (steps/totalmiles are appended after so the first eight columns stay put).
      *  `miles` is the manual/treadmill entry only; `totalmiles` = miles + step-tracked
      *  distance — the walking total the app scores against.
      *  Locale-pinned: a comma-decimal device locale must not corrupt the CSV. */
-    fun toCsv(days: List<WorkoutDayEntity>): String {
+    fun toCsv(
+        days: List<WorkoutDayEntity>,
+        customGoals: Map<String, ExerciseGoal> = emptyMap()
+    ): String {
         val sb = StringBuilder()
         sb.append("date,pushups,squats,leglifts,calfraises,curls,miles,completion,steps,totalmiles\n")
         days.sortedBy { it.date }.forEach { d ->
-            val comp = Progression.completion(d.toDayData())
-            sb.append("${d.date},${d.pushTotal()},${d.squats},${d.coreTotal()},")
-            sb.append("${d.calfRaises},${d.curls},${d.miles},")
+            val comp = Progression.completion(d.toDayData(customGoals))
+            sb.append("${d.date},${d.pushTotal(customGoals)},${d.squatsTotal(customGoals)},")
+            sb.append("${d.coreTotal(customGoals)},")
+            sb.append("${d.calfRaisesTotal(customGoals)},${d.curlsTotal(customGoals)},${d.miles},")
             sb.append(String.format(Locale.US, "%.4f", comp)).append(",")
             sb.append("${d.passiveSteps},")
             sb.append(String.format(Locale.US, "%.2f", d.walkMiles)).append("\n")
@@ -91,7 +97,7 @@ object Exporter {
             sb.append("  \"customExercises\": [\n")
             customExercises.forEachIndexed { i, ex ->
                 sb.append("    {\"id\": \"${esc(ex.id)}\", \"name\": \"${esc(ex.name)}\", ")
-                sb.append("\"archived\": ${ex.archived}}")
+                sb.append("\"archived\": ${ex.archived}, \"goal\": \"${ex.goal.name}\"}")
                 sb.append(if (i < customExercises.lastIndex) ",\n" else "\n")
             }
             sb.append("  ],\n")
@@ -187,7 +193,9 @@ object Exporter {
             CustomExercise(
                 id = o.optString("id", ""),
                 name = o.optString("name", ""),
-                archived = o.optBoolean("archived", false)
+                archived = o.optBoolean("archived", false),
+                // Absent in schema ≤ 2 backups → NONE, i.e. the old calories-only behavior.
+                goal = ExerciseGoal.forName(o.optString("goal", ""))
             )
         }.filter { it.id.isNotBlank() && it.name.isNotBlank() }
         val favorites = buildSet {
