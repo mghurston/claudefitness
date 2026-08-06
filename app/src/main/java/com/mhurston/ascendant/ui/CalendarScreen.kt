@@ -132,11 +132,16 @@ fun CalendarScreen(
         ScreenSubtitle("${state.days.count { it.date <= today.toString() }} days recorded · tap any day to view or fix it")
         Spacer(Modifier.height(16.dp))
 
-        // Month header with navigation
+        // Month header with navigation. The locale comes from the composition (not
+        // Locale.getDefault()) so the month name recomposes if the device language changes
+        // while the screen is open.
+        val monthLocale = Locale.forLanguageTag(
+            androidx.compose.ui.text.intl.Locale.current.toLanguageTag()
+        )
         Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween,
             verticalAlignment = Alignment.CenterVertically) {
             NavBtn("‹") { month = month.minusMonths(1) }
-            SectionHeader("${month.month.getDisplayName(TextStyle.FULL, Locale.getDefault())} ${month.year}")
+            SectionHeader("${month.month.getDisplayName(TextStyle.FULL, monthLocale)} ${month.year}")
             NavBtn("›") { month = month.plusMonths(1) }
         }
         Spacer(Modifier.height(12.dp))

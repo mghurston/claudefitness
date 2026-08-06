@@ -31,13 +31,12 @@ object Reminders {
     private const val NOTIF_ID = 4242
 
     fun ensureChannel(context: Context) {
-        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
-            val mgr = context.getSystemService(NotificationManager::class.java)
-            val channel = NotificationChannel(
-                CHANNEL_ID, "Training reminders", NotificationManager.IMPORTANCE_DEFAULT
-            ).apply { description = "Daily nudge to keep your streak alive" }
-            mgr.createNotificationChannel(channel)
-        }
+        // No SDK_INT guard: minSdk is 26, which is O, so channels always exist.
+        val mgr = context.getSystemService(NotificationManager::class.java)
+        val channel = NotificationChannel(
+            CHANNEL_ID, "Training reminders", NotificationManager.IMPORTANCE_DEFAULT
+        ).apply { description = "Daily nudge to keep your streak alive" }
+        mgr.createNotificationChannel(channel)
     }
 
     /** Fires once a day at 00:00 UTC (≈ 5 PM Pacific Daylight Time). The day's rollover is

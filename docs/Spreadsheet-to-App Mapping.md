@@ -59,6 +59,16 @@ The `weight` column generalizes the hard-coded `/6` averaging so the formula sur
 
 ## 3. Completion Rate: Preserved Exactly, Then Generalized
 
+> ## ⚠ THE CARDIO TERM CHANGED (v0.5.0) — see `Scoring Model.md` §2
+> The five rep terms are exactly as written below. The sixth is no longer `miles / 5`: it is
+> the day's non-strength **calories** over what walking 5 miles burns, so a cycled mile counts
+> for what it actually burns (~a third of a walked one) and bike/swim minutes count at all.
+>
+> Walking is unaffected. The target is defined as the burn of the 5-mile walking goal, so
+> walking 5 miles still scores exactly 1.0 for that slot at any body weight, and a
+> walking-only day reproduces the legacy number identically. `ProgressionTest.completionParity_*`
+> replays sheet days against the legacy values and is unchanged.
+
 **Legacy formula (must reproduce identically for imported days):**
 
 ```

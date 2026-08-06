@@ -222,7 +222,9 @@ enum class ExerciseGoal(val label: String) {
     UPPER("Upper Body"),
     CORE("Core"),
     LOWER("Lower Body"),
-    CARDIO("Cardio (distance)");
+    // Plain "Cardio": how it is measured is the next question in the picker, and labelling it
+    // "(distance)" read as wrong once the exercise was switched to minutes.
+    CARDIO("Cardio");
 
     /** Cardio is measured in distance; every other category is measured in reps. */
     val isDistance: Boolean get() = this == CARDIO

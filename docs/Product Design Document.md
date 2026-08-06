@@ -55,6 +55,13 @@ Every loop stage has an **immediate** payoff (goal-gradient + variable reward) a
 | Walking | Cardio | miles | duration, notes | 5 |
 | **+ Custom** | Strength/Cardio/Custom | reps/miles/minutes/count | configurable | user-set |
 
+> **As shipped (v0.5.1):** the five rep targets are as above. The Cardio goal is no longer
+> "5 miles walked" — it is the **calories** walking 5 miles burns (6 kcal per kg), which every
+> kind of cardio fills for what it is worth: walking, tracked steps, Bike (MET 8), Swim
+> (MET 7), and Cardio-assigned custom exercises. Walking 5 miles still fills it exactly.
+> A custom exercise points at one of four categories (Upper Body, Core, Lower Body, Cardio)
+> rather than being a free-floating extra. See `Scoring Model.md`.
+
 ### 3.2 Logging Model — every field the user asked for
 
 Each `ExerciseEntry` supports, as applicable to its unit:

@@ -13,9 +13,21 @@
 >   carries forward until changed.
 > - **§3 multipliers are ALL removed.** Quests and achievements pay no XP (badges only).
 >
-> Still accurate below: the level curve (§4, `100 × n^1.5`), attributes (§5), ranks & titles
+> Still accurate below: the level curve (§4, `100 × n^1.5`), ranks & titles
 > (§6 — as amended in code), and the deterministic-replay principle (§8). Prestige (§7 note)
 > was never built.
+
+> ## ⚠ ATTRIBUTES SUPERSEDED (§5) — see `Scoring Model.md` §5
+> Three of the five formulas below have been retuned since. As shipped in v0.5.1:
+>
+> - **ENDURANCE** = `floor(sqrt(miles × 0.75))`, not `× 4` (rebalanced v0.3.8), and "miles"
+>   means **all cardio as walk-equivalent miles** (v0.5.1), not walking alone — a bike ride,
+>   a swim, and a row all build it now.
+> - **DISCIPLINE** = 1 point per day at or above 80% completion, not `× 1.5` (v0.3.7).
+> - **STRENGTH / AGILITY / CONSISTENCY** are as written below.
+>
+> Daily completion itself also changed: its cardio sixth is calories, not miles. See
+> `Scoring Model.md` §1-2.
 
 Defines how the six tracked metrics convert into XP, levels, attributes, and progression. All numbers are tuned against the **actual 30-day data** so the user starts the app already feeling powerful, and so realistic daily effort produces a satisfying-but-not-trivial climb.
 

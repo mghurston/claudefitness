@@ -36,6 +36,7 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
+import androidx.core.net.toUri
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
@@ -332,11 +333,11 @@ private fun AboutSection() {
     fun open(url: String) {
         try {
             CustomTabsIntent.Builder().setShowTitle(true).build()
-                .launchUrl(context, android.net.Uri.parse(url))
+                .launchUrl(context, url.toUri())
         } catch (e: Exception) {
             try {
                 context.startActivity(
-                    Intent(Intent.ACTION_VIEW, android.net.Uri.parse(url))
+                    Intent(Intent.ACTION_VIEW, url.toUri())
                         .addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
                 )
             } catch (e2: Exception) {

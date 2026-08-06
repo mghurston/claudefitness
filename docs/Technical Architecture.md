@@ -79,6 +79,21 @@ Recommends the stack and structure for a **single-user, Android-only, offline-fi
 
 ## 4. Data Layer (Room)
 
+> ## ⚠ AS BUILT: one denormalized table, not the catalog schema below
+> The shipped DB is a **single `workout_day` table** keyed by ISO date, one column per metric,
+> matching the original spreadsheet row. Custom exercises, push/core variants, cardio minutes,
+> cardio distance, and one-offs are encoded strings inside that row (`"id:value,id:value"`),
+> and the exercise *definitions* live in DataStore, not the DB. There is no `exercise`,
+> `exercise_entry`, `achievement_state`, `streak_state`, or `kv_meta` table: streaks, stats,
+> XP, and achievements are replayed from the log every time rather than cached.
+>
+> Room schema is at **v12**, with a real `Migration` object per step in `AppDatabase.kt` (all
+> additive `ADD COLUMN ... DEFAULT`, so no logged day is ever rewritten). Column meanings and
+> the backup schema are documented in `Scoring Model.md` §6.
+>
+> Everything below is the original design; the "generalized model means new metrics are rows"
+> assumption did not survive contact with the spreadsheet parity requirement.
+
 Schema mirrors `Spreadsheet-to-App Mapping.md` §2:
 
 - `exercise` (catalog: id, name, category, unit, daily_target, weight, icon, active, sort)

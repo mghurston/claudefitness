@@ -108,8 +108,12 @@ Room is denormalized (one row per day), so this is two nullable-defaulted column
 
 These are decided — listed here so the build follows them exactly:
 
-1. **Passive distance = XP-only.** Add `passiveSteps`/`passiveKcal` as their own burn channel;
-   do **not** add them to `miles`, the END stat (`Progression.kt:161`), or the 5-mile goal.
+1. ~~**Passive distance = XP-only.**~~ **Reversed by the user in v0.3.4-0.3.5 (2026-07-17).**
+   Tracked steps count as walking everywhere: `trackedMiles` (steps / 2000) feeds `walkMiles`,
+   the walking goal, walking achievements, and ENDURANCE. An all-steps day earning no walking
+   credit was an inconsistency, not a design choice. They stay out of the manual `miles`
+   column only, which is the hand-logged part shown in the Walking card. Their calories are
+   still counted once, as `max(passiveKcal, step estimate)` — never summed with it.
 2. **Passive movement sustains the activity streak.** Extend `hasActivity` (`Models.kt:38`) so
    `passiveSteps >= PASSIVE_ACTIVITY_THRESHOLD` (≈ 1000) counts as activity — this also resets
    the idle-decay "last active" anchor. Strength streak stays strength-only.
@@ -134,7 +138,8 @@ watch/active-calorie data). Not the primary plan; documented so we don't re-deri
 - [x] `HealthConnect.kt` wrapper: `getSdkStatus` availability, permission contract,
       `aggregateGroupByPeriod` daily read of steps + active calories.
 - [x] `passiveSteps` / `passiveKcal` on `DayData` + `WorkoutDayEntity`; Room migration `MIGRATION_7_8`.
-- [x] `Calories.activityBurn()` passive term + `STEPS_PER_MILE = 2000` (XP-only; not in `miles`/END).
+- [x] `Calories.activityBurn()` passive term + `STEPS_PER_MILE = 2000`. (Was XP-only; since
+      v0.3.5 the same steps also feed `walkMiles`, the walking goal, and END — see §6.1.)
 - [x] `hasActivity` now true when `passiveSteps >= PASSIVE_ACTIVITY_THRESHOLD` (1000), sustaining
       the activity streak + resetting idle-decay; strength streak stays strength-only.
 - [x] `PassiveSync`: WorkManager periodic job (2 h) + foreground sync in `MainActivity.onResume`.

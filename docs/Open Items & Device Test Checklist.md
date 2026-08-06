@@ -53,6 +53,45 @@ Living status doc (created 2026-06-14). Tracks what's verified, what still needs
   column + backup round-trip preserved. Notes journaling stays.
 - Unit suite green (25 tests, rewritten for the flat model; seed month → Level 10 / Rank C).
 
+## ✅ Verified on emulator (2026-08-06, v0.4.2–v0.5.2 cardio + categories QA pass)
+
+Full pass after the Cardio scoring rework. Every claim below was observed this session, not
+inferred; the commands and numbers are in the session log.
+
+- **Unit suite: 81 tests, 0 failures**, forced rerun (`testDebugUnitTest --rerun-tasks`). A
+  "test" here is a JVM test of the pure scoring engine — no device, no Android framework.
+  New this pass: 25 in `CustomExerciseGoalTest` (categories, cardio calories, END) and 7 in
+  `BackupRoundTripTest`.
+- **Backup restore is now testable off-device.** `org.json` was added to the test classpath,
+  because android.jar's stubs made `Exporter.fromJson` throw "not mocked" — restore had never
+  had a single test. It now round-trips every day column, every exercise setting, the profile,
+  a schema-3 backup, a schema-1 zero-calorie day, and control-char one-off encoding.
+- **Fixes proven by mutation** (comment out the fix, watch the named tests fail, restore):
+  the rep split (5 fail), the per-mile cardio rate (3), END reading all cardio (2), and the
+  restore path dropping `customMinutes`/`cardioRate` (3).
+- **Lint: 0 errors**, was 1 (`NonObservableLocale` in the Calendar month header, fixed).
+  Warnings 24 → 19; the 5 fixed were `UseKtx` ×4 and an obsolete `SDK_INT >= O` check.
+- **Room v10 → v11 → v12 migrated in place** on the real 67-day restored log: no data loss,
+  `PRAGMA user_version` = 12, `customDistance` and `customMinutes` present on `workout_day`.
+- **Cardio goal live**: 1 walked mile (113 kcal) + 15 bike minutes (198) = 311 / 566 kcal on
+  the ring. Bike minutes used to move it by zero.
+- **Both cardio-custom modes exercised on-device**: DISTANCE (2.0 mi filled the ring, walking
+  card stayed 0.0) and MINUTES (15 min Moderate → 149 kcal, matching MET 6 × 3.5 × 94.3 / 200
+  × 15 = 148.5).
+- **No history was rescored**: all 67 days keep their old completion (Aug 2 = 37%, matching a
+  hand calc of the legacy formula), because the log has no bike/swim minutes, no measured
+  Health Connect calories, and two 0-kcal one-offs.
+- **END unchanged for a walking-only log**: 269 lifetime walked miles, 269 walk-equivalent,
+  ENDURANCE 14 before and after.
+- **All five tabs** opened without a crash (no `FATAL EXCEPTION` in logcat, process alive).
+
+### ☐ Not covered by this pass
+- Export/restore through the **file picker** (SAF) on a device — the JSON layer is now tested,
+  the document-picker plumbing around it is not.
+- Health Connect sync against **real step data** — the emulator has none (see CLAUDE.md).
+- Reminder notification actually firing at the scheduled time.
+- Anything on a physical phone: this was all emulator.
+
 ## ☐ Needs testing on the phone (not exercised on emulator)
 
 These are expected to work but were never run end-to-end on real hardware:
