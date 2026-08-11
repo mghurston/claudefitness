@@ -3,10 +3,11 @@
 **120 achievements** across 9 categories, plus tiers, rarity, hidden unlocks, and reward rules. Designed so several are **already earned on import** (from the real 30-day data) and the rest form a long ladder targeted at the user's specific weak spots: strength consistency, streaks, and the Wed/Fri/Sat cliffs.
 
 > **Shipped build: 82 achievements** (the `Achievements.ALL` list in `domain/Achievements.kt`).
-> The two note badges (Field Notes, Dear Diary) retired with the journal in v0.6.3, and the
-> "Journal" category was renamed **Milestones** for the two non-journal badges left in it.
-> The 120 figure is the original design ceiling; 86 were implemented for v1, then the two mood
-> badges (Self-Aware, Peak State) were retired in **v0.2.2** when mood tracking was removed.
+> The 120 figure is the original design ceiling. The chain: **86** implemented for v1 → **84**
+> when the two mood badges (Self-Aware, Peak State) retired with mood tracking in **v0.2.2** →
+> **82** when the two note badges (Field Notes, Dear Diary) retired with the journal in
+> **v0.6.3**. That release also renamed the "Journal" category to **Milestones**, for the two
+> badges left in it (Beyond the Sheet, The Collector) that were never about notes.
 > The achievements screen reads the live count from code, so it always matches what's built.
 > Each is evaluated retroactively as a pure function of the day log + character state.
 >
@@ -160,8 +161,8 @@
 98. **All Quests Cleared** — Complete every daily quest in a day.
 99. **Weekly Sweep** — Complete every weekly quest.
 100. **Monthly Conqueror** — Complete a monthly quest.
-101. **Note to Self** — Add notes to 10 workouts.
-102. **Self-Aware** — Log mood/energy 7 days running.
+101. ~~**Note to Self** — Add notes to 10 workouts.~~ *Unbuildable: the journal was removed in v0.6.3.*
+102. ~~**Self-Aware** — Log mood/energy 7 days running.~~ *Unbuildable: mood tracking was removed in v0.2.2.*
 103. **Rest is Strategy** — Take a *planned* rest day without breaking your streak.
 104. **No Excuses** — Log on a day you marked "low energy."
 

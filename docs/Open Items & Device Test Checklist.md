@@ -54,6 +54,36 @@ Living status doc (created 2026-06-14). Tracks what's verified, what still needs
   way in v0.6.3 (never used once) → **82 trophies**.
 - Unit suite green (25 tests, rewritten for the flat model; seed month → Level 10 / Rank C).
 
+## ✅ Verified on emulator (2026-08-11, v0.6.2–v0.6.4 scoring-weights + journal-removal pass)
+
+Every claim below was observed this session, not inferred.
+
+- **Unit suite: 84 tests, 0 failures, 0 skipped**, forced rerun (`testDebugUnitTest
+  --rerun-tasks`), counted from the JUnit XML rather than a log line. Was 81.
+- **Goal weights (v0.6.2)** — cardio 25%, each lift 15%, summing to 1.0. New
+  `completionWeights_cardioIsAQuarterOfTheDay_liftsAreFifteenPercentEach` pins 75% for an
+  all-lifts-no-cardio day and 25% for a 5-mile-no-lifts day; the three `completionParity_*`
+  tests carry reweighted expected values from here on. On-device: 100 leg lifts read 15%,
+  adding 5 walked miles read 40%. The Log calendar re-scored as designed (Aug 2: 37% → 46%).
+- **Journal removal (v0.6.3)** — note field gone from the Train tab **and** the Log day editor;
+  Trophies read **33 / 82** with **Milestones** last and no Journal category. `AchievementsTest`
+  asserts `field_notes`/`dear_diary` resolve to null and that no achievement sits in a "Journal"
+  category, on days that still carry notes (the `notes` DB column is kept for old backups).
+- **XP-loss banner always on (v0.6.3)** — both states seen: the penalty copy at 4 skipped days,
+  then the zero state after backfilling those days directly in sqlite, then the rows deleted
+  again. **Not covered by an automated test** — the condition lives in a composable and this
+  project has no Compose/instrumentation tests, only JVM domain tests. Emulator-only evidence.
+- **Burn target = a full day (v0.6.4)** — `burnTarget_isExactlyWhatAFullDayBurns_*` asserts the
+  target equals a perfect day's burn at 60/80/94.35/120 kg (and that the same day is exactly
+  100% completion); `skippedDayThenPerfectDay_netsZero` asserts the pair nets zero. Both fail
+  under the old ~25%-of-BMR target. On-device at 208 lb: banner −721/day and −2884 for 4 days,
+  Burn ring `/ 721`, daily quest "Burn 721 active calories", and a quick-logged full day landed
+  Goals **100%** with Burn **722 / 721** — both rings full at once.
+- **Lint: 3 findings**, unchanged from the v0.6.0 baseline (`OldTargetApi` — targetSdk 36 by
+  choice, `ObsoleteSdkInt`, `IconLauncherShape`). No new findings, no Kotlin warnings on a
+  forced recompile.
+- **Not re-tested this pass:** Room migrations (no schema change) and Health Connect sync.
+
 ## ✅ Verified on emulator (2026-08-06, v0.4.2–v0.5.2 cardio + categories QA pass)
 
 Full pass after the Cardio scoring rework. Every claim below was observed this session, not

@@ -158,8 +158,9 @@ object Progression {
         val sorted = days.sortedBy { it.date }
         val derived = LinkedHashMap<LocalDate, DayDerived>()
 
-        // The one penalty scale: your personal daily burn target (~25% of BMR). Miss it,
-        // lose the gap; skip the day entirely, lose the whole thing.
+        // The one penalty scale: your personal daily burn target, which since v0.6.4 is what a
+        // full day of the six goals burns (7.65 kcal/kg — see Calories.dailyBurnTarget). Miss
+        // it, lose the gap; skip the day entirely, lose exactly what a perfect day would earn.
         val burnTarget = Calories.dailyBurnTarget(profile).toDouble()
 
         var totalXp = 0L
