@@ -10,6 +10,14 @@ it was before. That is the whole point of keeping it.
 
 ---
 
+## v0.6.1 — 2026-08-11
+**Log calendar colors now match the Discipline bar.** The cyan "good day" tile was awarded at
+**60%**; it now needs **80%**, the same completion that earns a Discipline point, so the color
+means something. The dark-purple "partial" tile started at anything above **0%**, which meant
+every single day (one step is enough); it now starts at **20%**, and days below that show the
+empty gray tile. Legend labels updated: "none" → "<20%", "60%+" → "80%+". Display only — no
+scoring, XP, or stat math changed.
+
 ## v0.6.0 — 2026-08-06
 **Whole toolchain to latest stable.** Gradle 8.14.3 → 9.7.0, AGP 8.13.2 → **9.3.1** (a major
 version), Kotlin 2.3.21 → 2.4.10, KSP 2.3.9 → 2.3.11, core-ktx 1.18.0 → 1.19.0, lifecycle

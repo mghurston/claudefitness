@@ -219,7 +219,7 @@ private fun DayCell(
 ) {
     val pct = (completion * 100).roundToInt()
     val fill = if (isFuture) Color(0xFF15151F) else completionColor(completion)
-    val darkText = !isFuture && completion >= 0.6
+    val darkText = !isFuture && completion >= 0.8
     Box(
         modifier
             .aspectRatio(1f)
@@ -244,20 +244,21 @@ private fun DayCell(
     }
 }
 
-// Gold is the top tier (100% = the reward color); cyan marks a strong 60%+ day.
+// Gold is the top tier (100% = the reward color); cyan marks an 80%+ day, the bar
+// that earns a Discipline point. Purple starts at 20% so a stray step isn't a "partial".
 private fun completionColor(c: Double): Color = when {
     c >= 1.0 -> XpGold
-    c >= 0.6 -> AuraCyan
-    c > 0.0 -> ManaPurple.copy(alpha = 0.55f)
+    c >= 0.8 -> AuraCyan
+    c >= 0.2 -> ManaPurple.copy(alpha = 0.55f)
     else -> com.mhurston.ascendant.ui.theme.TrackDark
 }
 
 @Composable
 private fun LegendRow() {
     Row(horizontalArrangement = Arrangement.spacedBy(14.dp)) {
-        LegendDot(completionColor(0.0), "none")
+        LegendDot(completionColor(0.0), "<20%")
         LegendDot(completionColor(0.4), "partial")
-        LegendDot(completionColor(0.7), "60%+")
+        LegendDot(completionColor(0.9), "80%+")
         LegendDot(completionColor(1.0), "100%")
     }
 }
