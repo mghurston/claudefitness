@@ -26,8 +26,9 @@
 > - **DISCIPLINE** = 1 point per day at or above 80% completion, not `× 1.5` (v0.3.7).
 > - **STRENGTH / AGILITY / CONSISTENCY** are as written below.
 >
-> Daily completion itself also changed: its cardio sixth is calories, not miles. See
-> `Scoring Model.md` §1-2.
+> Daily completion itself also changed twice: its cardio goal is calories, not miles (v0.5.0),
+> and the goals are no longer an equal sixth each — cardio is 25% of the day and each lift 15%
+> (v0.6.2), which moves the 80% DISCIPLINE threshold above. See `Scoring Model.md` §1-2.
 
 Defines how the six tracked metrics convert into XP, levels, attributes, and progression. All numbers are tuned against the **actual 30-day data** so the user starts the app already feeling powerful, and so realistic daily effort produces a satisfying-but-not-trivial climb.
 

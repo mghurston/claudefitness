@@ -46,28 +46,30 @@ sort_order    INTEGER
 
 | id | name | category | unit | daily_target | weight |
 |----|------|----------|------|--------------|--------|
-| `pushups` | Push-ups | STRENGTH | REPS | 100 | 1/6 |
-| `squats` | Squats | STRENGTH | REPS | 100 | 1/6 |
-| `leglifts` | Leg Lifts | STRENGTH | REPS | 100 | 1/6 |
-| `calfraises` | Calf Raises | STRENGTH | REPS | 100 | 1/6 |
-| `curls` | Curls | STRENGTH | REPS | 100 | 1/6 |
-| `walking` | Walking | CARDIO | MILES | 5 | 1/6 |
+| `pushups` | Push-ups | STRENGTH | REPS | 100 | 0.15 |
+| `squats` | Squats | STRENGTH | REPS | 100 | 0.15 |
+| `leglifts` | Leg Lifts | STRENGTH | REPS | 100 | 0.15 |
+| `calfraises` | Calf Raises | STRENGTH | REPS | 100 | 0.15 |
+| `curls` | Curls | STRENGTH | REPS | 100 | 0.15 |
+| `walking` | Walking | CARDIO | MILES | 5 | 0.25 |
 
-The `weight` column generalizes the hard-coded `/6` averaging so the formula survives when the user adds custom exercises (see §4).
+The `weight` column generalizes the hard-coded `/6` averaging so the formula survives when the user adds custom exercises (see §4). Those weights were `1/6` each through v0.6.1; since v0.6.2 cardio carries 0.25 because filling it costs ~18x what filling one rep slot does (`Scoring Model.md` §1). They still sum to 1.0.
 
 ---
 
 ## 3. Completion Rate: Preserved Exactly, Then Generalized
 
-> ## ⚠ THE CARDIO TERM CHANGED (v0.5.0) — see `Scoring Model.md` §2
+> ## ⚠ THE CARDIO TERM CHANGED (v0.5.0), THEN THE WEIGHTS DID (v0.6.2) — see `Scoring Model.md` §1-2
 > The five rep terms are exactly as written below. The sixth is no longer `miles / 5`: it is
 > the day's non-strength **calories** over what walking 5 miles burns, so a cycled mile counts
 > for what it actually burns (~a third of a walked one) and bike/swim minutes count at all.
 >
-> Walking is unaffected. The target is defined as the burn of the 5-mile walking goal, so
-> walking 5 miles still scores exactly 1.0 for that slot at any body weight, and a
-> walking-only day reproduces the legacy number identically. `ProgressionTest.completionParity_*`
-> replays sheet days against the legacy values and is unchanged.
+> The target is defined as the burn of the 5-mile walking goal, so walking 5 miles still scores
+> exactly 1.0 for that slot at any body weight.
+>
+> What each slot is worth in the day is no longer uniform: since v0.6.2 the five rep slots are
+> 0.15 each and cardio is 0.25, so the legacy `/6` below no longer reproduces current numbers.
+> `ProgressionTest.completionParity_*` still replays the sheet days, against reweighted values.
 
 **Legacy formula (must reproduce identically for imported days):**
 

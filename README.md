@@ -46,7 +46,7 @@ A single-user, Android-only, offline-first app that replaces a Google Sheets wor
 | 11 | [Deployment Plan.md](docs/Deployment%20Plan.md) | 7 | Toolchain, build steps, phone install, recommended personal-use path |
 | 12 | [Future Enhancements.md](docs/Future%20Enhancements.md) | — | Post-v1 roadmap |
 | + | [XP Simplification Spec.md](docs/XP%20Simplification%20Spec.md) | — | **Authoritative XP model (v0.2.0+)**: burn − target-shortfall + uncapped diet; no multipliers, badges-only quests/achievements |
-| + | [Scoring Model.md](docs/Scoring%20Model.md) | — | **Authoritative scoring (v0.5.1+)**: six-goal completion, Cardio as a calorie goal, custom-exercise categories, attribute formulas, DB/backup schema |
+| + | [Scoring Model.md](docs/Scoring%20Model.md) | — | **Authoritative scoring (v0.6.2+)**: six-goal completion (cardio 25%, lifts 15% each), Cardio as a calorie goal, custom-exercise categories, attribute formulas, DB/backup schema |
 | + | [CHANGELOG.md](docs/CHANGELOG.md) | — | Behavior changes by version, with what each number was before |
 | + | [Video Integration.md](docs/Video%20Integration.md) | 3 | YouTube linking, creators, licensing, API, offline limits |
 | + | [assets/seed_history.csv](docs/assets/seed_history.csv) | 1 | Your 30 days, ready to import on first launch |

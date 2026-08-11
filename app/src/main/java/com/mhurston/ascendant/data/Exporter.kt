@@ -50,7 +50,7 @@ object Exporter {
     /** Original spreadsheet column order, so the file round-trips back to the sheet
      *  (steps/totalmiles/cardiokcal are appended after so the first eight columns stay put).
      *  `miles` is the manual/treadmill entry only; `totalmiles` = miles + step-tracked
-     *  distance — the walking total. `cardiokcal` is what the cardio sixth of completion
+     *  distance — the walking total. `cardiokcal` is what the cardio goal of completion
      *  actually scored, since that goal is calories rather than miles.
      *  Locale-pinned: a comma-decimal device locale must not corrupt the CSV. */
     fun toCsv(

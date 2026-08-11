@@ -65,14 +65,15 @@ class CustomExerciseGoalTest {
     }
 
     @Test
-    fun oneHundredReps_areOneSixthOfTheDay_inEveryRepCategory() {
+    fun oneHundredReps_are15PercentOfTheDay_inEveryRepCategory() {
         val e = day()
         assertEquals("no goal credit before assignment", 0.0,
             Progression.completion(e.toDayData(), profile), 1e-9)
         // A two-slot category is worth 200 reps, so 100 reps fills half of each of its two
-        // slots — the same 1/6 of the day that 100 reps into single-slot Core is worth.
+        // slots — the same one lift-slot, 15% of the day, that 100 reps into single-slot
+        // Core is worth. Which category you point a custom at never changes what it pays.
         listOf(ExerciseGoal.UPPER, ExerciseGoal.CORE, ExerciseGoal.LOWER).forEach { goal ->
-            assertEquals("$goal", 1.0 / 6.0,
+            assertEquals("$goal", Progression.LIFT_WEIGHT,
                 Progression.completion(e.toDayData(spec(goal)), profile), 1e-9)
         }
     }
@@ -311,7 +312,7 @@ class CustomExerciseGoalTest {
         assertEquals("curls column, no assignment", "0", plain[5])
         assertEquals("curls column picks up half the credited custom", "50", credited[5])
         assertEquals("push-ups column picks up the other half", "50", credited[1])
-        assertEquals("completion follows", "0.1667", credited[7])
+        assertEquals("completion follows — one lift slot's worth", "0.1500", credited[7])
     }
 
     @Test

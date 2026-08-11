@@ -10,6 +10,24 @@ it was before. That is the whole point of keeping it.
 
 ---
 
+## v0.6.2 — 2026-08-11
+**Cardio is now worth 25% of the day, each lift 15%.** The six goals were an equal sixth
+(16.7%) apiece, which ignored that they are wildly unequal work: filling cardio (walking 5
+miles) burns ~544 kcal at 90 kg while filling one 100-rep lift burns ~30, an 18:1 gap that
+holds at any body weight. So a day of every lift and no cardio read **83%** and now reads
+**75%**; a 5-mile walk with no lifts read **17%** and now reads **25%**. The weights still
+sum to 1.0, so a full day is still exactly 100%, and every goal is still uncapped.
+
+Not weighted strictly by burn (that would be 78% cardio / 4.3% per lift), because XP already
+pays the full 18:1 — XP is pure calories. Completion is the balance meter, not a second XP
+bar. The five lifts stay equal to each other since the burn model charges every rep the same
+rate regardless of exercise.
+
+**This re-scores history.** Completion is replayed from the log, never stored, so past days
+move too: Log calendar colors shift, and a perfect-day streak now needs cardio to carry a
+quarter of the day rather than a sixth. Nothing about XP, levels, stats, or the calorie model
+changed. Details in `Scoring Model.md` §1.
+
 ## v0.6.1 — 2026-08-11
 **Log calendar colors now match the Discipline bar.** The cyan "good day" tile was awarded at
 **60%**; it now needs **80%**, the same completion that earns a Discipline point, so the color

@@ -32,8 +32,26 @@ object Progression {
     // asking the user first — every prior "small bonus" got ripped out here.
     const val XP_PER_KCAL = 1.0
 
+    // --- Goal weights ---------------------------------------------------------
+    //
+    // The six goals are not equal work. Filling the cardio goal (walking 5 miles) burns
+    // ~544 kcal at 90 kg; filling one 100-rep lift burns ~30. That is 18:1, and it holds at
+    // any body weight because both sides scale with kg. Six equal sixths therefore paid a
+    // full-lifts-no-cardio day 83% and a five-mile-no-lifts day 17%, which is backwards from
+    // what the two days actually cost.
+    //
+    // Weighting strictly by burn would put cardio at 78% and each lift at 4.3%, which just
+    // turns completion into a second XP bar (XP is already pure calories, so the 18:1 is
+    // paid there in full). Completion is the *balance* meter: did you train all six domains
+    // today. So cardio gets a bigger share, not a burn-proportional one.
+    /** Each of the five 100-rep lifts. 5 x 0.15 + CARDIO_WEIGHT = 1.0 exactly. */
+    const val LIFT_WEIGHT = 0.15
+    /** Cardio, the one goal that is a real calorie cost rather than a rep count. */
+    const val CARDIO_WEIGHT = 0.25
+
     /**
-     * Completion ratio 0..n — six equally weighted goals: the five 100-rep lifts plus cardio.
+     * Completion ratio 0..n — six goals: the five 100-rep lifts at [LIFT_WEIGHT] each plus
+     * cardio at [CARDIO_WEIGHT].
      *
      * The first five come straight off the rep columns (Mapping §3). Cardio is the one that
      * changed: it used to be walked miles / 5, which paid a cycled mile the same as a walked
@@ -41,12 +59,15 @@ object Progression {
      * over what walking 5 miles burns (see Calories.cardioFraction), so every kind of cardio
      * counts for exactly what it is worth and walking 5 miles still fills it exactly.
      *
+     * Every goal is still uncapped, so overdrive in one can carry the ring past 100%.
+     *
      * Needs [p] because two of those calorie sources — one-off activities and Health Connect's
      * measured active calories — are absolute numbers rather than body-weight-scaled ones.
      */
     fun completion(d: DayData, p: Profile): Double {
-        return (d.pushups / 100.0 + d.squats / 100.0 + d.legLifts / 100.0 +
-            d.calfRaises / 100.0 + d.curls / 100.0 + Calories.cardioFraction(p, d)) / 6.0
+        val lifts = d.pushups / 100.0 + d.squats / 100.0 + d.legLifts / 100.0 +
+            d.calfRaises / 100.0 + d.curls / 100.0
+        return lifts * LIFT_WEIGHT + Calories.cardioFraction(p, d) * CARDIO_WEIGHT
     }
 
     /** Base XP = calories burned through activity (1 kcal = 1 XP). */

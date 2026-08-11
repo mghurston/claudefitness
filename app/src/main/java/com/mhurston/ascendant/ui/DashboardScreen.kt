@@ -172,8 +172,9 @@ fun DashboardScreen(
 
         Spacer(Modifier.height(20.dp))
         SectionHeader("Today's Training")
-        Caption("100 reps is the goal for each lift; cardio is scored in calories. Every rep " +
-            "and mile burns calories, and calories are XP. Tap a group to log it.")
+        Caption("100 reps is the goal for each lift, worth 15% of the day each; cardio is " +
+            "scored in calories and is worth 25%, because filling it costs far more. Every " +
+            "rep and mile burns calories, and calories are XP. Tap a group to log it.")
         Spacer(Modifier.height(4.dp))
 
         // A pinned custom is assigned to a whole category, not to one exercise slot, so its reps

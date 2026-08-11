@@ -1,7 +1,7 @@
 # Scoring Model (CURRENT)
 
 **Authoritative for daily completion, the Cardio goal, custom-exercise categories, and the
-five attributes, as shipped in v0.5.1 (2026-08-06).** Where a design doc in this folder
+five attributes, as shipped in v0.6.2 (2026-08-11).** Where a design doc in this folder
 disagrees, this file wins. XP itself is specified in `XP Simplification Spec.md`, which this
 does not change.
 
@@ -10,14 +10,31 @@ exercise or correcting a weigh-in re-scores the whole history on the spot.
 
 ---
 
-## 1. Daily completion: six equal goals
+## 1. Daily completion: six goals, cardio worth more
 
 ```
 completion = ( pushups/100 + squats/100 + legLifts/100
-             + calfRaises/100 + curls/100 + cardioFraction ) / 6
+             + calfRaises/100 + curls/100 ) × 0.15
+             + cardioFraction × 0.25
 ```
 
+The six weights sum to exactly 1.0, so a full day still reads 100%.
+
 Uncapped: a 200-rep day scores 2.0 for that slot and the day can exceed 100%.
+
+**Why cardio is 25% and each lift 15% (v0.6.2).** The six goals are not equal work. Filling
+cardio (walking 5 miles) burns ~544 kcal at 90 kg; filling one 100-rep lift burns ~30. That is
+18:1, and it holds at any body weight because both sides scale with kg. Under six equal sixths
+a day of every lift and no cardio read 83% while a 5-mile walk with no lifts read 17%, which is
+backwards from what the two days cost. They now read **75%** and **25%**.
+
+Weighting strictly by burn would put cardio at 78% and each lift at 4.3% — that is not a
+balance meter any more, it is the XP bar, which already pays the full 18:1 (XP is pure
+calories). Completion answers "did you train all six domains today", so cardio gets a bigger
+share, not a burn-proportional one. The lifts stay equal to each other because the burn model
+charges every rep the same rate, so there is nothing to tell a push-up and a calf raise apart.
+
+Constants: `Progression.LIFT_WEIGHT` / `CARDIO_WEIGHT`.
 
 The five rep slots read the totals *after* category credit (see §3). The sixth used to be
 `walkMiles / 5`. Since v0.5.0 it is calories:
@@ -42,9 +59,11 @@ work, while bike and swim minutes earned XP and moved the goal by nothing at all
 | **Excluded** | Reps of any kind. They already have five goals; counting them here would pay them twice |
 
 Because the target is what the 5-mile walking goal burns, **walking 5 miles fills the ring
-exactly, at any body weight, forever**. A walking-only log scores precisely what it did under
-the old miles formula; the parity tests in `ProgressionTest` (`completionParity_*`) are
-unchanged and are the standing proof of that.
+exactly, at any body weight, forever**. A walking-only log still fills exactly the same
+*fraction of the cardio goal* it did under the old miles formula; what that fraction is worth
+in the day changed in v0.6.2 (0.25 rather than 1/6), which is why the `completionParity_*`
+tests in `ProgressionTest` carry reweighted expected values from v0.6.2 on. The cardio term
+itself is untouched.
 
 Implementation: `Calories.cardioKcal` / `cardioTarget` / `cardioFraction`.
 
@@ -60,8 +79,9 @@ nothing (`ExerciseGoal.NONE` = calories only, the original behavior).
 | Lower Body | Squats + Calf Raises (200 reps) | reps split evenly across the pair |
 | Cardio | the calorie goal above | its distance or time, converted to calories (§4) |
 
-100 reps is therefore 1/6 of the day in any rep category: a two-slot category is worth 200
-reps, so 100 fills half of each of its two slots.
+100 reps is therefore 15% of the day in any rep category: a two-slot category is worth 200
+reps, so 100 fills half of each of its two slots. Which category you point a custom at never
+changes what its reps pay.
 
 Credited reps move out of `DayData.customReps` and into the rep columns, so their calories are
 counted exactly once (the per-rep burn is the same either way). Reps left on an exercise that
@@ -129,7 +149,7 @@ Backup schema **5**. Days carry `customDistance` and `customMinutes`; custom exe
 `goal`, `cardioMode`, `cardioRate`, `cardioIntensity`. Every field is optional on restore and
 falls back to its default, so schema 1-4 backups restore with their meaning intact.
 
-CSV export appends `cardiokcal,cardiotarget` after `totalmiles`, since the cardio sixth of
+CSV export appends `cardiokcal,cardiotarget` after `totalmiles`, since the cardio goal of
 completion is no longer readable from the miles column.
 
 ## 7. Invariants to keep

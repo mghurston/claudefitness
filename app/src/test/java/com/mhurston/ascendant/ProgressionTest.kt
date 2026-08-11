@@ -34,16 +34,32 @@ class ProgressionTest {
     }
 
     @Test
+    fun completionWeights_cardioIsAQuarterOfTheDay_liftsAreFifteenPercentEach() {
+        // The v0.6.2 reweighting, stated as the two days that motivated it: every lift done
+        // and no cardio is 75% (it used to read 83%), and the 5-mile walk with no lifts is
+        // 25% (it used to read 17%). Filling cardio burns ~18x what filling one lift does.
+        val allLifts = DayData(LocalDate.parse("2026-08-11"), 100, 100, 100, 100, 100, 0.0)
+        assertEquals(0.75, Progression.completion(allLifts, profile), 0.0001)
+        val walkOnly = DayData(LocalDate.parse("2026-08-11"), 0, 0, 0, 0, 0, 5.0)
+        assertEquals(0.25, Progression.completion(walkOnly, profile), 0.0001)
+        // The six weights must keep summing to exactly 1.0, or a full day stops reading 100%.
+        assertEquals(1.0, 5 * Progression.LIFT_WEIGHT + Progression.CARDIO_WEIGHT, 1e-12)
+    }
+
+    @Test
     fun completionParity_partialDay() {
-        // 2025-06-01: 50/50/50/50/30 + 1.5 mi → (0.5+0.5+0.5+0.5+0.3+0.3)/6 = 0.4333…
+        // 2025-06-01: 50/50/50/50/30 + 1.5 mi → lifts (0.5+0.5+0.5+0.5+0.3) x 0.15 = 0.345,
+        // cardio 0.3 x 0.25 = 0.075 → 0.42.
         val day = DayData(LocalDate.parse("2025-06-01"), 50, 50, 50, 50, 30, 1.5)
-        assertEquals(2.6 / 6.0, Progression.completion(day, profile), 0.0001)
+        assertEquals(0.42, Progression.completion(day, profile), 0.0001)
     }
 
     @Test
     fun completionParity_skipDayWithWalkOnly() {
+        // 3 of the 5 miles → 0.6 of the cardio goal → 0.6 x 0.25 = 15% of the day.
         val day = DayData(LocalDate.parse("2025-06-06"), 0, 0, 0, 0, 0, 3.0)
-        assertEquals((3.0 / 5.0) / 6.0, Progression.completion(day, profile), 0.0001)
+        assertEquals((3.0 / 5.0) * Progression.CARDIO_WEIGHT,
+            Progression.completion(day, profile), 0.0001)
     }
 
     @Test
