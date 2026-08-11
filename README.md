@@ -15,9 +15,9 @@ A single-user, Android-only, offline-first app that replaces a Google Sheets wor
 - **Progression** — calorie-based XP (`dayXp = burn − target-shortfall + diet`, 1 kcal = 1 XP, no multipliers — see `docs/XP Simplification Spec.md`) → levels (1→100), **8 ranks** (E→National-Class), **5 attributes** (STR/END/AGI/DIS/CON), evolving titles. Replayed deterministically from the day log.
 - **Streaks & decay** — strength/activity/perfect streaks (display/badges only, no XP effect), plus permanent inactivity decay: a past day that burns under the personal daily target (~25% of BMR) loses the gap; a skipped day loses the full target.
 - **Quests** — day-aware daily + weekly objectives (badges only, no XP).
-- **Achievements** — **84**, rarity-tiered, retroactive, badges only (no XP payouts).
+- **Achievements** — **82**, rarity-tiered, retroactive, badges only (no XP payouts).
 - **Custom exercises & one-offs** — user-defined side work; burns calories (= XP) without touching the tuned core completion %/stats.
-- **Journal** — per-day free-text notes (mood tracking removed in v0.2.2).
+- **Journal** — removed in v0.6.3 (mood tracking had already gone in v0.2.2). The `notes` DB column is kept so older backups still restore.
 - **Energy** — height/weight, calories burned vs consumed, weight goal + progress.
 - **Form videos** — per-exercise YouTube deep-links opened in an in-app tab, favorites, add-your-own.
 - **Identity** — 4 hero portraits with a rank-evolving aura frame; Orbitron HUD type.
@@ -40,7 +40,7 @@ A single-user, Android-only, offline-first app that replaces a Google Sheets wor
 | 5 | [User Flows.md](docs/User%20Flows.md) | 4 | Six required journeys + edge cases |
 | 6 | [Wireframes.md](docs/Wireframes.md) | 4 | Low-fi layouts for all six screens + overlays |
 | 7 | [Style Guide.md](docs/Style%20Guide.md) | 5 | Color, type, icons, components, animation, art direction, AI image prompts |
-| 8 | [Achievement System.md](docs/Achievement%20System.md) | 2 | Achievements (design ceiling 120; **84 shipped**), rarity, retroactive unlocks |
+| 8 | [Achievement System.md](docs/Achievement%20System.md) | 2 | Achievements (design ceiling 120; **82 shipped**), rarity, retroactive unlocks |
 | 9 | [Leveling System.md](docs/Leveling%20System.md) | 2 | Level curve, 5 attributes, ranks (XP model superseded — see XP Simplification Spec.md) |
 | 10 | [Technical Architecture.md](docs/Technical%20Architecture.md) | 6 | Framework decision (Kotlin + Compose), schema, offline-first, backup |
 | 11 | [Deployment Plan.md](docs/Deployment%20Plan.md) | 7 | Toolchain, build steps, phone install, recommended personal-use path |

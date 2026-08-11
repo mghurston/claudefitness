@@ -46,7 +46,6 @@ data class AchFacts(
     val doubleOverdrive: Boolean,
     val activeDays: Int,
     val loggedDays: Int,
-    val notesDays: Int,      // days with a non-blank note
     val prEvents: Int        // times a metric beat its previous personal best
 ) {
     private fun b(c: Boolean) = if (c) 1 else 0
@@ -64,7 +63,7 @@ object Achievements {
     val CATEGORY_ORDER: List<String> = listOf(
         "Getting Started", "Push-ups", "Squats", "Arms & Core", "Walking",
         "Streaks", "Boss Days", "Levels & Ranks", "Stats", "Mastery",
-        "Personal Records", "Journal"
+        "Personal Records", "Milestones"
     )
 
     val ALL: List<AchDef> =
@@ -187,9 +186,9 @@ object Achievements {
         AchDef("relentless", "Relentless", "Set 25 personal records.", Rarity.EPIC, 25) { it.prEvents },
 
         )) +
-        cat("Journal", listOf(
-        AchDef("field_notes", "Field Notes", "Write a note on 5 days.", Rarity.COMMON, 5) { it.notesDays },
-        AchDef("dear_diary", "Dear Diary", "Write a note on 25 days.", Rarity.RARE, 25) { it.notesDays },
+        // Was "Journal" until v0.6.3, when the note field was removed (never used) and the two
+        // note achievements with it. The two that lived here are milestones, not journal entries.
+        cat("Milestones", listOf(
         AchDef("beyond_sheet", "Beyond the Sheet", "1,000 total logged days.", Rarity.MYTHIC, 1000) { it.loggedDays },
         AchDef("the_collector", "The Collector", "Unlock 50 achievements.", Rarity.LEGENDARY, 50, hidden = true) {
             // Counted post-hoc in evaluate(); placeholder value filled there.
@@ -207,7 +206,6 @@ object Achievements {
         var walkStreak = 0; var longestWalk = 0
         var prevDate: java.time.LocalDate? = null
         var prevOver = false
-        var notesDays = 0
         var prEvents = 0
         // running personal bests per metric (0 = never logged yet)
         var rbP = 0; var rbS = 0; var rbL = 0; var rbC = 0; var rbCu = 0; var rbM = 0.0
@@ -222,7 +220,6 @@ object Achievements {
             if (rbM > 0.0 && d.walkMiles > rbM) prEvents++
             rbP = maxOf(rbP, d.pushups); rbS = maxOf(rbS, d.squats); rbL = maxOf(rbL, d.legLifts)
             rbC = maxOf(rbC, d.calfRaises); rbCu = maxOf(rbCu, d.curls); rbM = maxOf(rbM, d.walkMiles)
-            if (d.notes.isNotBlank()) notesDays++
 
             // Walking achievements read walkMiles (manual/treadmill + step-tracked) — the same
             // total the dashboard, daily goal, and completion use. Manual-only here would let
@@ -262,7 +259,6 @@ object Achievements {
             longestWalkStreak = longestWalk, anyAllSix = anySix,
             overdriveDay = overdrive, doubleOverdrive = doubleOver,
             activeDays = active, loggedDays = sorted.size,
-            notesDays = notesDays,
             prEvents = prEvents
         )
     }

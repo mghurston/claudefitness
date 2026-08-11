@@ -2,7 +2,9 @@
 
 **120 achievements** across 9 categories, plus tiers, rarity, hidden unlocks, and reward rules. Designed so several are **already earned on import** (from the real 30-day data) and the rest form a long ladder targeted at the user's specific weak spots: strength consistency, streaks, and the Wed/Fri/Sat cliffs.
 
-> **Shipped build: 84 achievements** (the `Achievements.ALL` list in `domain/Achievements.kt`).
+> **Shipped build: 82 achievements** (the `Achievements.ALL` list in `domain/Achievements.kt`).
+> The two note badges (Field Notes, Dear Diary) retired with the journal in v0.6.3, and the
+> "Journal" category was renamed **Milestones** for the two non-journal badges left in it.
 > The 120 figure is the original design ceiling; 86 were implemented for v1, then the two mood
 > badges (Self-Aware, Peak State) were retired in **v0.2.2** when mood tracking was removed.
 > The achievements screen reads the live count from code, so it always matches what's built.

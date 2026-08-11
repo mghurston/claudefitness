@@ -50,7 +50,8 @@ Living status doc (created 2026-06-14). Tracks what's verified, what still needs
   each day's diet term. Verified: unlogged day inherited 1800 and paid its diet XP.
 - **Mood tracking removed** (v0.2.2, user verdict "worthless" — write-only data): emoji
   picker gone from Train + day editor, mood achievements retired → **84 trophies**. DB
-  column + backup round-trip preserved. Notes journaling stays.
+  column + backup round-trip preserved. Notes journaling stayed at the time; it went the same
+  way in v0.6.3 (never used once) → **82 trophies**.
 - Unit suite green (25 tests, rewritten for the flat model; seed month → Level 10 / Rank C).
 
 ## ✅ Verified on emulator (2026-08-06, v0.4.2–v0.5.2 cardio + categories QA pass)
@@ -131,7 +132,7 @@ These are expected to work but were never run end-to-end on real hardware:
 ## ☐ Open / not yet built (optional polish, not blocking)
 
 - [ ] Per-rank portrait **art** variants (currently an aura-frame treatment that intensifies with rank, not separate images).
-- [ ] Custom-exercise-specific achievements (PR/notes achievements for the core 5 are done; customs don't feed achievements yet).
+- [ ] Custom-exercise-specific achievements (PR achievements for the core 5 are done; customs don't feed achievements yet).
 - [ ] Orbitron on section titles (currently only big headers/HUD elements).
 - [ ] True Android-12 `SplashScreen` API via `core-splashscreen` — **blocked**: the library isn't in the offline Gradle cache and the network is restricted here. Current approach = native window-theme splash + an in-app tap-to-enter title screen (works offline on all API levels).
 

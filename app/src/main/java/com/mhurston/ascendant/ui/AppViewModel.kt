@@ -197,12 +197,6 @@ class AppViewModel(app: Application) : AndroidViewModel(app) {
 
     fun setWeightToday(weightKg: Double) = setWeightForDate(todayStr(), weightKg)
 
-    // --- journal: notes (any date) --------------------------------------------
-    fun setNotesForDate(date: String, notes: String) =
-        mutateDay(date) { it.copy(notes = notes.take(500)) }
-
-    fun setNotesToday(notes: String) = setNotesForDate(todayStr(), notes)
-
     // --- custom (supplementary) exercises ------------------------------------
     fun addCustomExercise(
         name: String,

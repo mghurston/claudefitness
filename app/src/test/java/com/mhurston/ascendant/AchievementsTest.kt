@@ -37,7 +37,7 @@ class AchievementsTest {
     }
 
     @Test
-    fun personalRecords_andJournal_track() {
+    fun personalRecords_track_andRetiredBadgesStayGone() {
         val days = listOf(
             DayData(LocalDate.parse("2026-01-01"), pushups = 50, notes = "start"),
             DayData(LocalDate.parse("2026-01-02"), pushups = 60, notes = "better"), // PR
@@ -48,9 +48,14 @@ class AchievementsTest {
         val byId = Achievements.evaluate(days, state).associateBy { it.def.id }
         assertTrue("new_best unlocks after a PR", byId["new_best"]?.unlocked == true)
         assertEquals("two PR events counted", 2, byId["record_breaker"]?.current)
-        assertEquals("four notes logged", 4, byId["field_notes"]?.current)
-        // Mood achievements (self_aware, peak_state) were retired with the mood feature.
+        // Mood achievements went with the mood feature; the two note badges went with the
+        // journal in v0.6.3. These days still carry notes (the DB column stays, so old backups
+        // restore) and must earn nothing.
         assertEquals("mood badges are gone", null, byId["self_aware"])
         assertEquals(null, byId["peak_state"])
+        assertEquals("journal badges are gone", null, byId["field_notes"])
+        assertEquals(null, byId["dear_diary"])
+        assertTrue("no achievement is fed by notes any more",
+            Achievements.ALL.none { it.category == "Journal" })
     }
 }

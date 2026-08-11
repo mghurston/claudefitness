@@ -85,31 +85,9 @@ fun RemoveIcon(onClick: () -> Unit) {
             .padding(horizontal = 8.dp, vertical = 4.dp)
     )
 }
-/**
- * Journal block: a free-text note for the day. Notes are kept in local state (keyed by
- * [dateKey]) so per-keystroke persistence doesn't clobber the cursor. (The 1..5 mood
- * selector that used to live here was removed — write-only data, user called it worthless.)
- */
-@Composable
-fun JournalSection(
-    dateKey: String,
-    notes: String,
-    onNotes: (String) -> Unit,
-    modifier: Modifier = Modifier
-) {
-    Column(modifier.fillMaxWidth()) {
-        var text by remember(dateKey) { mutableStateOf(notes) }
-        OutlinedTextField(
-            value = text,
-            onValueChange = { text = it.take(500); onNotes(text) },
-            modifier = Modifier.fillMaxWidth(),
-            label = { Text("Notes (optional)") },
-            placeholder = { Text("PRs, how you felt, what you changed…") },
-            minLines = 2,
-            maxLines = 4
-        )
-    }
-}
+// The per-day journal (a free-text note on the Train tab and in the Log tab's day editor) was
+// removed in v0.6.3: never used once, and the same write-only problem that retired the mood
+// selector before it. The `notes` DB column is kept so old backups still restore cleanly.
 
 @Composable
 fun LabeledBar(

@@ -10,6 +10,27 @@ it was before. That is the whole point of keeping it.
 
 ---
 
+## v0.6.3 — 2026-08-11
+**The XP-loss warning is always on the Train tab.** It used to appear only when you already
+had a trailing gap, so the one time it mattered most (before you skip a day) it was invisible.
+With no gap it now states the rule and says you're current; with a gap the numbers are exactly
+what they were, still counting only the live trailing gap and not locked-in past decay.
+
+**The journal is gone.** The free-text note is removed from the Train tab and from the Log
+tab's day editor. Never used once, and it was the same write-only problem that retired mood
+tracking in v0.2.2. The two note badges (Field Notes, Dear Diary) went with it: **84 trophies
+→ 82**, and the "Journal" achievement category is renamed **Milestones** for the two badges
+left in it (Beyond the Sheet, The Collector), neither of which was ever about notes.
+
+The `notes` database column and its backup/export field are deliberately kept, so a backup
+written before this version still restores cleanly. Notes already saved are simply not shown.
+Nothing else about scoring, XP, or stats changed.
+
+*Checked, not changed:* ENDURANCE. `END = floor(√(miles × 0.75))`, so 269 walk-equivalent
+miles gives √201.75 = 14.2 → **14**, and the info dialog's anchors (1 point at 1.3 mi, 10 at
+133 mi) are both right. It is a square-root curve: doubling the miles multiplies the stat by
+√2, not by 2.
+
 ## v0.6.2 — 2026-08-11
 **Cardio is now worth 25% of the day, each lift 15%.** The six goals were an equal sixth
 (16.7%) apiece, which ignored that they are wildly unequal work: filling cardio (walking 5

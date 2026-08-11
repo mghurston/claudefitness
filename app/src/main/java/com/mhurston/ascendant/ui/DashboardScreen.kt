@@ -60,7 +60,6 @@ fun DashboardScreen(
     onToggleFavVideo: (String) -> Unit,
     onAddUserVideo: (String, String, String) -> Unit,
     modifier: Modifier = Modifier,
-    onSetNotes: (String) -> Unit = {},
     onAddCustomReps: (String, Int) -> Unit = { _, _ -> },
     onAddCustomDistance: (String, Double) -> Unit = { _, _ -> },
     onAddCustomMinutes: (String, Int) -> Unit = { _, _ -> },
@@ -148,17 +147,19 @@ fun DashboardScreen(
         Spacer(Modifier.height(16.dp))
         XpBar(into = c.xpIntoLevel, forNext = c.xpForNextLevel, level = c.level)
 
-        // Only nudge about the live, still-growing trailing gap — past (interior) decay is already
-        // locked in and unstoppable, so showing "log today to stop it" for that would be misleading.
-        if (c.trailingPenaltyXp > 0) {
-            Spacer(Modifier.height(12.dp))
-            // Rate is derived from the actual charge, so per-day × days always equals the total.
-            DecayBanner(
-                idleDays = c.trailingChargedDays,
-                penalty = c.trailingPenaltyXp,
-                perDay = c.trailingPenaltyXp / c.trailingChargedDays.coerceAtLeast(1)
-            )
-        }
+        // Always shown, so the rule is never a surprise. The numbers still describe only the live,
+        // still-growing trailing gap — past (interior) decay is already locked in and unstoppable,
+        // so counting it into "log today to stop it" would be misleading. With no trailing gap the
+        // banner states the rule and says you're current.
+        Spacer(Modifier.height(12.dp))
+        // Rate is derived from the actual charge, so per-day × days always equals the total.
+        DecayBanner(
+            idleDays = c.trailingChargedDays,
+            penalty = c.trailingPenaltyXp,
+            perDay = if (c.trailingPenaltyXp > 0)
+                c.trailingPenaltyXp / c.trailingChargedDays.coerceAtLeast(1)
+            else com.mhurston.ascendant.domain.Calories.dailyBurnTarget(state.profile).toLong()
+        )
 
         Spacer(Modifier.height(20.dp))
         Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(12.dp)) {
@@ -301,21 +302,6 @@ fun DashboardScreen(
         )
 
         Spacer(Modifier.height(20.dp))
-        SectionHeader("Today's Journal")
-        Spacer(Modifier.height(8.dp))
-        Card(
-            Modifier.fillMaxWidth(),
-            colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface)
-        ) {
-            JournalSection(
-                dateKey = today.date,
-                notes = today.notes,
-                onNotes = onSetNotes,
-                modifier = Modifier.padding(14.dp)
-            )
-        }
-
-        Spacer(Modifier.height(16.dp))
         Button(
             onClick = onQuickLog,
             modifier = Modifier.fillMaxWidth(),
@@ -390,9 +376,16 @@ private fun DecayBanner(idleDays: Int, penalty: Long, perDay: Long) {
         Column(Modifier.padding(14.dp)) {
             Text("⚠ You lose XP every day you don't train", color = DangerRed,
                 fontWeight = FontWeight.Bold)
-            Caption("A skipped day costs your daily burn target (−$perDay XP); a partial day " +
-                "costs whatever's left of it. $idleDays skipped day(s) → −$penalty XP, gone for " +
-                "good. Today isn't counted until midnight — log anything to stop the loss.")
+            Caption(
+                "A skipped day costs your daily burn target (−$perDay XP); a partial day costs " +
+                    "whatever's left of it. " +
+                    if (penalty > 0)
+                        "$idleDays skipped day(s) → −$penalty XP, gone for good. Today isn't " +
+                            "counted until midnight — log anything to stop the loss."
+                    else
+                        "You're current: nothing is being lost right now. Today isn't counted " +
+                            "until midnight — log anything to keep it that way."
+            )
         }
     }
 }

@@ -52,7 +52,6 @@ fun CalendarScreen(
     onAddMiles: (String, Double) -> Unit,
     onResetDay: (String) -> Unit,
     modifier: Modifier = Modifier,
-    onSetNotes: (String, String) -> Unit = { _, _ -> },
     onSetConsumed: (String, Int) -> Unit = { _, _ -> },
     onSetWeight: (String, Double) -> Unit = { _, _ -> },
     onAddCustomReps: (String, String, Int) -> Unit = { _, _, _ -> },
@@ -107,7 +106,6 @@ fun CalendarScreen(
             onAddReps = { kind, delta -> onAddReps(date.toString(), kind, delta) },
             onAddMiles = { delta -> onAddMiles(date.toString(), delta) },
             onReset = { onResetDay(date.toString()) },
-            onSetNotes = { n -> onSetNotes(date.toString(), n) },
             onSetConsumed = { v -> onSetConsumed(date.toString(), v) },
             onSetWeight = { kg -> onSetWeight(date.toString(), kg) },
             customExercises = state.allCustomExercises,
@@ -289,7 +287,6 @@ private fun DayEditorDialog(
     onAddReps: (ExerciseKind, Int) -> Unit,
     onAddMiles: (Double) -> Unit,
     onReset: () -> Unit,
-    onSetNotes: (String) -> Unit,
     onSetConsumed: (Int) -> Unit = {},
     onSetWeight: (Double) -> Unit = {},
     carriedWeightKg: Double = 0.0,
@@ -516,12 +513,6 @@ private fun DayEditorDialog(
                         EditRow(label, customReps[ex.id] ?: 0) { onAddCustomReps(ex.id, it) }
                     }
                 Spacer(Modifier.height(12.dp))
-                JournalSection(
-                    dateKey = date.toString(),
-                    notes = e.notes,
-                    onNotes = onSetNotes
-                )
-                Spacer(Modifier.height(8.dp))
                 OutlinedButton(
                     onClick = { confirmReset = true },
                     modifier = Modifier.fillMaxWidth(),
