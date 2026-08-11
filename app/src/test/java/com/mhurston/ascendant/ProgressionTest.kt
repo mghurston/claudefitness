@@ -199,9 +199,9 @@ class ProgressionTest {
         val (s0, _) = Progression.rebuild(listOf(day), LocalDate.parse("2026-01-01"), anchor)
         assertEquals(0L, s0.idlePenaltyXp)
         // 5 days later: today isn't over → 4 fully-missed days, each costing exactly the
-        // profile's daily burn target (450 at the 80 kg default).
+        // profile's daily burn target (612 at the 80 kg default: 7.65 kcal/kg × 80).
         val perDay = Calories.dailyBurnTarget(profile).toLong()
-        assertEquals(450L, perDay)
+        assertEquals(612L, perDay)
         val (s5, _) = Progression.rebuild(listOf(day), LocalDate.parse("2026-01-06"), anchor)
         assertEquals(5, s5.idleDays)
         assertEquals(4L * perDay, s5.idlePenaltyXp)
@@ -211,9 +211,41 @@ class ProgressionTest {
 
     @Test
     fun burnTarget_scalesWithTheBody() {
-        // The penalty scale is personal: a bigger body has a higher BMR → higher daily target.
+        // The penalty scale is personal: a bigger body burns more doing the same goals, so it
+        // has more to lose by skipping.
         assertTrue(Calories.dailyBurnTarget(Profile(weightKg = 96.0)) >
             Calories.dailyBurnTarget(Profile(weightKg = 80.0)))
+    }
+
+    @Test
+    fun burnTarget_isExactlyWhatAFullDayBurns_soAPerfectDayIsNeverPenalized() {
+        // The v0.6.4 rule: what a skipped day costs == what a full day earns. Before this, the
+        // target was ~25% of BMR (450 at 80 kg) while a full day burned 612, so skipping cost
+        // less than a day was worth and 4.2 walked miles alone already cleared it.
+        for (kg in listOf(60.0, 80.0, 94.35, 120.0)) {
+            val p = Profile(weightKg = kg)
+            val perfect = DayData(LocalDate.parse("2026-03-01"), 100, 100, 100, 100, 100, 5.0)
+            val fullDayBurn = Calories.activityBurn(p, perfect)
+            val target = Calories.dailyBurnTarget(p).toDouble()
+            assertEquals("$kg kg: target is a full day's burn", fullDayBurn, target, 1.0)
+            assertTrue("$kg kg: a 100% day must never owe a shortfall", target <= fullDayBurn)
+            assertEquals("$kg kg: and it is exactly 100% completion", 1.0,
+                Progression.completion(perfect, p), 1e-9)
+        }
+    }
+
+    @Test
+    fun skippedDayThenPerfectDay_netsZero() {
+        // What he asked for in so many words: a skipped day should cost what a full day earns.
+        val anchor = LocalDate.parse("2026-03-01")
+        val perfect = DayData(LocalDate.parse("2026-03-02"), 100, 100, 100, 100, 100, 5.0)
+        // 03-01 never logged (charged in full), 03-02 perfect, today is 03-03.
+        val (state, _) = Progression.rebuild(
+            listOf(perfect), LocalDate.parse("2026-03-03"), anchor
+        )
+        val fullDay = Math.round(Calories.activityBurn(profile, perfect))
+        assertEquals("the skipped day costs a full day", fullDay, state.idlePenaltyXp)
+        assertEquals("so the pair nets out", 0L, state.earnedXp - state.idlePenaltyXp)
     }
 
     @Test

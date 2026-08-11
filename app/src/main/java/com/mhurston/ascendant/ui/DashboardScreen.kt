@@ -377,8 +377,8 @@ private fun DecayBanner(idleDays: Int, penalty: Long, perDay: Long) {
             Text("⚠ You lose XP every day you don't train", color = DangerRed,
                 fontWeight = FontWeight.Bold)
             Caption(
-                "A skipped day costs your daily burn target (−$perDay XP); a partial day costs " +
-                    "whatever's left of it. " +
+                "A skipped day costs a full day's work (−$perDay XP — the 5-mile cardio goal " +
+                    "plus 500 reps); a partial day costs whatever's left of it. " +
                     if (penalty > 0)
                         "$idleDays skipped day(s) → −$penalty XP, gone for good. Today isn't " +
                             "counted until midnight — log anything to stop the loss."

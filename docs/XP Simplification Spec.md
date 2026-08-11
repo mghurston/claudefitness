@@ -18,9 +18,21 @@ diet      = (bmr + burn) − caloriesConsumed                  // only when food
 - Exercise more → gain more. Exercise less than your personal daily burn
   target → lose exactly the gap. Eat under your total burn → gain the deficit
   1:1. Eat over it → lose the surplus 1:1. Nothing else touches XP. Ever.
-- `dailyBurnTarget` is the existing `Calories.dailyBurnTarget(profile)`
-  (~25% of BMR, rounded to 25s). It is now the ONLY penalty scale — the
-  ~730 XP `missedDayPenalty` (reverse-gains formula) is deleted.
+- `dailyBurnTarget` is `Calories.dailyBurnTarget(profile)`. It is the ONLY
+  penalty scale — the old `missedDayPenalty` (reverse-gains formula) is deleted.
+  **Amended v0.6.4 (approved 2026-08-11): the target is what a full day of the
+  six goals burns**, `7.65 kcal/kg` (the 5-mile cardio goal at 6.0 + 500 reps at
+  1.65) — 612 at 80 kg, 722 at 94 kg. It was ~25% of BMR (450 / 475), which was
+  set before cardio became a 566 kcal goal in its own right; that left a skipped
+  day costing well under what a day was designed to earn, and 4.2 walked miles
+  with no lifts (21% completion) already cleared it. Now a skipped day costs
+  exactly what a perfect day earns, so skip-then-perfect nets zero. The value is
+  floored, never rounded up, so a 100% day never owes a stray calorie. Note this
+  lands near the old ~730 `missedDayPenalty` by arithmetic, not by reviving it:
+  it is derived from the goal constants, not from a separate formula.
+- The same number is the Hero Burn ring's goal and the daily burn quest's
+  target. One number, three jobs — deliberately, so nothing can drift apart
+  again the way 475 and 566 did.
 - A fully unlogged calendar day scores as `burn = 0, no diet term` →
   loses exactly `dailyBurnTarget`. Same rule, not a separate mechanic.
 - Penalties remain **permanent** (earn it back, don't get it back) and only

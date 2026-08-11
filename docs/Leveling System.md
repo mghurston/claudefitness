@@ -7,7 +7,8 @@
 >
 > - **burn**: gross activity kcal (body-weight-scaled MET), 1 kcal = 1 XP — there are NO
 >   per-rep XP rates and NO walking soft cap (§2 below is design history).
-> - **shortfall**: past days that burn under the personal daily target (~25% of BMR) lose the
+> - **shortfall**: past days that burn under the personal daily target (v0.6.4: what a full day
+>   of the six goals burns, 7.65 kcal/kg — was ~25% of BMR) lose the
 >   gap; fully skipped days lose the whole target (permanent decay).
 > - **diet**: (BMR + burn) − calories eaten, symmetric 1:1, uncapped; the last entered intake
 >   carries forward until changed.

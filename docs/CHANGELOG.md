@@ -10,6 +10,28 @@ it was before. That is the whole point of keeping it.
 
 ---
 
+## v0.6.4 — 2026-08-11
+**A skipped day now costs a full day's work.** The daily burn target was ~25% of BMR — **475**
+at 208 lb — while the Cardio goal alone was **566** and a full six-goal day burned **~722**. So
+skipping a day cost 66% of what a day was designed to earn, and 4.2 walked miles with no lifts
+(21% completion) already cleared the whole penalty. The target is now defined from the goals
+themselves: `7.65 kcal/kg` = the 5-mile cardio goal (6.0) plus 500 reps (1.65). **475 → 722**
+at 208 lb, 450 → 612 at the 80 kg default. Skip a day then have a perfect day and you now net
+exactly zero.
+
+It is floored rather than rounded, so a 100% day always clears it instead of owing a stray
+calorie, and it keys off body weight alone because every goal in the model is weight-scaled —
+that is what makes the match exact.
+
+**One number, three jobs.** The same target drives the Hero **Burn** ring, the daily burn
+quest, and the penalty. Leaving the ring at 475 while the penalty moved would have recreated
+the exact mismatch this fixes, so they all move together. The Burn ring and the burn quest are
+correspondingly harder.
+
+**This re-scores history**, like every scoring change — XP is replayed from the log, never
+stored. Every past day that fell short of the old target now falls further short, so total XP
+and level drop. Nothing about completion %, stats, or the calorie model changed.
+
 ## v0.6.3 — 2026-08-11
 **The XP-loss warning is always on the Train tab.** It used to appear only when you already
 had a trailing gap, so the one time it mattered most (before you skip a day) it was invisible.

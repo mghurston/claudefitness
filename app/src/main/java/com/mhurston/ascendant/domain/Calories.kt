@@ -1,5 +1,7 @@
 package com.mhurston.ascendant.domain
 
+import kotlin.math.floor
+
 enum class Sex { MALE, FEMALE }
 
 data class Profile(
@@ -180,13 +182,30 @@ object Calories {
         )
     }
 
-    /** Personalized daily active-burn goal ≈ 25% of BMR, rounded to a clean 25. Scales with each
-     *  person's body (sex/height/weight/age), so it's right for anyone without hardcoded targets.
-     *  Falls back to a flat default until the profile is filled in. */
+    /** What a full day of the six goals actually burns, per kg of body weight: the cardio goal
+     *  (walking 5 miles at 1.2 kcal/kg/mi = 6.0) plus the five 100-rep lifts (500 reps at
+     *  0.0033 = 1.65). 7.65 kcal/kg, or ~722 for a 94 kg body. Defined from the goal constants,
+     *  so it can never drift away from what the Train tab asks for. */
+    const val FULL_DAY_KCAL_PER_KG =
+        WALK_KCAL_PER_KG_PER_MILE * Progression.MILE_TARGET +
+            STRENGTH_KCAL_PER_KG_PER_REP * Progression.REP_TARGET * 5
+
+    /** The daily active-burn target: **what a full day of the six goals burns** at this body
+     *  weight. One number does three jobs — the Hero Burn ring's goal, the daily burn quest,
+     *  and the only penalty scale (a day with nothing logged loses exactly this).
+     *
+     *  It used to be ~25% of BMR (475 at 94 kg), which was set before cardio became a 566 kcal
+     *  goal in its own right. That left the "cost" of skipping a day well below what a day was
+     *  designed to earn: 4.2 walked miles and no lifts (21% completion) already cleared it. Now
+     *  skipping a day costs exactly what a perfect day earns, so skip-then-perfect nets zero.
+     *
+     *  Body weight is the only input because every goal in the model is weight-scaled, which is
+     *  what makes the identity exact. Floored, never rounded up, so a 100% day always clears it
+     *  rather than owing a stray calorie. Falls back to a flat default with no weight entered. */
     fun dailyBurnTarget(p: Profile): Int {
-        val b = bmr(p)
-        if (b <= 0) return 400
-        return (Math.round(b * 0.25 / 25.0) * 25).toInt().coerceAtLeast(150)
+        val wt = p.weightKg
+        if (wt <= 0) return 400
+        return floor(FULL_DAY_KCAL_PER_KG * wt).toInt().coerceAtLeast(150)
     }
 
     /** Weekly active-burn goal = six daily targets (one rest day allowed). */

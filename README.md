@@ -13,7 +13,7 @@ A single-user, Android-only, offline-first app that replaces a Google Sheets wor
 **What it does:**
 - **Logging** — 5 core exercises (push-ups, squats, leg lifts, calf raises, curls) + walking; one-tap quick-log, per-day editing via a month calendar, **Overdrive** bonus past 100.
 - **Progression** — calorie-based XP (`dayXp = burn − target-shortfall + diet`, 1 kcal = 1 XP, no multipliers — see `docs/XP Simplification Spec.md`) → levels (1→100), **8 ranks** (E→National-Class), **5 attributes** (STR/END/AGI/DIS/CON), evolving titles. Replayed deterministically from the day log.
-- **Streaks & decay** — strength/activity/perfect streaks (display/badges only, no XP effect), plus permanent inactivity decay: a past day that burns under the personal daily target (~25% of BMR) loses the gap; a skipped day loses the full target.
+- **Streaks & decay** — strength/activity/perfect streaks (display/badges only, no XP effect), plus permanent inactivity decay: a past day that burns under the personal daily target loses the gap; a skipped day loses the full target. Since v0.6.4 that target is **what a full day of the six goals burns** (7.65 kcal/kg), so skipping a day costs exactly what a perfect day earns.
 - **Quests** — day-aware daily + weekly objectives (badges only, no XP).
 - **Achievements** — **82**, rarity-tiered, retroactive, badges only (no XP payouts).
 - **Custom exercises & one-offs** — user-defined side work; burns calories (= XP) without touching the tuned core completion %/stats.
