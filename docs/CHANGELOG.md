@@ -10,6 +10,11 @@ it was before. That is the whole point of keeping it.
 
 ---
 
+## v0.6.5 — 2026-08-11
+**No behavior change.** Version-only bump so the delivered APK carries a fresh `versionCode`
+(48 → 49) and installs over whatever is on the phone. Everything in it shipped in v0.6.2–v0.6.4;
+the only code touched since was a stale comment in `Progression.kt` and the docs catch-up.
+
 ## v0.6.4 — 2026-08-11
 **A skipped day now costs a full day's work.** The daily burn target was ~25% of BMR — **475**
 at 208 lb — while the Cardio goal alone was **566** and a full six-goal day burned **~722**. So

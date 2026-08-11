@@ -15,8 +15,8 @@ android {
         // Bump BOTH on every delivered build: versionCode +1 (Android uses this to
         // gate installs — equal/lower is rejected on sideload), versionName as the
         // human label (patch++, rolling 0.1.9 -> 0.2.0).
-        versionCode = 48
-        versionName = "0.6.4"
+        versionCode = 49
+        versionName = "0.6.5"
     }
 
     buildTypes {
