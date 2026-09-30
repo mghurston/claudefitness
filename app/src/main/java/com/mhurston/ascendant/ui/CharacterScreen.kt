@@ -263,8 +263,8 @@ private fun AttrInfo(name: String, color: Color, source: String, formula: String
     }
 }
 
-/** Today's status at a glance — Goals completion, Active Burn, and (when passive sync is on)
- *  passively-tracked Steps. Stacked vertically so they sit beside the hero portrait. */
+/** Today's status at a glance: Goals completion, Active Burn, and Steps (Health Connect
+ *  steps plus logged walking miles at 2000 steps/mi). Stacked vertically so they sit beside the hero portrait. */
 @Composable
 private fun StatusRings(state: UiState, modifier: Modifier = Modifier) {
     val completionPct = Progression.completionPct(state.todayDerived.completion)
@@ -272,7 +272,10 @@ private fun StatusRings(state: UiState, modifier: Modifier = Modifier) {
     val burn = com.mhurston.ascendant.domain.Calories
         .activityBurn(state.profile, state.todayData).roundToInt()
     val burnTarget = com.mhurston.ascendant.domain.Calories.dailyBurnTarget(state.profile)
-    val steps = state.today.passiveSteps
+    // Health Connect steps plus hand-logged walking miles converted back to steps, so a
+    // treadmill walk shows up here too. Miles shown are the same total (walkMiles).
+    val steps = state.today.passiveSteps.coerceAtLeast(0) +
+        (state.today.miles.coerceAtLeast(0.0) * com.mhurston.ascendant.domain.Calories.STEPS_PER_MILE).roundToInt()
     Column(modifier, verticalArrangement = Arrangement.spacedBy(12.dp)) {
         RingStat(
             completion = state.todayDerived.completion,
@@ -296,7 +299,7 @@ private fun StatusRings(state: UiState, modifier: Modifier = Modifier) {
                 label = "👟 Steps",
                 centerLabel = if (steps >= 1000)
                     "%.1fk".format(java.util.Locale.US, steps / 1000.0) else "$steps",
-                centerSub = "≈%.1f mi".format(java.util.Locale.US, state.today.trackedMiles),
+                centerSub = "≈%.1f mi".format(java.util.Locale.US, state.today.walkMiles),
                 color = AuraCyan
             )
         }

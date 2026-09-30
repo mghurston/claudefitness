@@ -10,6 +10,11 @@ it was before. That is the whole point of keeping it.
 
 ---
 
+## v0.6.7 - 2026-09-30
+**Hero Steps ring counts logged walking too.** It used to show only Health Connect steps. It now
+adds hand-logged walking miles at 2,000 steps/mi, and the miles line under it is the full walked
+total. Display only: scoring and XP are unchanged.
+
 ## v0.6.6 - 2026-09-30
 **Completion percent rounds down.** The Log and Hero labels used to round, so a 99.83% day
 (Sep 7) read "100%" while its color, and the 100% badges, correctly treated it as short. Now it
