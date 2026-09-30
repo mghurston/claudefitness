@@ -70,6 +70,10 @@ object Progression {
         return lifts * LIFT_WEIGHT + Calories.cardioFraction(p, d) * CARDIO_WEIGHT
     }
 
+    /** Completion as a whole percent for display. Rounds DOWN so the label can never say
+     *  100% on a day that is short of 1.0: gold, the 100% badges and the label all agree. */
+    fun completionPct(c: Double): Int = kotlin.math.floor(c * 100).toInt()
+
     /** Base XP = calories burned through activity (1 kcal = 1 XP). */
     fun baseXp(p: Profile, d: DayData): Double = Calories.activityBurn(p, d) * XP_PER_KCAL
 
@@ -125,6 +129,12 @@ object Progression {
         level >= 10 -> "Aura Wielder"
         level >= 5 -> "Awakened"
         else -> "Novice"
+    }
+
+    /** Every level where the rank OR the title changes, for the tiers dialog. Titles step
+     *  more often than ranks, so listing only rank changes hid four titles. */
+    fun tierLevels(maxLevel: Int = 100): List<Int> = (1..maxLevel).filter {
+        it == 1 || rankForLevel(it) != rankForLevel(it - 1) || titleForLevel(it) != titleForLevel(it - 1)
     }
 
     private data class LevelInfo(val level: Int, val into: Long, val forNext: Long)

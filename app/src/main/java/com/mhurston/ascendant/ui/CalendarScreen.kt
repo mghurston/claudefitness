@@ -215,7 +215,7 @@ private fun DayCell(
     modifier: Modifier,
     onClick: () -> Unit
 ) {
-    val pct = (completion * 100).roundToInt()
+    val pct = com.mhurston.ascendant.domain.Progression.completionPct(completion)
     val fill = if (isFuture) Color(0xFF15151F) else completionColor(completion)
     val darkText = !isFuture && completion >= 0.8
     Box(
@@ -313,7 +313,7 @@ private fun DayEditorDialog(
     var showOneOff by remember { mutableStateOf(false) }
     var editingOneOff by remember { mutableStateOf<Pair<Int, com.mhurston.ascendant.domain.OneOff>?>(null) }
     val e = entity ?: WorkoutDayEntity(date = date.toString())
-    val pct = (completion * 100).roundToInt()
+    val pct = com.mhurston.ascendant.domain.Progression.completionPct(completion)
 
     if (confirmReset) {
         AlertDialog(

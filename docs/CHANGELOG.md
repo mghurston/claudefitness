@@ -10,6 +10,13 @@ it was before. That is the whole point of keeping it.
 
 ---
 
+## v0.6.6 - 2026-09-30
+**Completion percent rounds down.** The Log and Hero labels used to round, so a 99.83% day
+(Sep 7) read "100%" while its color, and the 100% badges, correctly treated it as short. Now it
+reads 99%. **Rank & title dialog lists every title:** it used to show only the 8 rank levels, so
+Breath Adept (15), Iron Will (25), Crimson Resolve's real start (30, not 35) and Beyond Limits (40)
+were missing. It now shows all 12 breakpoints.
+
 ## v0.6.5 — 2026-08-11
 **No behavior change.** Version-only bump so the delivered APK carries a fresh `versionCode`
 (48 → 49) and installs over whatever is on the phone. Everything in it shipped in v0.6.2–v0.6.4;

@@ -475,4 +475,22 @@ class ProgressionTest {
         assertEquals(1, state.strengthStreak)
         assertEquals(2, state.longestStrengthStreak)
     }
+
+    @Test
+    fun completionPct_neverShows100ForAShortDay() {
+        // Sep 7 in the real log scored 0.998325: it must read 99%, matching its non-gold color.
+        assertEquals(99, Progression.completionPct(0.998325))
+        assertEquals(100, Progression.completionPct(1.0))
+        assertEquals(100, Progression.completionPct(1.0074))
+        assertEquals(46, Progression.completionPct(0.469))
+    }
+
+    @Test
+    fun tierLevels_listEveryTitle() {
+        val tiers = Progression.tierLevels()
+        assertEquals(listOf(1, 5, 10, 15, 20, 25, 30, 35, 40, 50, 75, 100), tiers)
+        // Every title the hero can hold appears in the dialog.
+        val shown = tiers.map { Progression.titleForLevel(it) }.toSet()
+        assertEquals((1..100).map { Progression.titleForLevel(it) }.toSet(), shown)
+    }
 }

@@ -181,7 +181,7 @@ fun CharacterScreen(
 @Composable
 private fun RankTiersDialog(currentLevel: Int, onDismiss: () -> Unit) {
     // Driven by Progression so the dialog can never drift from the real thresholds.
-    val tierLevels = listOf(1, 5, 10, 20, 35, 50, 75, 100)
+    val tierLevels = Progression.tierLevels()
     AlertDialog(
         onDismissRequest = onDismiss,
         title = { Text("Rank & title tiers") },
@@ -267,7 +267,7 @@ private fun AttrInfo(name: String, color: Color, source: String, formula: String
  *  passively-tracked Steps. Stacked vertically so they sit beside the hero portrait. */
 @Composable
 private fun StatusRings(state: UiState, modifier: Modifier = Modifier) {
-    val completionPct = (state.todayDerived.completion * 100).roundToInt()
+    val completionPct = Progression.completionPct(state.todayDerived.completion)
     // Read the carried-forward day the XP engine scored, so burn kcal == burn XP exactly.
     val burn = com.mhurston.ascendant.domain.Calories
         .activityBurn(state.profile, state.todayData).roundToInt()
