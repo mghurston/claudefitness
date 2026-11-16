@@ -10,6 +10,19 @@ it was before. That is the whole point of keeping it.
 
 ---
 
+## v0.6.8 - 2026-11-16
+**Activity is paid once; food is scored against maintenance.** Diet XP was
+`(BMR + activity burn) - eaten`, so every burned calorie paid twice: once as activity XP and
+again as "deficit" (three times on a past day under the burn target, since it also shrank the
+shortfall). Diet XP is now `maintenance - eaten`, where maintenance = BMR x 1.07
+(`Calories.MAINTENANCE_FACTOR`; about 2,000 kcal at 210 lb, age 47). Eating at maintenance, a
+past day breaks even at half a full day's burn. **Levels drop on install** because the whole log
+is replayed: the Nov 16 backup goes from about level 20 to about level 11.
+**Energy tab:** the card used to read "Calories burned / resting / activity / Deficit (net)". It
+now reads "Maintenance / Calories consumed / Under or Over maintenance / Activity burned today",
+so the bottom line is the same number the day's diet XP uses. Full reasoning in
+`XP Simplification Spec.md` (v0.6.8 amendment).
+
 ## v0.6.7 - 2026-09-30
 **Hero Steps ring counts logged walking too.** It used to show only Health Connect steps. It now
 adds hand-logged walking miles at 2,000 steps/mi, and the miles line under it is the full walked

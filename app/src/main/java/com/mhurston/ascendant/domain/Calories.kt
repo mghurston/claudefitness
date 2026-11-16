@@ -33,9 +33,9 @@ data class Profile(
 data class EnergyEstimate(
     val bmr: Int,
     val activityBurn: Int,
-    val totalBurn: Int,
+    val maintenance: Int, // BMR x MAINTENANCE_FACTOR: what the food entry is scored against
     val consumed: Int,
-    val net: Int // consumed - totalBurn (>0 surplus, <0 deficit)
+    val net: Int // consumed - maintenance (>0 over, <0 under); the day's diet XP, sign flipped
 )
 
 /** Calorie estimates: Mifflin–St Jeor BMR + activity from the day's logged work. */
@@ -172,13 +172,13 @@ object Calories {
     fun estimate(p: Profile, day: DayData, consumed: Int): EnergyEstimate {
         val b = bmrFor(p, day)
         val a = activityBurn(p, day)
-        val total = b + a
+        val m = maintenanceFor(p, day)
         return EnergyEstimate(
             bmr = Math.round(b).toInt(),
             activityBurn = Math.round(a).toInt(),
-            totalBurn = Math.round(total).toInt(),
+            maintenance = Math.round(m).toInt(),
             consumed = consumed,
-            net = Math.round(consumed - total).toInt()
+            net = Math.round(consumed - m).toInt()
         )
     }
 
@@ -211,12 +211,32 @@ object Calories {
     /** Weekly active-burn goal = six daily targets (one rest day allowed). */
     fun weeklyBurnTarget(p: Profile): Int = dailyBurnTarget(p) * 6
 
-    /** Calorie deficit for a day (total burn − consumed), positive when in a deficit.
-     *  Zero when no food was logged (consumed == -1) — we can't claim a deficit we can't see.
-     *  An explicit 0 is a logged fasting day and earns the full deficit. */
-    fun deficit(p: Profile, day: DayData): Double {
+    /** Maintenance = resting burn (BMR) x this. It is the line the food entry is scored
+     *  against: eat under it and gain XP, over it and lose XP.
+     *
+     *  1.07, not the textbook 1.2 "sedentary" multiplier, on purpose. The textbook figure
+     *  includes everyday walking around, and this app already pays every step as activity XP,
+     *  so 1.2 would count those steps twice. What is left is mostly the cost of digesting food.
+     *  The exact value was fitted to the user's own log (approved 2026-11-16): about 2,000 kcal
+     *  eaten with a flat body weight at a 1,866 BMR. Because it multiplies BMR, maintenance
+     *  still moves with weight, height, age and sex. */
+    const val MAINTENANCE_FACTOR = 1.07
+
+    /** Maintenance calories for [p] (see [MAINTENANCE_FACTOR]). */
+    fun maintenance(p: Profile): Double = bmr(p) * MAINTENANCE_FACTOR
+
+    /** Maintenance for a specific day, using that day's body weight (see [weightFor]). */
+    fun maintenanceFor(p: Profile, day: DayData): Double = bmrFor(p, day) * MAINTENANCE_FACTOR
+
+    /** The diet half of a day's XP: maintenance minus calories eaten. Positive eating under
+     *  maintenance, negative over it. Zero when no food was logged (consumed == -1): we can't
+     *  score food we can't see. An explicit 0 is a logged fasting day and earns all of it.
+     *
+     *  Activity burn is deliberately NOT in here (v0.6.8). This used to be
+     *  (BMR + activity) - eaten, which paid every burned calorie twice: once as activity XP
+     *  and again as "deficit". Ordinary daily steps then cleared break-even with no workout. */
+    fun dietXp(p: Profile, day: DayData): Double {
         if (day.caloriesConsumed < 0) return 0.0
-        val total = bmrFor(p, day) + activityBurn(p, day)
-        return total - day.caloriesConsumed
+        return maintenanceFor(p, day) - day.caloriesConsumed
     }
 }

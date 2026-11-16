@@ -169,23 +169,26 @@ fun EnergyScreen(
             colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface)
         ) {
             Column(Modifier.padding(20.dp)) {
-                Stat("Calories burned", "${est.totalBurn} kcal", XpGold)
-                Stat("  • resting (BMR)", "${est.bmr} kcal", TextDim)
-                Stat("  • activity", "${est.activityBurn} kcal", TextDim)
+                Stat("Maintenance", "${est.maintenance} kcal", XpGold)
+                Stat("  • resting (BMR) x 1.07", "${est.bmr} kcal", TextDim)
                 Spacer(Modifier.height(8.dp))
                 Stat("Calories consumed", "${est.consumed} kcal", AuraCyan)
                 Spacer(Modifier.height(8.dp))
-                val surplus = est.net > 0
+                // The same number the day's diet XP uses, so the screen and the XP agree.
+                val over = est.net > 0
                 Stat(
-                    if (surplus) "Surplus (net)" else "Deficit (net)",
-                    "${if (surplus) "+" else ""}${est.net} kcal",
-                    if (surplus) DangerRed else AuraCyan
+                    if (over) "Over maintenance" else "Under maintenance",
+                    "${if (over) "+" else ""}${est.net} kcal",
+                    if (over) DangerRed else AuraCyan
                 )
+                Spacer(Modifier.height(8.dp))
+                Stat("Activity burned today", "${est.activityBurn} kcal", TextDim)
             }
         }
         Spacer(Modifier.height(12.dp))
-        Caption("Estimates only. BMR via Mifflin–St Jeor; walking burn scales with your " +
-                "body weight and miles. Activity is pulled from what you logged today.")
+        Caption("Estimates only. BMR via Mifflin–St Jeor. Food is scored against maintenance: " +
+                "eat under it to gain XP, over it to lose XP. Activity earns its own XP and " +
+                "is not part of the food comparison.")
 
         Spacer(Modifier.height(20.dp))
         HealthConnectCard(

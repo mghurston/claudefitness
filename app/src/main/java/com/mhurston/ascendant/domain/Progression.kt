@@ -23,10 +23,15 @@ object Progression {
     // burn      = Calories.activityBurn — gross activity kcal, 1 kcal = 1 XP.
     // shortfall = max(0, dailyBurnTarget − burn) — charged on past days only (today can
     //             still be logged); a fully unlogged day loses the full target.
-    // diet      = (BMR + burn) − consumed — symmetric 1:1, UNCAPPED. Eat under your burn →
-    //             gain; over → lose. Intake carries forward until changed (carryForward), so
-    //             the value you last entered keeps applying; before any entry there is no
-    //             diet term (Calories.deficit returns 0 for the -1 sentinel).
+    // diet      = maintenance − consumed, symmetric 1:1, UNCAPPED. Maintenance is BMR x 1.07
+    //             (Calories.MAINTENANCE_FACTOR). Eat under it → gain; over → lose. Activity is
+    //             NOT in this term (v0.6.8): it is already paid as burn, and having it here too
+    //             paid it twice. Intake carries forward until changed (carryForward), so the
+    //             value you last entered keeps applying; before any entry there is no diet
+    //             term (Calories.dietXp returns 0 for the -1 sentinel).
+    //
+    // Net effect: eating at maintenance, a past day breaks even at HALF a full day's burn.
+    // Under half loses, over half gains.
     //
     // There are deliberately NO multipliers, bonuses, or caps. Do not add any without
     // asking the user first — every prior "small bonus" got ripped out here.
@@ -97,11 +102,11 @@ object Progression {
         }
     }
 
-    /** XP for a day = burn + diet: calories burned (1:1) plus the signed diet term —
-     *  Calories.deficit is > 0 under your total burn (gain), < 0 over it (lose), 0 when no
+    /** XP for a day = burn + diet: calories burned (1:1) plus the signed diet term.
+     *  Calories.dietXp is > 0 eating under maintenance (gain), < 0 over it (lose), 0 when no
      *  food was logged. Uncapped both ways, so the day can be negative. */
     private fun dayXp(p: Profile, d: DayData): Long =
-        Math.round(baseXp(p, d) + Calories.deficit(p, d))
+        Math.round(baseXp(p, d) + Calories.dietXp(p, d))
 
     /** XP required to advance FROM level n to n+1 (Leveling §4). */
     fun xpToNext(n: Int): Long = Math.round(100.0 * Math.pow(n.toDouble(), 1.5))

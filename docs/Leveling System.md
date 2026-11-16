@@ -10,8 +10,9 @@
 > - **shortfall**: past days that burn under the personal daily target (v0.6.4: what a full day
 >   of the six goals burns, 7.65 kcal/kg — was ~25% of BMR) lose the
 >   gap; fully skipped days lose the whole target (permanent decay).
-> - **diet**: (BMR + burn) − calories eaten, symmetric 1:1, uncapped; the last entered intake
->   carries forward until changed.
+> - **diet**: maintenance (BMR × 1.07) − calories eaten, symmetric 1:1, uncapped; the last
+>   entered intake carries forward until changed. Activity is not in this term (v0.6.8): it
+>   used to be, which paid every burned calorie twice.
 > - **§3 multipliers are ALL removed.** Quests and achievements pay no XP (badges only).
 >
 > Still accurate below: the level curve (§4, `100 × n^1.5`), ranks & titles

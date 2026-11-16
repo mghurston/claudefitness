@@ -144,14 +144,52 @@ class ProgressionTest {
     }
 
     @Test
-    fun fastedDay_earnsItsFullDeficitAsXp() {
+    fun fastedDay_earnsItsMaintenanceAsDietXp() {
         val day = DayData(LocalDate.parse("2026-04-12"), 100, 100, 100, 100, 100, 5.0)
-        val burn = Progression.baseXp(profile, day)
-        val total = Calories.bmrFor(profile, day) + burn
+        val maintenance = Calories.maintenanceFor(profile, day)
         val (unlogged, _) = Progression.rebuild(listOf(day))
         val (fasted, _) = Progression.rebuild(listOf(day.copy(caloriesConsumed = 0)))
-        // A logged fast (0) adds the entire total burn as diet XP on top of the activity burn.
-        assertEquals(total, (fasted.earnedXp - unlogged.earnedXp).toDouble(), 1.0)
+        // A logged fast (0) adds maintenance as diet XP. The activity burn is already paid as
+        // activity XP, so it is not added a second time.
+        assertEquals(maintenance, (fasted.earnedXp - unlogged.earnedXp).toDouble(), 1.0)
+    }
+
+    @Test
+    fun maintenance_isBmrTimesTheFactor_andMovesWithBodyWeight() {
+        assertEquals(1.07, Calories.MAINTENANCE_FACTOR, 1e-12)
+        assertEquals(Calories.bmr(profile) * 1.07, Calories.maintenance(profile), 1e-9)
+        assertTrue("a lighter body has a lower maintenance",
+            Calories.maintenance(profile.copy(weightKg = 70.0)) < Calories.maintenance(profile))
+    }
+
+    @Test
+    fun activityIsPaidOnce_evenWithFoodLogged() {
+        // v0.6.8: the diet term used to be (BMR + burn) - eaten, so with any intake in effect
+        // every burned calorie paid twice. Adding a walk must raise the day by its burn, 1:1.
+        val rest = DayData(LocalDate.parse("2026-04-13"), caloriesConsumed = 2000)
+        val walked = rest.copy(miles = 5.0)
+        val burn = Progression.baseXp(profile, walked)
+        val (a, _) = Progression.rebuild(listOf(rest))
+        val (b, _) = Progression.rebuild(listOf(walked))
+        assertEquals(burn, (b.earnedXp - a.earnedXp).toDouble(), 1.0)
+    }
+
+    @Test
+    fun eatingAtMaintenance_breakEvenIsHalfAFullDay() {
+        // The rule as the user states it: under half a full day's burn loses XP, half breaks
+        // even, over half gains. Holds when intake equals maintenance (diet term = 0).
+        val anchor = LocalDate.parse("2026-04-01")
+        val today = LocalDate.parse("2026-04-02")
+        val eaten = Math.round(Calories.maintenance(profile)).toInt()
+        val target = Calories.dailyBurnTarget(profile)
+        fun xpAtBurn(kcal: Double): Long {
+            val day = DayData(anchor, miles = kcal / Calories.walkKcal(profile.weightKg, 1.0),
+                caloriesConsumed = eaten)
+            return Progression.rebuild(listOf(day), today, anchor).second[anchor]!!.xp
+        }
+        assertEquals(0.0, xpAtBurn(target / 2.0).toDouble(), 1.0)
+        assertTrue("a quarter day loses", xpAtBurn(target / 4.0) < -100)
+        assertTrue("three quarters gains", xpAtBurn(target * 0.75) > 100)
     }
 
     @Test

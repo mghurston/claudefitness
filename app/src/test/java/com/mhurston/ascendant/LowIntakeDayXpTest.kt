@@ -15,7 +15,9 @@ import java.time.LocalDate
  * deficit, or does the day still gain?
  *
  * Answer, locked in below: it gains, decisively. For a 90.7 kg (200 lb) body the diet term is
- * worth ~5x the shortfall, so a 28.5%-completion day on 500 kcal is +1773 XP. That is the
+ * worth ~4.5x the shortfall, so a 28.5%-completion day on 500 kcal is +1553 XP (it was +1773
+ * until v0.6.8, when the diet term stopped re-counting the activity burn and became
+ * maintenance minus eaten). That is the
  * approved model (docs/XP Simplification Spec.md — symmetric, UNCAPPED diet), not a bug: the
  * user was shown these exact numbers, was offered an intake floor, and declined it. If a change
  * makes this file fail, the model changed — go ask before "fixing" the test.
@@ -36,7 +38,7 @@ class LowIntakeDayXpTest {
     /** Every term of `dayXp = burn − shortfall + diet` for one day, plus the engine's own total. */
     private data class Score(
         val burn: Double,      // Calories.activityBurn — the 1:1 XP base
-        val diet: Double,      // (BMR + burn) − eaten; +ve under, −ve over
+        val diet: Double,      // maintenance − eaten; +ve under, −ve over
         val shortfall: Long,   // max(0, dailyBurnTarget − burn), past days only
         val completion: Double,
         val xp: Long           // what Progression.rebuild actually banked
@@ -50,7 +52,7 @@ class LowIntakeDayXpTest {
         val (_, derived) = Progression.rebuild(listOf(d), today, anchor, profile)
         return Score(
             burn = burn,
-            diet = Calories.deficit(profile, d),
+            diet = Calories.dietXp(profile, d),
             shortfall = shortfall,
             completion = Progression.completion(d, profile),
             xp = derived.getValue(d.date).xp
@@ -70,26 +72,26 @@ class LowIntakeDayXpTest {
         // The components, so a failure says WHICH half moved.
         assertEquals("daily burn target", 693, Calories.dailyBurnTarget(profile))
         assertEquals("activity burn", 353.5, s.burn, 0.5)
-        assertEquals("diet term", 1758.7, s.diet, 0.5)
+        assertEquals("diet term", 1538.5, s.diet, 0.5)
         assertEquals("shortfall for the 71.5% of goals skipped", 339L, s.shortfall)
         assertEquals("completion", 0.285, s.completion, 0.001)
 
-        assertEquals("day XP", 1773L, s.xp)
+        assertEquals("day XP", 1553L, s.xp)
         assertTrue("a big deficit must out-earn the training shortfall", s.diet > s.shortfall * 4)
     }
 
     @Test
     fun sameDayWhileStillToday_isNotChargedTheShortfall() {
         // Today is never charged for goals still reachable, so it reads 339 higher until midnight.
-        assertEquals(2112L, scoreDay(partialTrainingDay(today)).xp)
+        assertEquals(1892L, scoreDay(partialTrainingDay(today)).xp)
     }
 
     @Test
     fun withoutTheDeficit_theSameTrainingIsANegativeDay() {
-        // Identical training, maintenance-ish intake: the shortfall is now unopposed.
+        // Identical training, eating over maintenance: the shortfall is now unopposed.
         val s = scoreDay(partialTrainingDay(yesterday, eaten = 2400))
-        assertEquals(-127L, s.xp)
-        assertTrue("eating over total burn must cost XP", s.diet < 0)
+        assertEquals(-347L, s.xp)
+        assertTrue("eating over maintenance must cost XP", s.diet < 0)
     }
 
     @Test
@@ -99,7 +101,7 @@ class LowIntakeDayXpTest {
         val nothingLogged = DayData(date = yesterday, caloriesConsumed = 500, weightKg = kg)
         val s = scoreDay(nothingLogged)
         assertEquals("full target charged — nothing was trained", 693L, s.shortfall)
-        assertEquals(712L, s.xp)
+        assertEquals(846L, s.xp)
     }
 
     @Test
@@ -112,7 +114,7 @@ class LowIntakeDayXpTest {
         val s = scoreDay(perfect)
         assertEquals("a 100% day owes nothing", 0L, s.shortfall)
         assertEquals(1.0, s.completion, 0.001)
-        assertEquals(2793L, s.xp)
+        assertEquals(2233L, s.xp)
         assertTrue(s.xp > scoreDay(partialTrainingDay(yesterday)).xp)
     }
 }

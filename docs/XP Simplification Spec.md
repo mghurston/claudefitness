@@ -12,12 +12,32 @@ dayXp = burn − shortfall + diet
 
 burn      = Calories.activityBurn(profile, day)              // gross kcal, 1 kcal = 1 XP, unchanged
 shortfall = max(0, dailyBurnTarget − burn)                   // past days only; today is never charged
-diet      = (bmr + burn) − caloriesConsumed                  // only when food logged; 1:1, UNCAPPED, signed
+diet      = maintenance − caloriesConsumed                   // only when food logged; 1:1, UNCAPPED, signed
+maintenance = bmr × 1.07                                     // Calories.MAINTENANCE_FACTOR
 ```
 
 - Exercise more → gain more. Exercise less than your personal daily burn
-  target → lose exactly the gap. Eat under your total burn → gain the deficit
-  1:1. Eat over it → lose the surplus 1:1. Nothing else touches XP. Ever.
+  target → lose exactly the gap. Eat under maintenance → gain the difference
+  1:1. Eat over it → lose the difference 1:1. Nothing else touches XP. Ever.
+- **Amended v0.6.8 (approved 2026-11-16): the diet term no longer contains the
+  activity burn.** It was `(bmr + burn) − caloriesConsumed`, which paid every
+  burned calorie twice: once as `burn` and again inside the "deficit". On a past
+  day under the target it was effectively 3x, because the same calorie also
+  shrank the shortfall. At a steady 2,000 kcal intake that put break-even near
+  39% of a full day's burn, which about 5,000 everyday steps cleared with no
+  workout: the user gained XP on 115 of 155 scored days and reached level 20
+  while reporting no physical change. Now activity is paid once, and food is
+  scored against maintenance, which is how calorie trackers do it (intake vs
+  total daily burn, exercise counted once).
+- **Why 1.07 and not the textbook 1.2.** The 1.2 "sedentary" multiplier includes
+  everyday walking around, and this app already pays every step as `burn`, so
+  1.2 would count those steps twice again. 1.07 was fitted to the user's own
+  log: about 2,000 kcal eaten with a flat body weight at a 1,866 BMR. Because it
+  multiplies BMR, maintenance still moves with weight, height, age and sex.
+- **Break-even is half a full day.** Eating at maintenance, a past day that
+  burns half of `dailyBurnTarget` nets zero; under half loses, over half gains.
+- The Energy tab's bottom line shows the same comparison ("Under / Over
+  maintenance"), so the number on screen is the day's diet XP.
 - `dailyBurnTarget` is `Calories.dailyBurnTarget(profile)`. It is the ONLY
   penalty scale — the old `missedDayPenalty` (reverse-gains formula) is deleted.
   **Amended v0.6.4 (approved 2026-08-11): the target is what a full day of the
@@ -94,7 +114,7 @@ In `domain/Progression.kt`:
 
 ## Accepted consequences — do NOT "fix" these
 - **Uncapped diet XP dominates on fasting/deep-deficit days.** A fasted day
-  at ~1,900 kcal total burn earns ~1,900 diet XP even with zero exercise.
+  earns its whole maintenance (~2,000) as diet XP even with zero exercise.
   User explicitly chose symmetric-uncapped. Leave it.
 - **Day XP is frequently negative** (surplus + missed target). Fine —
   effective XP already floors at 0 globally (`coerceAtLeast(0)`), keep that.
@@ -108,8 +128,8 @@ In `domain/Progression.kt`:
 - `domain/Achievements.kt` — delete unlockedXp; rarity display-only.
 - `domain/Models.kt` — drop questBonusXp/achievementBonusXp from
   CharacterState.
-- `domain/Calories.kt` — unchanged (gross MET model is settled; `deficit()`
-  stays as-is and is now used 1:1).
+- `domain/Calories.kt`: gross MET model is settled. (v0.6.8: `deficit()` was
+  replaced by `dietXp()` = maintenance − consumed; see the amendment above.)
 - UI: `CharacterScreen.kt` (bonus caption, any multiplier text),
   `AchievementsScreen.kt` (bonus XP total), quest cards' XP labels,
   `AppText.kt` / `Components.kt` / `DashboardScreen.kt` /
@@ -124,7 +144,8 @@ In `domain/Progression.kt`:
   3. unlogged past day loses exactly dailyBurnTarget.
   4. diet symmetric: +300 deficit → +300 XP; −300 surplus → −300 XP; unlogged
      food → 0 diet term (no inheritance from yesterday).
-  5. fasted day (consumed = 0) earns bmr+burn as diet XP.
+  5. fasted day (consumed = 0) earns maintenance as diet XP (was bmr+burn
+     before v0.6.8).
   6. rebuildFull == rebuild + one achievements pass; no XP delta between them.
 - No DB schema change expected (sentinels unchanged) — if one sneaks in,
   bump DB version with a migration as usual.
